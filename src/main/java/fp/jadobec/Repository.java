@@ -217,7 +217,6 @@ public class Repository implements AutoCloseable {
 
             return result;
         } catch (Exception e) {
-            //logger.error("Update error", e);
             return Left.of(
                 Failure.of(e.getClass().getSimpleName(), Failure.EXCEPTION, e)
             );
@@ -230,10 +229,9 @@ public class Repository implements AutoCloseable {
         }
     }
 
-/*
     public <T> Either<Failure, T> runInTransaction(
-            Supplier<Either<Failure, T>> supplier
-            ) {
+        Supplier<Either<Failure, T>> supplier
+    ) {
         try {
             conn.setAutoCommit(false);
             Either<Failure, T> result = supplier.get();
@@ -246,20 +244,18 @@ public class Repository implements AutoCloseable {
 
             return result;
         } catch (SQLException e) {
-            logger.error("A tranzakció nem futott le.", e);
             try {
                 conn.rollback();
             } catch (SQLException e1) {
-                logger.error("A tranzakció visszavonás sem futott le.", e);
             }
-            return Left.of(new Failures.SqlQueryFailed());
+            return Left.of(
+                Failure.of(e.getClass().getSimpleName(), Failure.EXCEPTION, e)
+            );
         } finally {
             try {
                 conn.setAutoCommit(true);
             } catch (SQLException e) {
-                logger.error("Az autocommit visszaállítsa nem futott le", e);
             }
         }
     }
-*/
 }

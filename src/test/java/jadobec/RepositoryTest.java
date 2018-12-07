@@ -118,6 +118,65 @@ public class RepositoryTest {
         assertTrue(repositoryOrFailure.right().isPresent());
     }
 
+    @Test
+    public void testGoodTransaction() {
+        final Either<Failure, Repository> repositoryOrFailure = loadRepository()
+        .forEach(repository -> {
+            fill(repository);
+
+            repository.runInTransaction(() ->
+                    repository.updatePrepared(
+                        "UPDATE person SET name='Jake Doe' WHERE id = ?",
+                        ps -> ps.setInt(1, 2)
+                    ).flatMap(id ->
+                        repository.updatePrepared(
+                            "UPDATE person SET name='Jare Doe' WHERE id = ?",
+                            ps -> ps.setInt(1, 2)
+                    ))
+            );
+            final Either<Failure, Person> personOrFailure =
+                repository.querySingleAs(
+                    Person.class,
+                    "SELECT id, name, age FROM person p WHERE id = 2"
+                );
+            repository.close();
+
+            assertEquals(Right.of(new Person(2, "Jare Doe", 28)), personOrFailure);
+        });
+
+        assertTrue(repositoryOrFailure.right().isPresent());
+    }
+
+    @Test
+    public void testBadTransaction() {
+        final Either<Failure, Repository> repositoryOrFailure = loadRepository()
+        .forEach(repository -> {
+            fill(repository);
+
+            repository.runInTransaction(() ->
+                    repository.updatePrepared(
+                        "UPDATE person SET name='Jake Doe' WHERE id = ?",
+                        ps -> ps.setInt(1, 2)
+                    ).flatMap(id ->
+                        repository.updatePrepared(
+                            "UPDATE pperson SET name='Jare Doe' WHERE id = ?",
+                            ps -> ps.setInt(1, 2)
+                        )
+                    )
+            );
+            final Either<Failure, Person> personOrFailure =
+                repository.querySingleAs(
+                    Person.class,
+                    "SELECT id, name, age FROM person p WHERE id = 2"
+                );
+            repository.close();
+
+            assertEquals(Right.of(new Person(2, "Jane Doe", 28)), personOrFailure);
+        });
+
+        assertTrue(repositoryOrFailure.right().isPresent());
+    }
+
     private static Either<Failure, Repository> loadRepository() {
         return Repository.load(
             "org.h2.Driver",
