@@ -75,7 +75,7 @@ public class Repository implements AutoCloseable {
     }
 
 /*
-    public <T> Either<Failure, Stream<T>> query(
+    public <T> Either<Failure, Stream<T>> queryPrepared(
             String sql,
             ThrowingFunction<ResultSet, T, SQLException> createObject
             ) {
@@ -103,7 +103,7 @@ public class Repository implements AutoCloseable {
             } catch (SQLException e) {
             }
         }
-            }
+    }
 */
 
     public <T> Either<Failure, T> querySingle(
