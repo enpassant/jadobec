@@ -31,18 +31,15 @@ public class Repository implements AutoCloseable {
             if (conn != null)
                 conn.close();
         } catch (SQLException e) {
-            //logger.error("close error", e);
         }
     }
 
     public void openConnection() {
         try {
             if (conn.isClosed()) {
-                //logger.error("Az adatbázis kapcsolat megszakadt, újrakapcsolódás.");
                 conn = DriverManager.getConnection(connectionUrl);
             }
         } catch (SQLException e) {
-            //logger.error("openConnection error", e);
         }
     }
 
@@ -64,7 +61,6 @@ public class Repository implements AutoCloseable {
             rs.close();
             return Right.of(new Repository(conn, connectionUrl));
         } catch (Exception e) {
-            //logger.error("load error", e);
             return Left.of(
                 Failure.of(e.getClass().getSimpleName(), Failure.EXCEPTION, e)
             );
@@ -99,14 +95,12 @@ public class Repository implements AutoCloseable {
 
             return Right.of(builder.build());
         } catch (Exception e) {
-            logger.error("Query error", e);
             return Left.of(new Failures.SqlQueryFailed());
         } finally {
             try {
                 if (stmt != null)
                     stmt.close();
             } catch (SQLException e) {
-                logger.error("Query close error", e);
             }
         }
             }
@@ -177,7 +171,6 @@ public class Repository implements AutoCloseable {
                 Left.of(Failure.of("SqlQueryFailed")) :
                 Right.of(createdObject);
         } catch (Exception e) {
-            //logger.error("Query single error", e);
             return Left.of(
                 Failure.of(e.getClass().getSimpleName(), Failure.EXCEPTION, e)
             );
@@ -186,7 +179,6 @@ public class Repository implements AutoCloseable {
                 if (stmt != null)
                     stmt.close();
             } catch (SQLException e) {
-                //logger.error("Query single close error", e);
             }
         }
     }
