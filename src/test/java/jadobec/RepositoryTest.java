@@ -69,6 +69,55 @@ public class RepositoryTest {
         assertEquals(Right.of(new Person(3, "Jake Doe", 13)), personOrFailure);
     }
 
+    @Test
+    public void testUpdatePerson() {
+        final Either<Failure, Repository> repositoryOrFailure = loadRepository()
+        .forEach(repository -> {
+            fill(repository);
+
+            final Either<Failure, Integer> idOrFailure =
+                repository.update(
+                    "UPDATE person SET name='Jake Doe' WHERE id = 2"
+                );
+            final Either<Failure, Person> personOrFailure = idOrFailure.flatMap(
+                id ->
+                repository.querySingleAs(
+                    Person.class,
+                    "SELECT id, name, age FROM person p WHERE id = 2"
+                ));
+            repository.close();
+
+            assertEquals(Right.of(new Person(2, "Jake Doe", 28)), personOrFailure);
+        });
+
+        assertTrue(repositoryOrFailure.right().isPresent());
+    }
+
+    @Test
+    public void testUpdatePreparedPerson() {
+        final Either<Failure, Repository> repositoryOrFailure = loadRepository()
+        .forEach(repository -> {
+            fill(repository);
+
+            final Either<Failure, Integer> idOrFailure =
+                repository.updatePrepared(
+                    "UPDATE person SET name='Jake Doe' WHERE id = ?",
+                    ps -> ps.setInt(1, 2)
+                );
+            final Either<Failure, Person> personOrFailure = idOrFailure.flatMap(
+                id ->
+                repository.querySingleAs(
+                    Person.class,
+                    "SELECT id, name, age FROM person p WHERE id = 2"
+                ));
+            repository.close();
+
+            assertEquals(Right.of(new Person(2, "Jake Doe", 28)), personOrFailure);
+        });
+
+        assertTrue(repositoryOrFailure.right().isPresent());
+    }
+
     private static Either<Failure, Repository> loadRepository() {
         return Repository.load(
             "org.h2.Driver",

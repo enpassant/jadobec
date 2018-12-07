@@ -112,89 +112,6 @@ public class Repository implements AutoCloseable {
             }
 */
 
-/*
-    public <T> Either<Failure, T> querySingleAs(
-        Class<T> type,
-        String sql
-    ) {
-        return querySingle(sql, Record.expandAs(type)).flatten();
-    }
-
-    public <T> Either<Failure, T> querySingle(
-        String sql,
-        ThrowingFunction<ResultSet, T, SQLException> createObject
-    ) {
-        Statement stmt = null;
-
-        try {
-            stmt = conn.createStatement();
-
-            ResultSet rs = stmt.executeQuery(sql);
-
-            T createdObject = null;
-            while (rs.next()) {
-                createdObject = createObject.apply(rs);
-                if (createdObject != null) {
-                    break;
-                }
-            }
-            rs.close();
-            return (createdObject == null) ?
-                Left.of(Failure.of("SqlQueryFailed")) :
-                Right.of(createdObject);
-        } catch (Exception e) {
-            //logger.error("Query single error", e);
-            return Left.of(
-                Failure.of(e.getClass().getSimpleName(), Failure.EXCEPTION, e)
-            );
-        } finally {
-            try {
-                if (stmt != null)
-                    stmt.close();
-            } catch (SQLException e) {
-                //logger.error("Query single close error", e);
-            }
-        }
-    }
-*/
-
-/*
-    public <T> Either<Failure, Stream<T>> queryPrepared(
-            String sql,
-            ThrowingConsumer<PreparedStatement, SQLException> prepare,
-            ThrowingFunction<ResultSet, T, SQLException> createObject
-            ) {
-        PreparedStatement stmt = null;
-
-        try {
-            stmt = conn.prepareStatement(sql);
-
-            prepare.accept(stmt);
-
-            ResultSet rs = stmt.executeQuery();
-
-            Stream.Builder<T> builder = Stream.builder();
-            while(rs.next()) {
-                T createdObject = createObject.apply(rs);
-                builder.accept(createdObject);
-            }
-            rs.close();
-
-            return Right.of(builder.build());
-        } catch (Exception e) {
-            logger.error("Query prepared error", e);
-            return Left.of(new Failures.SqlQueryFailed());
-        } finally {
-            try {
-                if (stmt != null)
-                    stmt.close();
-            } catch (SQLException e) {
-                logger.error("Query prepared close error", e);
-            }
-        }
-            }
-*/
-
     public <T> Either<Failure, T> querySingle(
         String sql,
         ThrowingFunction<ResultSet, T, SQLException> createObject
@@ -275,36 +192,10 @@ public class Repository implements AutoCloseable {
     }
 
     public Either<Failure, Integer> update(String sql) {
-        PreparedStatement stmt = null;
-
-        try {
-            stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-
-            stmt.executeUpdate();
-
-            ResultSet generatedKeysRS = stmt.getGeneratedKeys();
-
-            Right<Failure, Integer> result =
-                Right.of(generatedKeysRS.next() ? generatedKeysRS.getInt(1) : 0);
-
-            generatedKeysRS.close();
-
-            return result;
-        } catch (Exception e) {
-            //logger.error("Update error", e);
-            return Left.of(
-                Failure.of(e.getClass().getSimpleName(), Failure.EXCEPTION, e)
-            );
-        } finally {
-            try {
-                if (stmt != null) stmt.close();
-            } catch (SQLException e) {
-                //logger.error("Update prepared close error", e);
-            }
-        }
+        return updatePrepared(sql, ps -> {});
     }
 
-    public Either<Failure, Integer> update(
+    public Either<Failure, Integer> updatePrepared(
         String sql,
         ThrowingConsumer<PreparedStatement, SQLException> prepare
     ) {
