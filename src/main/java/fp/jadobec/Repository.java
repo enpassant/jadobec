@@ -74,38 +74,6 @@ public class Repository implements AutoCloseable {
         }
     }
 
-/*
-    public <T> Either<Failure, Stream<T>> queryPrepared(
-            String sql,
-            ThrowingFunction<ResultSet, T, SQLException> createObject
-            ) {
-        Statement stmt = null;
-
-        try {
-            stmt = conn.createStatement();
-
-            ResultSet rs = stmt.executeQuery(sql);
-
-            Stream.Builder<T> builder = Stream.builder();
-            while(rs.next()) {
-                T createdObject = createObject.apply(rs);
-                builder.accept(createdObject);
-            }
-            rs.close();
-
-            return Right.of(builder.build());
-        } catch (Exception e) {
-            return Left.of(new Failures.SqlQueryFailed());
-        } finally {
-            try {
-                if (stmt != null)
-                    stmt.close();
-            } catch (SQLException e) {
-            }
-        }
-    }
-*/
-
     public <T> Either<Failure, T> querySingle(
         String sql,
         ThrowingFunction<ResultSet, T, SQLException> createObject
@@ -170,6 +138,38 @@ public class Repository implements AutoCloseable {
             return (createdObject == null) ?
                 Left.of(Failure.of("SqlQueryFailed")) :
                 Right.of(createdObject);
+        } catch (Exception e) {
+            return Left.of(
+                Failure.of(e.getClass().getSimpleName(), Failure.EXCEPTION, e)
+            );
+        } finally {
+            try {
+                if (stmt != null)
+                    stmt.close();
+            } catch (SQLException e) {
+            }
+        }
+    }
+
+    public <T> Either<Failure, Stream<T>> query(
+        String sql,
+        ThrowingFunction<ResultSet, T, SQLException> createObject
+    ) {
+        Statement stmt = null;
+
+        try {
+            stmt = conn.createStatement();
+
+            ResultSet rs = stmt.executeQuery(sql);
+
+            Stream.Builder<T> builder = Stream.builder();
+            while(rs.next()) {
+                T createdObject = createObject.apply(rs);
+                builder.accept(createdObject);
+            }
+            rs.close();
+
+            return Right.of(builder.build());
         } catch (Exception e) {
             return Left.of(
                 Failure.of(e.getClass().getSimpleName(), Failure.EXCEPTION, e)

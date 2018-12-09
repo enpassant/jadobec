@@ -4,6 +4,9 @@ import static org.junit.Assert.*;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.List;
+import java.util.stream.Stream;
+import java.util.stream.Collectors;
 
 import util.Either;
 import util.Failure;
@@ -49,6 +52,39 @@ public class RepositoryTest {
             repository.close();
 
             assertEquals(Right.of(new Person(2, "Jane Doe", 28)), personOrFailure);
+        });
+
+        assertTrue(repositoryOrFailure.right().isPresent());
+    }
+
+    @Test
+    public void testQueryPerson() {
+        final Either<Failure, Repository> repositoryOrFailure = loadRepository()
+        .forEach(repository -> {
+            fill(repository);
+
+            final Either<Failure, Stream<Person>> personsOrFailure =
+                repository.query(
+                    "SELECT id, name, age FROM person",
+                    rs -> new Person(
+                        rs.getInt("id"),
+                        rs.getString("name"),
+                        rs.getInt("age")
+                    )
+                );
+            repository.close();
+
+            assertTrue(personsOrFailure.right().isPresent());
+            final List<Person> persons = personsOrFailure
+                .right()
+                .get()
+                .collect(Collectors.toList());
+
+            final List<Person> expectedPersons = Arrays.asList(
+                new Person(1, "John Doe", 32),
+                new Person(2, "Jane Doe", 28)
+            );
+            assertEquals(expectedPersons, persons);
         });
 
         assertTrue(repositoryOrFailure.right().isPresent());
