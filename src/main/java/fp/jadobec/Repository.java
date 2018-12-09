@@ -164,6 +164,46 @@ public class Repository implements AutoCloseable {
         );
     }
 
+    public <T> Either<Failure, Stream<T>> queryPreparedAs(
+        Class<T> type,
+        String sql,
+        ThrowingConsumer<PreparedStatement, SQLException> prepare
+    ) {
+        PreparedStatement stmt = null;
+
+        try {
+            stmt = conn.prepareStatement(sql);
+
+            prepare.accept(stmt);
+
+            ResultSet rs = stmt.executeQuery();
+
+            Stream.Builder<T> builder = Stream.builder();
+            while(rs.next()) {
+                Either<Failure, T> createdObjectOrFailure =
+                    Record.expandAs(type).apply(rs);
+                if (createdObjectOrFailure.left().isPresent()) {
+                    rs.close();
+                    return (Either<Failure, Stream<T>>) createdObjectOrFailure;
+                }
+                builder.accept(createdObjectOrFailure.right().get());
+            }
+            rs.close();
+
+            return Right.of(builder.build());
+        } catch (Exception e) {
+            return Left.of(
+                Failure.of(e.getClass().getSimpleName(), Failure.EXCEPTION, e)
+            );
+        } finally {
+            try {
+                if (stmt != null)
+                    stmt.close();
+            } catch (SQLException e) {
+            }
+        }
+    }
+
     public <T> Either<Failure, Stream<T>> queryPrepared(
         String sql,
         ThrowingConsumer<PreparedStatement, SQLException> prepare,
