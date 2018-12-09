@@ -10,6 +10,7 @@ import java.util.stream.Collectors;
 
 import util.Either;
 import util.Failure;
+import util.Left;
 import util.Right;
 
 public class RepositoryTest {
@@ -81,6 +82,28 @@ public class RepositoryTest {
                 new Person(2, "Jane Doe", 28)
             );
             assertEquals(expectedPersons, persons);
+        });
+
+        assertTrue(repositoryOrFailure.right().isPresent());
+    }
+
+    @Test
+    public void testQueryAsPersonFailed() {
+        final Either<Failure, Repository> repositoryOrFailure = loadRepository()
+        .forEach(repository -> {
+            fill(repository);
+
+            final Either<Failure, Stream<Person>> personsOrFailure =
+                repository.queryAs(
+                    Person.class,
+                    "SELECT id, name FROM person"
+                );
+            repository.close();
+
+            assertEquals(
+                "Left(Failure(IllegalArgumentException, EXCEPTION -> java.lang.IllegalArgumentException: wrong number of arguments))",
+                personsOrFailure.toString()
+            );
         });
 
         assertTrue(repositoryOrFailure.right().isPresent());
