@@ -151,6 +151,15 @@ public class Repository implements AutoCloseable {
         }
     }
 
+    public <T> Either<Failure, Stream<T>> queryAs(
+        Class<T> type,
+        String sql
+    ) {
+        ThrowingConsumer<PreparedStatement, SQLException> prepare = ps -> {};
+
+        return queryPreparedAs(type, sql, prepare);
+    }
+
     public <T> Either<Failure, Stream<T>> query(
         String sql,
         ThrowingFunction<ResultSet, T, SQLException> createObject

@@ -58,6 +58,35 @@ public class RepositoryTest {
     }
 
     @Test
+    public void testQueryAsPerson() {
+        final Either<Failure, Repository> repositoryOrFailure = loadRepository()
+        .forEach(repository -> {
+            fill(repository);
+
+            final Either<Failure, Stream<Person>> personsOrFailure =
+                repository.queryAs(
+                    Person.class,
+                    "SELECT id, name, age FROM person"
+                );
+            repository.close();
+
+            assertTrue(personsOrFailure.right().isPresent());
+            final List<Person> persons = personsOrFailure
+                .right()
+                .get()
+                .collect(Collectors.toList());
+
+            final List<Person> expectedPersons = Arrays.asList(
+                new Person(1, "John Doe", 32),
+                new Person(2, "Jane Doe", 28)
+            );
+            assertEquals(expectedPersons, persons);
+        });
+
+        assertTrue(repositoryOrFailure.right().isPresent());
+    }
+
+    @Test
     public void testQueryPerson() {
         final Either<Failure, Repository> repositoryOrFailure = loadRepository()
         .forEach(repository -> {
