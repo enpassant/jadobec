@@ -155,12 +155,28 @@ public class Repository implements AutoCloseable {
         String sql,
         ThrowingFunction<ResultSet, T, SQLException> createObject
     ) {
-        Statement stmt = null;
+        ThrowingConsumer<PreparedStatement, SQLException> prepare = ps -> {};
+
+        return queryPrepared(
+            sql,
+            prepare,
+            createObject
+        );
+    }
+
+    public <T> Either<Failure, Stream<T>> queryPrepared(
+        String sql,
+        ThrowingConsumer<PreparedStatement, SQLException> prepare,
+        ThrowingFunction<ResultSet, T, SQLException> createObject
+    ) {
+        PreparedStatement stmt = null;
 
         try {
-            stmt = conn.createStatement();
+            stmt = conn.prepareStatement(sql);
 
-            ResultSet rs = stmt.executeQuery(sql);
+            prepare.accept(stmt);
+
+            ResultSet rs = stmt.executeQuery();
 
             Stream.Builder<T> builder = Stream.builder();
             while(rs.next()) {

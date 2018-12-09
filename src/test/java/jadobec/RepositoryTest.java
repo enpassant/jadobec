@@ -91,6 +91,40 @@ public class RepositoryTest {
     }
 
     @Test
+    public void testQueryPreparedPerson() {
+        final Either<Failure, Repository> repositoryOrFailure = loadRepository()
+        .forEach(repository -> {
+            fill(repository);
+
+            final Either<Failure, Stream<Person>> personsOrFailure =
+                repository.queryPrepared(
+                    "SELECT id, name, age FROM person WHERE age < ?",
+                    ps -> ps.setInt(1, 40),
+                    rs -> new Person(
+                        rs.getInt("id"),
+                        rs.getString("name"),
+                        rs.getInt("age")
+                    )
+                );
+            repository.close();
+
+            assertTrue(personsOrFailure.right().isPresent());
+            final List<Person> persons = personsOrFailure
+                .right()
+                .get()
+                .collect(Collectors.toList());
+
+            final List<Person> expectedPersons = Arrays.asList(
+                new Person(1, "John Doe", 32),
+                new Person(2, "Jane Doe", 28)
+            );
+            assertEquals(expectedPersons, persons);
+        });
+
+        assertTrue(repositoryOrFailure.right().isPresent());
+    }
+
+    @Test
     public void testUpdatePerson() {
         final Either<Failure, Repository> repositoryOrFailure = loadRepository()
         .forEach(repository -> {
