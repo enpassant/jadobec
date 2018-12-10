@@ -259,7 +259,7 @@ public class RepositoryTest {
     private static Either<Failure, Repository> loadRepository() {
         return Repository.load(
             "org.h2.Driver",
-            "jdbc:h2:mem:test",
+            "jdbc:h2:mem:",
             "SELECT 1"
         );
     }
