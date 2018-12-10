@@ -213,9 +213,7 @@ public class RepositoryTest {
             fill(repository);
 
             final Either<Failure, Integer> idOrFailure =
-                repository.update(
-                    "UPDATE person SET name='Jake Doe' WHERE id = 2"
-                );
+                updatePersonName(repository, 2, "Jake Doe");
             final Either<Failure, Person> personOrFailure = idOrFailure.flatMap(
                 id -> selectSingleAsPerson(repository)
             );
@@ -234,10 +232,7 @@ public class RepositoryTest {
             fill(repository);
 
             final Either<Failure, Integer> idOrFailure =
-                repository.updatePrepared(
-                    "UPDATE person SET name='Jake Doe' WHERE id = ?",
-                    ps -> ps.setInt(1, 2)
-                );
+                updatePersonName(repository, 2, "Jake Doe");
             final Either<Failure, Person> personOrFailure = idOrFailure.flatMap(
                 id -> selectSingleAsPerson(repository)
             );
@@ -256,15 +251,9 @@ public class RepositoryTest {
             fill(repository);
 
             repository.runInTransaction(() ->
-                    repository.updatePrepared(
-                        "UPDATE person SET name='Jake Doe' WHERE id = ?",
-                        ps -> ps.setInt(1, 2)
-                    ).flatMap(id ->
-                        repository.updatePrepared(
-                            "UPDATE person SET name='Jare Doe' WHERE id = ?",
-                            ps -> ps.setInt(1, 2)
-                    ))
-            );
+                updatePersonName(repository, 2, "Jake Doe").flatMap(id ->
+                    updatePersonName(repository, 2, "Jare Doe")
+            ));
             final Either<Failure, Person> personOrFailure =
                 selectSingleAsPerson(repository);
             repository.close();
@@ -282,16 +271,9 @@ public class RepositoryTest {
             fill(repository);
 
             repository.runInTransaction(() ->
-                    repository.updatePrepared(
-                        "UPDATE person SET name='Jake Doe' WHERE id = ?",
-                        ps -> ps.setInt(1, 2)
-                    ).flatMap(id ->
-                        repository.updatePrepared(
-                            "UPDATE pperson SET name='Jare Doe' WHERE id = ?",
-                            ps -> ps.setInt(1, 2)
-                        )
-                    )
-            );
+                updatePersonName(repository, 2, "Jake Doe").flatMap(id ->
+                    Left.of(Failure.of("Processing failed"))
+            ));
             final Either<Failure, Person> personOrFailure =
                 selectSingleAsPerson(repository);
             repository.close();
@@ -300,6 +282,20 @@ public class RepositoryTest {
         });
 
         assertTrue(repositoryOrFailure.right().isPresent());
+    }
+
+    private static Either<Failure, Integer> updatePersonName(
+        Repository repository,
+        int id,
+        String name
+    ) {
+        return repository.updatePrepared(
+            "UPDATE person SET name=? WHERE id = ?",
+            ps -> {
+                ps.setString(1, name);
+                ps.setInt(2, id);
+            }
+        );
     }
 
     private static Either<Failure, Person> selectSingleAsPerson(
