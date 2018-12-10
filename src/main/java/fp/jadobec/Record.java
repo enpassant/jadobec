@@ -30,16 +30,6 @@ public class Record {
         try {
             Constructor constructors[] = type.getDeclaredConstructors();
             Constructor ctRet = constructors[0];
-            //for (int i = 0; i < constructors.length; i++) {
-                //Constructor ct = constructors[i];
-                //System.out.println("name = " + ct.getName());
-                //System.out.println("decl class = " +
-                        //ct.getDeclaringClass());
-                //Class pvec[] = ct.getParameterTypes();
-                //for (int j = 0; j < pvec.length; j++)
-                    //System.out.println("param #"
-                            //+ j + " " + pvec[j]);
-            //}
             Object arglist[] = values.values().toArray();
             return Right.of((T) ctRet.newInstance(arglist));
         } catch(Exception e) {
@@ -72,7 +62,10 @@ public class Record {
             final int numberOfColumns = rsmd.getColumnCount();
 
             for (int i=1; i<=numberOfColumns; i++) {
-                values.put(rsmd.getColumnLabel(i).toLowerCase(), rs.getObject(i));
+                values.put(
+                    rsmd.getColumnLabel(i).toLowerCase(),
+                    rs.getObject(i)
+                );
             }
 
             return new Record(values);
