@@ -15,6 +15,12 @@ import util.Left;
 import util.Right;
 
 public class RepositoryTest {
+    private final Person johnDoe = new Person(1, "John Doe", 32);
+    private final Person janeDoe = new Person(2, "Jane Doe", 28);
+    private final Person jakeDoe = new Person(2, "Jake Doe", 28);
+    private final Person jareDoe = new Person(2, "Jare Doe", 28);
+
+    private final List<Person> expectedPersons = Arrays.asList(johnDoe, janeDoe);
 
     @Test
     public void testQuerySinglePerson() {
@@ -29,7 +35,7 @@ public class RepositoryTest {
                     )
                 );
 
-            assertEquals(Right.of(new Person(2, "Jane Doe", 28)), personOrFailure);
+            assertEquals(Right.of(janeDoe), personOrFailure);
         });
     }
 
@@ -40,10 +46,11 @@ public class RepositoryTest {
                 repository.querySingleAs(
                     Person.class,
                     "SELECT id, name, age FROM person p WHERE id = ? and age < ?",
-                    2, 30
+                    2,
+                    30
                 );
 
-            assertEquals(Right.of(new Person(2, "Jane Doe", 28)), personOrFailure);
+            assertEquals(Right.of(janeDoe), personOrFailure);
         });
     }
 
@@ -62,10 +69,6 @@ public class RepositoryTest {
                 .get()
                 .collect(Collectors.toList());
 
-            final List<Person> expectedPersons = Arrays.asList(
-                new Person(1, "John Doe", 32),
-                new Person(2, "Jane Doe", 28)
-            );
             assertEquals(expectedPersons, persons);
         });
     }
@@ -80,7 +83,9 @@ public class RepositoryTest {
                 );
 
             assertEquals(
-                "Left(Failure(IllegalArgumentException, EXCEPTION -> java.lang.IllegalArgumentException: wrong number of arguments))",
+                "Left(Failure(IllegalArgumentException, EXCEPTION -> " +
+                    "java.lang.IllegalArgumentException: " +
+                    "wrong number of arguments))",
                 personsOrFailure.toString()
             );
         });
@@ -105,10 +110,6 @@ public class RepositoryTest {
                 .get()
                 .collect(Collectors.toList());
 
-            final List<Person> expectedPersons = Arrays.asList(
-                new Person(1, "John Doe", 32),
-                new Person(2, "Jane Doe", 28)
-            );
             assertEquals(expectedPersons, persons);
         });
     }
@@ -129,10 +130,6 @@ public class RepositoryTest {
                 .get()
                 .collect(Collectors.toList());
 
-            final List<Person> expectedPersons = Arrays.asList(
-                new Person(1, "John Doe", 32),
-                new Person(2, "Jane Doe", 28)
-            );
             assertEquals(expectedPersons, persons);
         });
     }
@@ -157,10 +154,6 @@ public class RepositoryTest {
                 .get()
                 .collect(Collectors.toList());
 
-            final List<Person> expectedPersons = Arrays.asList(
-                new Person(1, "John Doe", 32),
-                new Person(2, "Jane Doe", 28)
-            );
             assertEquals(expectedPersons, persons);
         });
     }
@@ -174,7 +167,7 @@ public class RepositoryTest {
                 id -> selectSingleAsPerson(repository)
             );
 
-            assertEquals(Right.of(new Person(2, "Jake Doe", 28)), personOrFailure);
+            assertEquals(Right.of(jakeDoe), personOrFailure);
         });
     }
 
@@ -187,7 +180,7 @@ public class RepositoryTest {
                 id -> selectSingleAsPerson(repository)
             );
 
-            assertEquals(Right.of(new Person(2, "Jake Doe", 28)), personOrFailure);
+            assertEquals(Right.of(jakeDoe), personOrFailure);
         });
     }
 
@@ -201,7 +194,7 @@ public class RepositoryTest {
             final Either<Failure, Person> personOrFailure =
                 selectSingleAsPerson(repository);
 
-            assertEquals(Right.of(new Person(2, "Jare Doe", 28)), personOrFailure);
+            assertEquals(Right.of(jareDoe), personOrFailure);
         });
     }
 
@@ -215,7 +208,7 @@ public class RepositoryTest {
             final Either<Failure, Person> personOrFailure =
                 selectSingleAsPerson(repository);
 
-            assertEquals(Right.of(new Person(2, "Jane Doe", 28)), personOrFailure);
+            assertEquals(Right.of(janeDoe), personOrFailure);
         });
     }
 
