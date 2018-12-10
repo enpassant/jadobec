@@ -246,9 +246,8 @@ public class RepositoryTest {
         Consumer<Repository> test
     ) {
         final Either<Failure, Repository> repositoryOrFailure = loadRepository()
+        .flatMap(RepositoryTest::fill)
         .forEach(repository -> {
-            fill(repository);
-
             test.accept(repository);
 
             repository.close();
@@ -265,15 +264,17 @@ public class RepositoryTest {
         );
     }
 
-    private static void fill(Repository repository) {
-        Arrays.asList(
-            "CREATE TABLE person(" +
-                "id INT, " +
-                "name VARCHAR(30) NOT NULL, " +
-                "age INT" +
-            ")",
-            "INSERT INTO person VALUES(1, 'John Doe', 32)",
-            "INSERT INTO person VALUES(2, 'Jane Doe', 28)"
-        ).stream().forEach(repository::update);
+    private static Either<Failure, Repository> fill(Repository repository) {
+        return repository.runInTransaction(() ->
+            repository.batchUpdate(
+                "CREATE TABLE person(" +
+                    "id INT, " +
+                    "name VARCHAR(30) NOT NULL, " +
+                    "age INT" +
+                ")",
+                "INSERT INTO person VALUES(1, 'John Doe', 32)",
+                "INSERT INTO person VALUES(2, 'Jane Doe', 28)"
+            ).map(i -> repository)
+        );
     }
 }

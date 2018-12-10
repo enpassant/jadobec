@@ -10,6 +10,7 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.function.Supplier;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import util.Either;
@@ -284,6 +285,16 @@ public class Repository implements AutoCloseable {
                 //logger.error("Update prepared close error", e);
             }
         }
+    }
+
+    public Either<Failure, Integer> batchUpdate(String... sqls) {
+        Either<Failure, Integer> init = Right.of(0);
+        return Stream.of(sqls)
+            .collect(Collectors.reducing(
+                init,
+                this::update,
+                (s, v) -> s.flatMap(i -> v)
+            ));
     }
 
     public <T> Either<Failure, T> runInTransaction(
