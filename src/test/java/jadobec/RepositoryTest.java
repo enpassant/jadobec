@@ -242,16 +242,14 @@ public class RepositoryTest {
         );
     }
 
-    private static void testWithDemoRepository(
-        Consumer<Repository> test
-    ) {
+    private static void testWithDemoRepository( Consumer<Repository> test) {
         final Either<Failure, Repository> repositoryOrFailure = loadRepository()
-        .flatMap(RepositoryTest::fill)
-        .forEach(repository -> {
-            test.accept(repository);
+            .flatMap(RepositoryTest::fill)
+            .forEach(repository -> {
+                test.accept(repository);
 
-            repository.close();
-        });
+                repository.close();
+            });
 
         assertTrue(repositoryOrFailure.right().isPresent());
     }
