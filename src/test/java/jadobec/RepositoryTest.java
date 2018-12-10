@@ -210,7 +210,7 @@ public class RepositoryTest {
         testWithDemoRepository(repository -> {
             repository.runInTransaction(() ->
                 updatePersonName(repository, 2, "Jake Doe").flatMap(id ->
-                    Left.of(Failure.of("Processing failed"))
+                    updatePersonName(repository, 2, null)
             ));
             final Either<Failure, Person> personOrFailure =
                 selectSingleAsPerson(repository);
@@ -267,7 +267,11 @@ public class RepositoryTest {
 
     private static void fill(Repository repository) {
         Arrays.asList(
-            "CREATE TABLE person(id INT, name VARCHAR(30), age INT)",
+            "CREATE TABLE person(" +
+                "id INT, " +
+                "name VARCHAR(30) NOT NULL, " +
+                "age INT" +
+            ")",
             "INSERT INTO person VALUES(1, 'John Doe', 32)",
             "INSERT INTO person VALUES(2, 'Jane Doe', 28)"
         ).stream().forEach(repository::update);
