@@ -55,6 +55,30 @@ public class Record {
         return builder.build();
     }
 
+    public static Either<Failure, Record> tryBuild(
+        ThrowingConsumer<Builder, Exception> factory
+    ) {
+        final Builder builder = new Builder();
+        return Failure.tryCatch(() -> {
+            factory.accept(builder);
+            return builder.build();
+        });
+    }
+
+    public static Either<Failure, Record> from(Object object) {
+        return tryBuild(builder -> {
+            final Class<?> type = object.getClass();
+            final Field[] fields = type.getDeclaredFields();
+            for (Field field : fields) {
+                field.setAccessible(true);
+                builder.field(
+                    field.getName(),
+                    field.get(object)
+                );
+            }
+        });
+    }
+
     public static Either<Failure, Record> of(ResultSet rs) {
         return Failure.tryCatch(() -> {
             final Map<String, Object> values = new LinkedHashMap<>();
@@ -81,6 +105,24 @@ public class Record {
             .orElse("");
 
         return "Record(" + fieldStr + ")";
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other instanceof Record) {
+            Record record = (Record) other;
+            if (record.values.size() == values.size()) {
+                for (String key : values.keySet()) {
+                    if (!record.values.containsKey(key)
+                       || !record.values.get(key).equals(values.get(key)))
+                    {
+                        return false;
+                    }
+                }
+                return true;
+            }
+        }
+        return false;
     }
 
     public static final class Builder {

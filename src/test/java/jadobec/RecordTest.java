@@ -21,4 +21,18 @@ public class RecordTest {
             record.as(Person.class);
         assertEquals(Right.of(new Person(3, "Jake Doe", 13)), personOrFailure);
     }
+
+    @Test
+    public void testPersonAsRecord() {
+        final Person person = new Person(3, "Jake Doe", 13);
+        final Record record = Record.build(builder -> builder
+            .field("id", 3)
+            .field("name", "Jake Doe")
+            .field("age", 13)
+        );
+        System.out.println("Record: " + record);
+
+        final Either<Failure, Record> recordOrFailure = Record.from(person);
+        assertEquals(Right.of(record), recordOrFailure);
+    }
 }
