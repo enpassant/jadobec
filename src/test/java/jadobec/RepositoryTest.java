@@ -23,7 +23,7 @@ public class RepositoryTest {
 
             final Either<Failure, Person> personOrFailure =
                 repository.querySingle(
-                    "SELECT id, name, age FROM person WHERE id = 2 and age < 30",
+                    "SELECT id, name, age FROM person WHERE id = 2",
                     rs -> new Person(
                         rs.getInt("id"),
                         rs.getString("name"),
@@ -217,11 +217,8 @@ public class RepositoryTest {
                     "UPDATE person SET name='Jake Doe' WHERE id = 2"
                 );
             final Either<Failure, Person> personOrFailure = idOrFailure.flatMap(
-                id ->
-                repository.querySingleAs(
-                    Person.class,
-                    "SELECT id, name, age FROM person p WHERE id = 2"
-                ));
+                id -> selectSingleAsPerson(repository)
+            );
             repository.close();
 
             assertEquals(Right.of(new Person(2, "Jake Doe", 28)), personOrFailure);
@@ -242,11 +239,8 @@ public class RepositoryTest {
                     ps -> ps.setInt(1, 2)
                 );
             final Either<Failure, Person> personOrFailure = idOrFailure.flatMap(
-                id ->
-                repository.querySingleAs(
-                    Person.class,
-                    "SELECT id, name, age FROM person p WHERE id = 2"
-                ));
+                id -> selectSingleAsPerson(repository)
+            );
             repository.close();
 
             assertEquals(Right.of(new Person(2, "Jake Doe", 28)), personOrFailure);
@@ -272,10 +266,7 @@ public class RepositoryTest {
                     ))
             );
             final Either<Failure, Person> personOrFailure =
-                repository.querySingleAs(
-                    Person.class,
-                    "SELECT id, name, age FROM person p WHERE id = 2"
-                );
+                selectSingleAsPerson(repository);
             repository.close();
 
             assertEquals(Right.of(new Person(2, "Jare Doe", 28)), personOrFailure);
@@ -302,16 +293,22 @@ public class RepositoryTest {
                     )
             );
             final Either<Failure, Person> personOrFailure =
-                repository.querySingleAs(
-                    Person.class,
-                    "SELECT id, name, age FROM person p WHERE id = 2"
-                );
+                selectSingleAsPerson(repository);
             repository.close();
 
             assertEquals(Right.of(new Person(2, "Jane Doe", 28)), personOrFailure);
         });
 
         assertTrue(repositoryOrFailure.right().isPresent());
+    }
+
+    private static Either<Failure, Person> selectSingleAsPerson(
+        Repository repository
+    ) {
+        return repository.querySingleAs(
+            Person.class,
+            "SELECT id, name, age FROM person p WHERE id = 2"
+        );
     }
 
     private static Either<Failure, Repository> loadRepository() {
