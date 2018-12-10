@@ -14,3 +14,4 @@ libraryDependencies ++= Seq(
 
 testOptions += Tests.Argument(TestFrameworks.JUnit)
 
+Test / parallelExecution := true
