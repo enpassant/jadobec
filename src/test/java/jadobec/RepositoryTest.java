@@ -19,6 +19,7 @@ public class RepositoryTest {
     private final Person janeDoe = new Person(2, "Jane Doe", 28);
     private final Person jakeDoe = new Person(2, "Jake Doe", 28);
     private final Person jareDoe = new Person(2, "Jare Doe", 28);
+    private final Person jaredDoe = new Person(3, "Jared Doe", 12);
 
     private final List<Person> expectedPersons = Arrays.asList(johnDoe, janeDoe);
 
@@ -164,7 +165,7 @@ public class RepositoryTest {
             final Either<Failure, Integer> idOrFailure =
                 updatePersonName(repository, 2, "Jake Doe");
             final Either<Failure, Person> personOrFailure = idOrFailure.flatMap(
-                id -> selectSingleAsPerson(repository)
+                id -> selectSingleAsPerson(repository, 2)
             );
 
             assertEquals(Right.of(jakeDoe), personOrFailure);
@@ -177,7 +178,7 @@ public class RepositoryTest {
             final Either<Failure, Integer> idOrFailure =
                 updatePersonName(repository, 2, "Jake Doe");
             final Either<Failure, Person> personOrFailure = idOrFailure.flatMap(
-                id -> selectSingleAsPerson(repository)
+                id -> selectSingleAsPerson(repository, 2)
             );
 
             assertEquals(Right.of(jakeDoe), personOrFailure);
@@ -192,7 +193,7 @@ public class RepositoryTest {
                     updatePersonName(repository, 2, "Jare Doe")
             ));
             final Either<Failure, Person> personOrFailure =
-                selectSingleAsPerson(repository);
+                selectSingleAsPerson(repository, 2);
 
             assertEquals(Right.of(jareDoe), personOrFailure);
         });
@@ -206,9 +207,22 @@ public class RepositoryTest {
                     updatePersonName(repository, 2, null)
             ));
             final Either<Failure, Person> personOrFailure =
-                selectSingleAsPerson(repository);
+                selectSingleAsPerson(repository, 2);
 
             assertEquals(Right.of(janeDoe), personOrFailure);
+        });
+    }
+
+    @Test
+    public void testInsertPerson() {
+        testWithDemoRepository(repository -> {
+            final Either<Failure, Integer> idOrFailure =
+                repository.insert(jaredDoe);
+            final Either<Failure, Person> personOrFailure = idOrFailure.flatMap(
+                id -> selectSingleAsPerson(repository, 3)
+            );
+
+            assertEquals(Right.of(jaredDoe), personOrFailure);
         });
     }
 
@@ -227,11 +241,13 @@ public class RepositoryTest {
     }
 
     private static Either<Failure, Person> selectSingleAsPerson(
-        Repository repository
+        Repository repository,
+        Integer id
     ) {
         return repository.querySingleAs(
             Person.class,
-            "SELECT id, name, age FROM person p WHERE id = 2"
+            "SELECT id, name, age FROM person p WHERE id = ?",
+            id
         );
     }
 

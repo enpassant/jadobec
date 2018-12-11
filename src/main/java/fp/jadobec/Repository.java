@@ -9,6 +9,7 @@ import java.sql.Statement;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -295,6 +296,38 @@ public class Repository implements AutoCloseable {
                 this::update,
                 (s, v) -> s.flatMap(i -> v)
             ));
+    }
+
+    public Either<Failure, Integer> insert(Object object) {
+        return Record.from(object).flatMap(record -> {
+            final String fields = record
+                .fields()
+                .stream()
+                .collect(Collectors.joining(", "));
+            final String values = record
+                .fields()
+                .stream()
+                .map(f -> "?")
+                .collect(Collectors.joining(", "));
+            final Object[] params = record.values().toArray();
+            final String sql =
+                "insert into " +
+                object.getClass().getSimpleName() +
+                "(" +
+                fields +
+                ") values(" +
+                values +
+                ")"
+            ;
+            final ThrowingConsumer<PreparedStatement, SQLException> prepare =
+            ps -> {
+                for (int i=0; i<params.length; i++) {
+                    ps.setObject(i + 1, params[i]);
+                }
+            };
+
+            return updatePrepared(sql, prepare);
+        });
     }
 
     public <T> Either<Failure, T> runInTransaction(
