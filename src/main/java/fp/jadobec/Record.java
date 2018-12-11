@@ -4,9 +4,11 @@ import java.lang.reflect.*;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
 import java.sql.SQLException;
-import java.util.Map;
+import java.util.Collection;
 import java.util.LinkedHashMap;
+import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Consumer;
 
@@ -24,6 +26,14 @@ public class Record {
 
     public Optional<Object> field(String name) {
         return Optional.ofNullable(values.get(name));
+    }
+
+    public Set<String> fields() {
+        return values.keySet();
+    }
+
+    public Collection<Object> values() {
+        return values.values();
     }
 
     public <T> Either<Failure, T> as(Class<T> type) {
