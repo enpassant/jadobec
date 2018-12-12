@@ -19,7 +19,8 @@ public class RepositoryTest {
     private final Person janeDoe = new Person(2, "Jane Doe", 28);
     private final Person jakeDoe = new Person(2, "Jake Doe", 28);
     private final Person jareDoe = new Person(2, "Jare Doe", 28);
-    private final Person jaredDoe = new Person(3, "Jared Doe", 12);
+    private final Person jaredDoe = new Person(null, "Jared Doe", 12);
+    private final Person jaredDoeInserted = new Person(3, "Jared Doe", 12);
 
     private final List<Person> expectedPersons = Arrays.asList(johnDoe, janeDoe);
 
@@ -222,7 +223,7 @@ public class RepositoryTest {
                 id -> selectSingleAsPerson(repository, 3)
             );
 
-            assertEquals(Right.of(jaredDoe), personOrFailure);
+            assertEquals(Right.of(jaredDoeInserted), personOrFailure);
         });
     }
 
@@ -275,7 +276,7 @@ public class RepositoryTest {
         return repository.runInTransaction(() ->
             repository.batchUpdate(
                 "CREATE TABLE person(" +
-                    "id INT, " +
+                    "id INT auto_increment, " +
                     "name VARCHAR(30) NOT NULL, " +
                     "age INT" +
                 ")",

@@ -3,11 +3,11 @@ package jadobec;
 import java.util.Objects;
 
 public class Person {
-    private final int id;
+    private final Integer id;
     private final String name;
     private final int age;
 
-    Person(final int id, final String name, final int age) {
+    Person(final Integer id, final String name, final int age) {
         this.id = id;
         this.name = name;
         this.age = age;
