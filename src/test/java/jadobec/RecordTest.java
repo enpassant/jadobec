@@ -19,12 +19,12 @@ public class RecordTest {
 
         final Either<Failure, Person> personOrFailure =
             record.as(Person.class);
-        assertEquals(Right.of(new Person(3, "Jake Doe", 13)), personOrFailure);
+        assertEquals(Right.of(Person.of(3, "Jake Doe", 13)), personOrFailure);
     }
 
     @Test
     public void testPersonAsRecord() {
-        final Person person = new Person(3, "Jake Doe", 13);
+        final Person person = Person.of(3, "Jake Doe", 13);
         final Record record = Record.build(builder -> builder
             .field("id", 3)
             .field("name", "Jake Doe")

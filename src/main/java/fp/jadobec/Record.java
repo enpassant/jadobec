@@ -40,6 +40,7 @@ public class Record {
         try {
             Constructor constructors[] = type.getDeclaredConstructors();
             Constructor ctRet = constructors[0];
+            ctRet.setAccessible(true);
             Object arglist[] = values.values().toArray();
             return Right.of((T) ctRet.newInstance(arglist));
         } catch(Exception e) {

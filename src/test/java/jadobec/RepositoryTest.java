@@ -15,12 +15,12 @@ import util.Left;
 import util.Right;
 
 public class RepositoryTest {
-    private final Person johnDoe = new Person(1, "John Doe", 32);
-    private final Person janeDoe = new Person(2, "Jane Doe", 28);
-    private final Person jakeDoe = new Person(2, "Jake Doe", 28);
-    private final Person jareDoe = new Person(2, "Jare Doe", 28);
-    private final Person jaredDoe = new Person(null, "Jared Doe", 12);
-    private final Person jaredDoeInserted = new Person(3, "Jared Doe", 12);
+    private final Person johnDoe = Person.of(1, "John Doe", 32);
+    private final Person janeDoe = Person.of(2, "Jane Doe", 28);
+    private final Person jakeDoe = Person.of(2, "Jake Doe", 28);
+    private final Person jareDoe = Person.of(2, "Jare Doe", 28);
+    private final Person jaredDoe = Person.of(null, "Jared Doe", 12);
+    private final Person jaredDoeInserted = Person.of(3, "Jared Doe", 12);
 
     private final List<Person> expectedPersons = Arrays.asList(johnDoe, janeDoe);
 
@@ -30,7 +30,7 @@ public class RepositoryTest {
             final Either<Failure, Person> personOrFailure =
                 repository.querySingle(
                     "SELECT id, name, age FROM person WHERE id = 2",
-                    rs -> new Person(
+                    rs -> Person.of(
                         rs.getInt("id"),
                         rs.getString("name"),
                         rs.getInt("age")
@@ -99,7 +99,7 @@ public class RepositoryTest {
             final Either<Failure, Stream<Person>> personsOrFailure =
                 repository.query(
                     "SELECT id, name, age FROM person",
-                    rs -> new Person(
+                    rs -> Person.of(
                         rs.getInt("id"),
                         rs.getString("name"),
                         rs.getInt("age")
@@ -143,7 +143,7 @@ public class RepositoryTest {
                 repository.queryPrepared(
                     "SELECT id, name, age FROM person WHERE age < ?",
                     ps -> ps.setInt(1, 40),
-                    rs -> new Person(
+                    rs -> Person.of(
                         rs.getInt("id"),
                         rs.getString("name"),
                         rs.getInt("age")

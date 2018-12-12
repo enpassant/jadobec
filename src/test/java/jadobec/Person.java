@@ -7,10 +7,18 @@ public class Person {
     private final String name;
     private final int age;
 
-    Person(final Integer id, final String name, final int age) {
+    private Person(final Integer id, final String name, final int age) {
         this.id = id;
         this.name = name;
         this.age = age;
+    }
+
+    public static Person of(final Integer id, final String name, final int age) {
+        return new Person(id, name, age);
+    }
+
+    public static Person ofNew(final String name, final int age) {
+        return new Person(null, name, age);
     }
 
     @Override
