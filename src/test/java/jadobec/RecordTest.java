@@ -15,7 +15,6 @@ public class RecordTest {
             .field("name", "Jake Doe")
             .field("age", 13)
         );
-        System.out.println("Record: " + record);
 
         final Either<Failure, Person> personOrFailure =
             record.as(Person.class);
@@ -30,7 +29,6 @@ public class RecordTest {
             .field("name", "Jake Doe")
             .field("age", 13)
         );
-        System.out.println("Record: " + record);
 
         final Either<Failure, Record> recordOrFailure = Record.from(person);
         assertEquals(Right.of(record), recordOrFailure);
