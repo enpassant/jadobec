@@ -1,7 +1,7 @@
 package jadobec;
 
+import java.lang.reflect.*;
 import java.sql.Connection;
-import java.sql.DriverManager;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -10,22 +10,26 @@ import java.time.LocalDateTime;
 import java.time.ZoneId;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+
+import javax.sql.DataSource;
 
 import util.Either;
 import util.Failure;
 import util.Left;
 import util.Right;
+import util.Tuple2;
 
 public class Repository implements AutoCloseable {
-    private String connectionUrl;
+    private final DataSource dataSource;
     private Connection conn;
 
-    private Repository(Connection conn, String connectionUrl) {
+    private Repository(final DataSource dataSource, Connection conn) {
+        this.dataSource = dataSource;
         this.conn = conn;
-        this.connectionUrl = connectionUrl;
     }
 
     public void close() {
@@ -39,7 +43,7 @@ public class Repository implements AutoCloseable {
     public void openConnection() {
         try {
             if (conn.isClosed()) {
-                conn = DriverManager.getConnection(connectionUrl);
+                conn = dataSource.getConnection();
             }
         } catch (SQLException e) {
         }
@@ -47,21 +51,27 @@ public class Repository implements AutoCloseable {
 
     public static Either<Failure, Repository> load(
         String driver,
-        String connectionUrl,
-        String testSql
+        String testSql,
+        Tuple2<String, String>... properties
     ) {
         Connection conn = null;
         Statement stmt = null;
 
         try {
-            Class.forName(driver);
+            final Class<?> type = Class.forName(driver);
+            final DataSource dataSource = (DataSource) type.newInstance();
+            for (final Tuple2<String, String> property : properties) {
+                final Method method =
+                    type.getDeclaredMethod("set" + property.getFirst(), String.class);
+                method.invoke(dataSource, property.getSecond());
+            }
 
-            conn = DriverManager.getConnection(connectionUrl);
+            conn = dataSource.getConnection();
             stmt = conn.createStatement();
 
             ResultSet rs = stmt.executeQuery(testSql);
             rs.close();
-            return Right.of(new Repository(conn, connectionUrl));
+            return Right.of(new Repository(dataSource, conn));
         } catch (Exception e) {
             return Left.of(
                 Failure.of(e.getClass().getSimpleName(), Failure.EXCEPTION, e)

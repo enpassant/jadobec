@@ -4,15 +4,20 @@ import static org.junit.Assert.*;
 import org.junit.Test;
 
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.stream.Stream;
 import java.util.stream.Collectors;
 import java.util.function.Consumer;
+
+import org.h2.jdbcx.JdbcDataSource;
 
 import util.Either;
 import util.Failure;
 import util.Left;
 import util.Right;
+import util.Tuple2;
 
 public class RepositoryTest {
     private final Person johnDoe = Person.of(1, "John Doe", 32);
@@ -266,9 +271,9 @@ public class RepositoryTest {
 
     private static Either<Failure, Repository> loadRepository() {
         return Repository.load(
-            "org.h2.Driver",
-            "jdbc:h2:mem:",
-            "SELECT 1"
+            "org.h2.jdbcx.JdbcDataSource",
+            "SELECT 1",
+            Tuple2.of("URL", "jdbc:h2:mem:")
         );
     }
 
