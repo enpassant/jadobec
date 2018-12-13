@@ -69,7 +69,10 @@ public class RepositoryTest {
                     "SELECT id, name, age FROM person"
                 ).apply(connection);
 
-            assertTrue(personsOrFailure.right().isPresent());
+            assertTrue(
+                personsOrFailure.toString(),
+                personsOrFailure.right().isPresent()
+            );
             final List<Person> persons = personsOrFailure
                 .right()
                 .get()
@@ -110,7 +113,10 @@ public class RepositoryTest {
                     )
                 ).apply(connection);
 
-            assertTrue(personsOrFailure.right().isPresent());
+            assertTrue(
+                personsOrFailure.toString(),
+                personsOrFailure.right().isPresent()
+            );
             final List<Person> persons = personsOrFailure
                 .right()
                 .get()
@@ -130,7 +136,10 @@ public class RepositoryTest {
                     ps -> ps.setInt(1, 40)
                 ).apply(connection);
 
-            assertTrue(personsOrFailure.right().isPresent());
+            assertTrue(
+                personsOrFailure.toString(),
+                personsOrFailure.right().isPresent()
+            );
             final List<Person> persons = personsOrFailure
                 .right()
                 .get()
