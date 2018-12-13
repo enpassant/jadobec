@@ -11,6 +11,7 @@ import java.util.Map;
 import java.util.stream.Stream;
 import java.util.stream.Collectors;
 import java.util.function.Consumer;
+import java.util.function.Supplier;
 
 import util.Either;
 import util.Failure;
@@ -30,18 +31,17 @@ public class RepositoryTest {
 
     @Test
     public void testQuerySinglePerson() {
-        testWithDemoConnection(connection -> {
-            final Either<Failure, Person> personOrFailure =
-                Repository.querySingle(
-                    "SELECT id, name, age FROM person WHERE id = 2",
-                    rs -> Person.of(
-                        rs.getInt("id"),
-                        rs.getString("name"),
-                        rs.getInt("age")
-                    )
-                ).apply(connection);
-
-            assertEquals(Right.of(janeDoe), personOrFailure);
+        checkWithDemoConnection(() -> {
+            return Repository.querySingle(
+                "SELECT id, name, age FROM person WHERE id = 2",
+                rs -> Person.of(
+                    rs.getInt("id"),
+                    rs.getString("name"),
+                    rs.getInt("age")
+                )
+            ).forEach(personOrFailure ->
+                assertEquals(janeDoe, personOrFailure)
+            );
         });
     }
 
@@ -267,6 +267,23 @@ public class RepositoryTest {
             "SELECT id, name, age FROM person p WHERE id = ?",
             id
         ).apply(connection);
+    }
+
+    private static <T> void
+        checkWithDemoConnection(Supplier<DbCommand<T>> test)
+    {
+        final Either<Failure, T> repositoryOrFailure = loadRepository()
+            .flatMap(repository -> {
+                return repository.use(connection -> {
+                    return RepositoryTest.fill().apply(connection)
+                        .flatMap( i -> test.get().apply(connection));
+                });
+            });
+
+        assertTrue(
+            repositoryOrFailure.toString(),
+            repositoryOrFailure.right().isPresent()
+        );
     }
 
     private static void testWithDemoConnection(Consumer<Connection> test) {
