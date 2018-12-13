@@ -31,60 +31,52 @@ public class RepositoryTest {
 
     @Test
     public void testQuerySinglePerson() {
-        checkWithDemoConnection(() -> {
-            return Repository.querySingle(
+        checkWithDemo(() ->
+            Repository.querySingle(
                 "SELECT id, name, age FROM person WHERE id = 2",
                 rs -> Person.of(
                     rs.getInt("id"),
                     rs.getString("name"),
                     rs.getInt("age")
                 )
-            ).forEach(personOrFailure ->
-                assertEquals(janeDoe, personOrFailure)
-            );
-        });
+            ).forEach(person ->
+                assertEquals(janeDoe, person)
+            )
+        );
     }
 
     @Test
     public void testQuerySingleAsPerson() {
-        testWithDemoConnection(connection -> {
-            final Either<Failure, Person> personOrFailure =
-                Repository.querySingleAs(
-                    Person.class,
-                    "SELECT id, name, age FROM person p WHERE id = ? and age < ?",
-                    2,
-                    30
-                ).apply(connection);
-
-            assertEquals(Right.of(janeDoe), personOrFailure);
-        });
+        checkWithDemo(() ->
+            Repository.querySingleAs(
+                Person.class,
+                "SELECT id, name, age FROM person p WHERE id = ? and age < ?",
+                2,
+                30
+            ).forEach(person->
+                assertEquals(janeDoe, person)
+            )
+        );
     }
 
     @Test
     public void testQueryAsPerson() {
-        testWithDemoConnection(connection -> {
-            final Either<Failure, Stream<Person>> personsOrFailure =
-                Repository.queryAs(
-                    Person.class,
-                    "SELECT id, name, age FROM person"
-                ).apply(connection);
-
-            assertTrue(
-                personsOrFailure.toString(),
-                personsOrFailure.right().isPresent()
-            );
-            final List<Person> persons = personsOrFailure
-                .right()
-                .get()
-                .collect(Collectors.toList());
-
-            assertEquals(expectedPersons, persons);
-        });
+        checkWithDemo(() ->
+            Repository.queryAs(
+                Person.class,
+                "SELECT id, name, age FROM person"
+            ).forEach(persons ->
+                assertEquals(
+                    expectedPersons,
+                    persons.collect(Collectors.toList())
+                )
+            )
+        );
     }
 
     @Test
     public void testQueryAsPersonFailed() {
-        testWithDemoConnection(connection -> {
+        testWithDemo(connection -> {
             final Either<Failure, Stream<Person>> personsOrFailure =
                 Repository.queryAs(
                     Person.class,
@@ -102,124 +94,98 @@ public class RepositoryTest {
 
     @Test
     public void testQueryPerson() {
-        testWithDemoConnection(connection -> {
-            final Either<Failure, Stream<Person>> personsOrFailure =
-                Repository.query(
-                    "SELECT id, name, age FROM person",
-                    rs -> Person.of(
-                        rs.getInt("id"),
-                        rs.getString("name"),
-                        rs.getInt("age")
-                    )
-                ).apply(connection);
-
-            assertTrue(
-                personsOrFailure.toString(),
-                personsOrFailure.right().isPresent()
-            );
-            final List<Person> persons = personsOrFailure
-                .right()
-                .get()
-                .collect(Collectors.toList());
-
-            assertEquals(expectedPersons, persons);
-        });
+        checkWithDemo(() ->
+            Repository.query(
+                "SELECT id, name, age FROM person",
+                rs -> Person.of(
+                    rs.getInt("id"),
+                    rs.getString("name"),
+                    rs.getInt("age")
+                )
+            ).forEach(persons ->
+                assertEquals(
+                    expectedPersons,
+                    persons.collect(Collectors.toList())
+                )
+            )
+        );
     }
 
     @Test
     public void testQueryPreparedAsPerson() {
-        testWithDemoConnection(connection -> {
-            final Either<Failure, Stream<Person>> personsOrFailure =
-                Repository.queryPreparedAs(
-                    Person.class,
-                    "SELECT id, name, age FROM person WHERE age < ?",
-                    ps -> ps.setInt(1, 40)
-                ).apply(connection);
-
-            assertTrue(
-                personsOrFailure.toString(),
-                personsOrFailure.right().isPresent()
-            );
-            final List<Person> persons = personsOrFailure
-                .right()
-                .get()
-                .collect(Collectors.toList());
-
-            assertEquals(expectedPersons, persons);
-        });
+        checkWithDemo(() ->
+            Repository.queryPreparedAs(
+                Person.class,
+                "SELECT id, name, age FROM person WHERE age < ?",
+                ps -> ps.setInt(1, 40)
+            ).forEach(persons ->
+                assertEquals(
+                    expectedPersons,
+                    persons.collect(Collectors.toList())
+                )
+            )
+        );
     }
 
     @Test
     public void testQueryPreparedPerson() {
-        testWithDemoConnection(connection -> {
-            final Either<Failure, Stream<Person>> personsOrFailure =
-                Repository.queryPrepared(
-                    "SELECT id, name, age FROM person WHERE age < ?",
-                    ps -> ps.setInt(1, 40),
-                    rs -> Person.of(
-                        rs.getInt("id"),
-                        rs.getString("name"),
-                        rs.getInt("age")
-                    )
-                ).apply(connection);
-
-            assertTrue(
-                personsOrFailure.toString(),
-                personsOrFailure.right().isPresent()
-            );
-            final List<Person> persons = personsOrFailure
-                .right()
-                .get()
-                .collect(Collectors.toList());
-
-            assertEquals(expectedPersons, persons);
-        });
+        checkWithDemo(() ->
+            Repository.queryPrepared(
+                "SELECT id, name, age FROM person WHERE age < ?",
+                ps -> ps.setInt(1, 40),
+                rs -> Person.of(
+                    rs.getInt("id"),
+                    rs.getString("name"),
+                    rs.getInt("age")
+                )
+            ).forEach(persons ->
+                assertEquals(
+                    expectedPersons,
+                    persons.collect(Collectors.toList())
+                )
+            )
+        );
     }
 
     @Test
     public void testUpdatePerson() {
-        testWithDemoConnection(connection -> {
-            final Either<Failure, Integer> idOrFailure =
-                updatePersonName(connection, 2, "Jake Doe");
-            final Either<Failure, Person> personOrFailure = idOrFailure.flatMap(
+        checkWithDemo(() ->
+            connection -> updatePersonName(connection, 2, "Jake Doe").flatMap(
                 id -> selectSingleAsPerson(connection, 2)
-            );
-
-            assertEquals(Right.of(jakeDoe), personOrFailure);
-        });
+            ).forEach(person ->
+                assertEquals(jakeDoe, person)
+            )
+        );
     }
 
     @Test
     public void testUpdatePreparedPerson() {
-        testWithDemoConnection(connection -> {
-            final Either<Failure, Integer> idOrFailure =
-                updatePersonName(connection, 2, "Jake Doe");
-            final Either<Failure, Person> personOrFailure = idOrFailure.flatMap(
+        checkWithDemo(() ->
+            connection -> updatePersonName(connection, 2, "Jake Doe").flatMap(
                 id -> selectSingleAsPerson(connection, 2)
-            );
-
-            assertEquals(Right.of(jakeDoe), personOrFailure);
-        });
+            ).forEach(person ->
+                assertEquals(jakeDoe, person)
+            )
+        );
     }
 
     @Test
     public void testGoodTransaction() {
-        testWithDemoConnection(connection -> {
-            final Either<Failure, Person> personOrFailure =
-                Repository.transaction(() ->
-                    updatePersonName(connection, 2, "Jake Doe").flatMap(id ->
-                        updatePersonName(connection, 2, "Jare Doe")
-                )).apply(connection).flatMap(id ->
-                    selectSingleAsPerson(connection, 2)
-                );
-
-            assertEquals(Right.of(jareDoe), personOrFailure);
-        });
+        checkWithDemo(() ->
+            connection -> Repository.transaction(() ->
+                updatePersonName(connection, 2, "Jake Doe").flatMap(id ->
+                    updatePersonName(connection, 2, "Jare Doe")
+            )).apply(connection).flatMap(id ->
+                selectSingleAsPerson(connection, 2)
+            ).forEach(person ->
+                assertEquals(jareDoe, person)
+            )
+        );
     }
 
     @Test
     public void testBadTransaction() {
-        testWithDemoConnection(connection -> {
+        testWithDemo(connection -> {
             Repository.transaction(() ->
                 updatePersonName(connection, 2, "Jake Doe").flatMap(id ->
                     updatePersonName(connection, 2, null)
@@ -233,15 +199,13 @@ public class RepositoryTest {
 
     @Test
     public void testInsertPerson() {
-        testWithDemoConnection(connection -> {
-            final Either<Failure, Integer> idOrFailure =
-                Repository.insert(jaredDoe).apply(connection);
-            final Either<Failure, Person> personOrFailure = idOrFailure.flatMap(
-                id -> selectSingleAsPerson(connection, 3)
-            );
-
-            assertEquals(Right.of(jaredDoeInserted), personOrFailure);
-        });
+        checkWithDemo(() ->
+            Repository.insert(jaredDoe).then(
+                connection -> selectSingleAsPerson(connection, 3)
+            ).forEach(person ->
+                assertEquals(jaredDoeInserted, person)
+            )
+        );
     }
 
     private static Either<Failure, Integer> updatePersonName(
@@ -269,16 +233,14 @@ public class RepositoryTest {
         ).apply(connection);
     }
 
-    private static <T> void
-        checkWithDemoConnection(Supplier<DbCommand<T>> test)
-    {
+    private static <T> void checkWithDemo(Supplier<DbCommand<T>> test) {
         final Either<Failure, T> repositoryOrFailure = loadRepository()
-            .flatMap(repository -> {
-                return repository.use(connection -> {
-                    return RepositoryTest.fill().apply(connection)
-                        .flatMap( i -> test.get().apply(connection));
-                });
-            });
+            .flatMap(repository ->
+                repository.use(connection ->
+                    RepositoryTest.fill().apply(connection)
+                        .flatMap( i -> test.get().apply(connection))
+                )
+            );
 
         assertTrue(
             repositoryOrFailure.toString(),
@@ -286,17 +248,14 @@ public class RepositoryTest {
         );
     }
 
-    private static void testWithDemoConnection(Consumer<Connection> test) {
+    private static void testWithDemo(Consumer<Connection> test) {
         final Either<Failure, Integer> repositoryOrFailure = loadRepository()
-            .flatMap(repository -> {
-                Either<Failure, Integer> result =
-                    repository.use(connection -> {
-                        return RepositoryTest.fill().apply(connection)
-                            .forEach(i -> test.accept(connection));
-                    });
-
-                return result;
-            });
+            .flatMap(repository ->
+                repository.use(connection ->
+                    RepositoryTest.fill().apply(connection)
+                        .forEach(i -> test.accept(connection))
+                )
+            );
 
         assertTrue(
             repositoryOrFailure.toString(),
