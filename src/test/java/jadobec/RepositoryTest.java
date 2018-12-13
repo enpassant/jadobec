@@ -197,7 +197,7 @@ public class RepositoryTest {
     public void testGoodTransaction() {
         testWithDemoConnection(connection -> {
             final Either<Failure, Person> personOrFailure =
-                Repository.runInTransaction(() ->
+                Repository.transaction(() ->
                     updatePersonName(connection, 2, "Jake Doe").flatMap(id ->
                         updatePersonName(connection, 2, "Jare Doe")
                 )).apply(connection).flatMap(id ->
@@ -211,7 +211,7 @@ public class RepositoryTest {
     @Test
     public void testBadTransaction() {
         testWithDemoConnection(connection -> {
-            Repository.runInTransaction(() ->
+            Repository.transaction(() ->
                 updatePersonName(connection, 2, "Jake Doe").flatMap(id ->
                     updatePersonName(connection, 2, null)
             )).apply(connection);
@@ -264,7 +264,7 @@ public class RepositoryTest {
         final Either<Failure, Integer> repositoryOrFailure = loadRepository()
             .flatMap(repository -> {
                 Either<Failure, Integer> result =
-                    repository.useConnection(connection -> {
+                    repository.use(connection -> {
                         return RepositoryTest.fill().apply(connection)
                             .forEach(i -> test.accept(connection));
                     });

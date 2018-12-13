@@ -31,7 +31,7 @@ public class Repository {
         this.dataSource = dataSource;
     }
 
-    public <T> Either<Failure, T> useConnection(DbCommand<T> command) {
+    public <T> Either<Failure, T> use(DbCommand<T> command) {
         try {
             final Connection connection = dataSource.getConnection();
             final Either<Failure, T> result = command.apply(connection);
@@ -359,7 +359,7 @@ public class Repository {
             });
     }
 
-    public static <T> DbCommand<T> runInTransaction(
+    public static <T> DbCommand<T> transaction(
         Supplier<Either<Failure, T>> supplier
     ) {
         return connection -> {
