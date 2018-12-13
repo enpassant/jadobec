@@ -3,6 +3,7 @@ package jadobec;
 import static org.junit.Assert.*;
 import org.junit.Test;
 
+import java.sql.Connection;
 import java.util.Arrays;
 import java.util.HashMap;
 import java.util.List;
@@ -29,16 +30,16 @@ public class RepositoryTest {
 
     @Test
     public void testQuerySinglePerson() {
-        testWithDemoRepository(repository -> {
+        testWithDemoConnection(connection -> {
             final Either<Failure, Person> personOrFailure =
-                repository.querySingle(
+                Repository.querySingle(
                     "SELECT id, name, age FROM person WHERE id = 2",
                     rs -> Person.of(
                         rs.getInt("id"),
                         rs.getString("name"),
                         rs.getInt("age")
                     )
-                );
+                ).apply(connection);
 
             assertEquals(Right.of(janeDoe), personOrFailure);
         });
@@ -46,14 +47,14 @@ public class RepositoryTest {
 
     @Test
     public void testQuerySingleAsPerson() {
-        testWithDemoRepository(repository -> {
+        testWithDemoConnection(connection -> {
             final Either<Failure, Person> personOrFailure =
-                repository.querySingleAs(
+                Repository.querySingleAs(
                     Person.class,
                     "SELECT id, name, age FROM person p WHERE id = ? and age < ?",
                     2,
                     30
-                );
+                ).apply(connection);
 
             assertEquals(Right.of(janeDoe), personOrFailure);
         });
@@ -61,12 +62,12 @@ public class RepositoryTest {
 
     @Test
     public void testQueryAsPerson() {
-        testWithDemoRepository(repository -> {
+        testWithDemoConnection(connection -> {
             final Either<Failure, Stream<Person>> personsOrFailure =
-                repository.queryAs(
+                Repository.queryAs(
                     Person.class,
                     "SELECT id, name, age FROM person"
-                );
+                ).apply(connection);
 
             assertTrue(personsOrFailure.right().isPresent());
             final List<Person> persons = personsOrFailure
@@ -80,12 +81,12 @@ public class RepositoryTest {
 
     @Test
     public void testQueryAsPersonFailed() {
-        testWithDemoRepository(repository -> {
+        testWithDemoConnection(connection -> {
             final Either<Failure, Stream<Person>> personsOrFailure =
-                repository.queryAs(
+                Repository.queryAs(
                     Person.class,
                     "SELECT id, name FROM person"
-                );
+                ).apply(connection);
 
             assertEquals(
                 "Left(Failure(IllegalArgumentException, EXCEPTION -> " +
@@ -98,16 +99,16 @@ public class RepositoryTest {
 
     @Test
     public void testQueryPerson() {
-        testWithDemoRepository(repository -> {
+        testWithDemoConnection(connection -> {
             final Either<Failure, Stream<Person>> personsOrFailure =
-                repository.query(
+                Repository.query(
                     "SELECT id, name, age FROM person",
                     rs -> Person.of(
                         rs.getInt("id"),
                         rs.getString("name"),
                         rs.getInt("age")
                     )
-                );
+                ).apply(connection);
 
             assertTrue(personsOrFailure.right().isPresent());
             final List<Person> persons = personsOrFailure
@@ -121,13 +122,13 @@ public class RepositoryTest {
 
     @Test
     public void testQueryPreparedAsPerson() {
-        testWithDemoRepository(repository -> {
+        testWithDemoConnection(connection -> {
             final Either<Failure, Stream<Person>> personsOrFailure =
-                repository.queryPreparedAs(
+                Repository.queryPreparedAs(
                     Person.class,
                     "SELECT id, name, age FROM person WHERE age < ?",
                     ps -> ps.setInt(1, 40)
-                );
+                ).apply(connection);
 
             assertTrue(personsOrFailure.right().isPresent());
             final List<Person> persons = personsOrFailure
@@ -141,9 +142,9 @@ public class RepositoryTest {
 
     @Test
     public void testQueryPreparedPerson() {
-        testWithDemoRepository(repository -> {
+        testWithDemoConnection(connection -> {
             final Either<Failure, Stream<Person>> personsOrFailure =
-                repository.queryPrepared(
+                Repository.queryPrepared(
                     "SELECT id, name, age FROM person WHERE age < ?",
                     ps -> ps.setInt(1, 40),
                     rs -> Person.of(
@@ -151,9 +152,12 @@ public class RepositoryTest {
                         rs.getString("name"),
                         rs.getInt("age")
                     )
-                );
+                ).apply(connection);
 
-            assertTrue(personsOrFailure.right().isPresent());
+            assertTrue(
+                personsOrFailure.toString(),
+                personsOrFailure.right().isPresent()
+            );
             final List<Person> persons = personsOrFailure
                 .right()
                 .get()
@@ -165,11 +169,11 @@ public class RepositoryTest {
 
     @Test
     public void testUpdatePerson() {
-        testWithDemoRepository(repository -> {
+        testWithDemoConnection(connection -> {
             final Either<Failure, Integer> idOrFailure =
-                updatePersonName(repository, 2, "Jake Doe");
+                updatePersonName(connection, 2, "Jake Doe");
             final Either<Failure, Person> personOrFailure = idOrFailure.flatMap(
-                id -> selectSingleAsPerson(repository, 2)
+                id -> selectSingleAsPerson(connection, 2)
             );
 
             assertEquals(Right.of(jakeDoe), personOrFailure);
@@ -178,11 +182,11 @@ public class RepositoryTest {
 
     @Test
     public void testUpdatePreparedPerson() {
-        testWithDemoRepository(repository -> {
+        testWithDemoConnection(connection -> {
             final Either<Failure, Integer> idOrFailure =
-                updatePersonName(repository, 2, "Jake Doe");
+                updatePersonName(connection, 2, "Jake Doe");
             final Either<Failure, Person> personOrFailure = idOrFailure.flatMap(
-                id -> selectSingleAsPerson(repository, 2)
+                id -> selectSingleAsPerson(connection, 2)
             );
 
             assertEquals(Right.of(jakeDoe), personOrFailure);
@@ -191,13 +195,14 @@ public class RepositoryTest {
 
     @Test
     public void testGoodTransaction() {
-        testWithDemoRepository(repository -> {
-            repository.runInTransaction(() ->
-                updatePersonName(repository, 2, "Jake Doe").flatMap(id ->
-                    updatePersonName(repository, 2, "Jare Doe")
-            ));
+        testWithDemoConnection(connection -> {
             final Either<Failure, Person> personOrFailure =
-                selectSingleAsPerson(repository, 2);
+                Repository.runInTransaction(() ->
+                    updatePersonName(connection, 2, "Jake Doe").flatMap(id ->
+                        updatePersonName(connection, 2, "Jare Doe")
+                )).apply(connection).flatMap(id ->
+                    selectSingleAsPerson(connection, 2)
+                );
 
             assertEquals(Right.of(jareDoe), personOrFailure);
         });
@@ -205,13 +210,13 @@ public class RepositoryTest {
 
     @Test
     public void testBadTransaction() {
-        testWithDemoRepository(repository -> {
-            repository.runInTransaction(() ->
-                updatePersonName(repository, 2, "Jake Doe").flatMap(id ->
-                    updatePersonName(repository, 2, null)
-            ));
+        testWithDemoConnection(connection -> {
+            Repository.runInTransaction(() ->
+                updatePersonName(connection, 2, "Jake Doe").flatMap(id ->
+                    updatePersonName(connection, 2, null)
+            )).apply(connection);
             final Either<Failure, Person> personOrFailure =
-                selectSingleAsPerson(repository, 2);
+                selectSingleAsPerson(connection, 2);
 
             assertEquals(Right.of(janeDoe), personOrFailure);
         });
@@ -219,11 +224,11 @@ public class RepositoryTest {
 
     @Test
     public void testInsertPerson() {
-        testWithDemoRepository(repository -> {
+        testWithDemoConnection(connection -> {
             final Either<Failure, Integer> idOrFailure =
-                repository.insert(jaredDoe);
+                Repository.insert(jaredDoe).apply(connection);
             final Either<Failure, Person> personOrFailure = idOrFailure.flatMap(
-                id -> selectSingleAsPerson(repository, 3)
+                id -> selectSingleAsPerson(connection, 3)
             );
 
             assertEquals(Right.of(jaredDoeInserted), personOrFailure);
@@ -231,40 +236,46 @@ public class RepositoryTest {
     }
 
     private static Either<Failure, Integer> updatePersonName(
-        Repository repository,
+        Connection connection,
         int id,
         String name
     ) {
-        return repository.updatePrepared(
+        return Repository.updatePrepared(
             "UPDATE person SET name=? WHERE id = ?",
             ps -> {
                 ps.setString(1, name);
                 ps.setInt(2, id);
             }
-        );
+        ).apply(connection);
     }
 
     private static Either<Failure, Person> selectSingleAsPerson(
-        Repository repository,
+        Connection connection,
         Integer id
     ) {
-        return repository.querySingleAs(
+        return Repository.querySingleAs(
             Person.class,
             "SELECT id, name, age FROM person p WHERE id = ?",
             id
-        );
+        ).apply(connection);
     }
 
-    private static void testWithDemoRepository( Consumer<Repository> test) {
-        final Either<Failure, Repository> repositoryOrFailure = loadRepository()
-            .flatMap(RepositoryTest::fill)
-            .forEach(repository -> {
-                test.accept(repository);
+    private static void testWithDemoConnection(Consumer<Connection> test) {
+        final Either<Failure, Integer> repositoryOrFailure = loadRepository()
+            .flatMap(repository -> {
+                Either<Failure, Integer> result =
+                    repository.useConnection(connection -> {
+                        return RepositoryTest.fill().apply(connection)
+                            .forEach(i -> test.accept(connection));
+                    });
 
-                repository.close();
+                return result;
             });
 
-        assertTrue(repositoryOrFailure.right().isPresent());
+        assertTrue(
+            repositoryOrFailure.toString(),
+            repositoryOrFailure.right().isPresent()
+        );
     }
 
     private static Either<Failure, Repository> loadRepository() {
@@ -275,17 +286,15 @@ public class RepositoryTest {
         );
     }
 
-    private static Either<Failure, Repository> fill(Repository repository) {
-        return repository.runInTransaction(() ->
-            repository.batchUpdate(
-                "CREATE TABLE person(" +
-                    "id INT auto_increment, " +
-                    "name VARCHAR(30) NOT NULL, " +
-                    "age INT" +
-                ")",
-                "INSERT INTO person VALUES(1, 'John Doe', 32)",
-                "INSERT INTO person VALUES(2, 'Jane Doe', 28)"
-            ).map(i -> repository)
+    private static DbCommand<Integer> fill() {
+        return Repository.batchUpdate(
+            "CREATE TABLE person(" +
+                "id INT auto_increment, " +
+                "name VARCHAR(30) NOT NULL, " +
+                "age INT" +
+            ")",
+            "INSERT INTO person VALUES(1, 'John Doe', 32)",
+            "INSERT INTO person VALUES(2, 'Jane Doe', 28)"
         );
     }
 }

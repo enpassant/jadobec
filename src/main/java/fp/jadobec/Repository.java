@@ -1,5 +1,6 @@
 package jadobec;
 
+import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
 import java.sql.Connection;
 import java.sql.PreparedStatement;
@@ -23,29 +24,25 @@ import util.Left;
 import util.Right;
 import util.Tuple2;
 
-public class Repository implements AutoCloseable {
+public class Repository {
     private final DataSource dataSource;
-    private Connection conn;
 
-    private Repository(final DataSource dataSource, Connection conn) {
+    private Repository(final DataSource dataSource) {
         this.dataSource = dataSource;
-        this.conn = conn;
     }
 
-    public void close() {
+    public <T> Either<Failure, T> useConnection(DbCommand<T> command) {
         try {
-            if (conn != null)
-                conn.close();
+            final Connection connection = dataSource.getConnection();
+            final Either<Failure, T> result = command.apply(connection);
+            connection.close();
+            return result;
         } catch (SQLException e) {
-        }
-    }
-
-    public void openConnection() {
-        try {
-            if (conn.isClosed()) {
-                conn = dataSource.getConnection();
-            }
-        } catch (SQLException e) {
+            return Left.of(Failure.of(
+                e.getClass().getSimpleName(),
+                Failure.EXCEPTION,
+                e
+            ));
         }
     }
 
@@ -59,10 +56,13 @@ public class Repository implements AutoCloseable {
 
         try {
             final Class<?> type = Class.forName(driver);
-            final DataSource dataSource = (DataSource) type.newInstance();
+            final Constructor<?> constructor = type.getDeclaredConstructor();
+            final DataSource dataSource = (DataSource) constructor.newInstance();
             for (final Tuple2<String, String> property : properties) {
-                final Method method =
-                    type.getDeclaredMethod("set" + property.getFirst(), String.class);
+                final Method method = type.getDeclaredMethod(
+                    "set" + property.getFirst(),
+                    String.class
+                );
                 method.invoke(dataSource, property.getSecond());
             }
 
@@ -71,7 +71,7 @@ public class Repository implements AutoCloseable {
 
             ResultSet rs = stmt.executeQuery(testSql);
             rs.close();
-            return Right.of(new Repository(dataSource, conn));
+            return Right.of(new Repository(dataSource));
         } catch (Exception e) {
             return Left.of(
                 Failure.of(e.getClass().getSimpleName(), Failure.EXCEPTION, e)
@@ -86,7 +86,7 @@ public class Repository implements AutoCloseable {
         }
     }
 
-    public <T> Either<Failure, T> querySingle(
+    public static <T> DbCommand<T> querySingle(
         String sql,
         ThrowingFunction<ResultSet, T, SQLException> createObject
     ) {
@@ -99,71 +99,78 @@ public class Repository implements AutoCloseable {
         );
     }
 
-    public <T> Either<Failure, T> querySingleAs(
+    public static <T> DbCommand<T> querySingleAs(
         Class<T> type,
         String sql,
         Object... params
     ) {
-        ThrowingConsumer<PreparedStatement, SQLException> prepare = ps -> {
-            for (int i=0; i<params.length; i++) {
-                ps.setObject(i + 1, params[i]);
-            }
-        };
+        return connection -> {
+            ThrowingConsumer<PreparedStatement, SQLException> prepare = ps -> {
+                for (int i=0; i<params.length; i++) {
+                    ps.setObject(i + 1, params[i]);
+                }
+            };
 
-        return querySinglePrepared(
-            sql,
-            prepare,
-            Record.expandAs(type)
-        ).flatten();
+            return querySinglePrepared(
+                sql,
+                prepare,
+                Record.expandAs(type)
+            ).apply(connection).flatten();
+        };
     }
 
-    public <T> Either<Failure, T> querySinglePreparedAs(
+    public static <T> DbCommand<T> querySinglePreparedAs(
         Class<T> type,
         String sql,
         ThrowingConsumer<PreparedStatement, SQLException> prepare
     ) {
-        return querySinglePrepared(sql, prepare, Record.expandAs(type)).flatten();
+        return connection ->
+            querySinglePrepared(sql, prepare, Record.expandAs(type))
+                .apply(connection)
+                .flatten();
     }
 
-    public <T> Either<Failure, T> querySinglePrepared(
+    public static <T> DbCommand<T> querySinglePrepared(
         String sql,
         ThrowingConsumer<PreparedStatement, SQLException> prepare,
         ThrowingFunction<ResultSet, T, SQLException> createObject
     ) {
-        PreparedStatement stmt = null;
+        return connection -> {
+            PreparedStatement stmt = null;
 
-        try {
-            stmt = conn.prepareStatement(sql);
+            try {
+                stmt = connection.prepareStatement(sql);
 
-            prepare.accept(stmt);
+                prepare.accept(stmt);
 
-            ResultSet rs = stmt.executeQuery();
+                ResultSet rs = stmt.executeQuery();
 
-            T createdObject = null;
-            while (rs.next()) {
-                createdObject = createObject.apply(rs);
-                if (createdObject != null) {
-                    break;
+                T createdObject = null;
+                while (rs.next()) {
+                    createdObject = createObject.apply(rs);
+                    if (createdObject != null) {
+                        break;
+                    }
+                }
+                rs.close();
+                return (createdObject == null) ?
+                    Left.of(Failure.of("SqlQueryFailed")) :
+                    Right.of(createdObject);
+            } catch (Exception e) {
+                return Left.of(
+                    Failure.of(e.getClass().getSimpleName(), Failure.EXCEPTION, e)
+                );
+            } finally {
+                try {
+                    if (stmt != null)
+                        stmt.close();
+                } catch (SQLException e) {
                 }
             }
-            rs.close();
-            return (createdObject == null) ?
-                Left.of(Failure.of("SqlQueryFailed")) :
-                Right.of(createdObject);
-        } catch (Exception e) {
-            return Left.of(
-                Failure.of(e.getClass().getSimpleName(), Failure.EXCEPTION, e)
-            );
-        } finally {
-            try {
-                if (stmt != null)
-                    stmt.close();
-            } catch (SQLException e) {
-            }
-        }
+        };
     }
 
-    public <T> Either<Failure, Stream<T>> queryAs(
+    public static <T> DbCommand<Stream<T>> queryAs(
         Class<T> type,
         String sql
     ) {
@@ -172,7 +179,7 @@ public class Repository implements AutoCloseable {
         return queryPreparedAs(type, sql, prepare);
     }
 
-    public <T> Either<Failure, Stream<T>> query(
+    public static <T> DbCommand<Stream<T>> query(
         String sql,
         ThrowingFunction<ResultSet, T, SQLException> createObject
     ) {
@@ -185,188 +192,202 @@ public class Repository implements AutoCloseable {
         );
     }
 
-    public <T> Either<Failure, Stream<T>> queryPreparedAs(
+    public static <T> DbCommand<Stream<T>> queryPreparedAs(
         Class<T> type,
         String sql,
         ThrowingConsumer<PreparedStatement, SQLException> prepare
     ) {
-        PreparedStatement stmt = null;
+        return connection -> {
+            PreparedStatement stmt = null;
 
-        try {
-            stmt = conn.prepareStatement(sql);
-
-            prepare.accept(stmt);
-
-            ResultSet rs = stmt.executeQuery();
-
-            Stream.Builder<T> builder = Stream.builder();
-            while(rs.next()) {
-                Either<Failure, T> createdObjectOrFailure =
-                    Record.expandAs(type).apply(rs);
-                if (createdObjectOrFailure.left().isPresent()) {
-                    rs.close();
-                    return (Either<Failure, Stream<T>>) createdObjectOrFailure;
-                }
-                builder.accept(createdObjectOrFailure.right().get());
-            }
-            rs.close();
-
-            return Right.of(builder.build());
-        } catch (Exception e) {
-            return Left.of(
-                Failure.of(e.getClass().getSimpleName(), Failure.EXCEPTION, e)
-            );
-        } finally {
             try {
-                if (stmt != null)
-                    stmt.close();
-            } catch (SQLException e) {
+                stmt = connection.prepareStatement(sql);
+
+                prepare.accept(stmt);
+
+                ResultSet rs = stmt.executeQuery();
+
+                Stream.Builder<T> builder = Stream.builder();
+                while(rs.next()) {
+                    Either<Failure, T> createdObjectOrFailure =
+                        Record.expandAs(type).apply(rs);
+                    if (createdObjectOrFailure.left().isPresent()) {
+                        rs.close();
+                        return (Either<Failure, Stream<T>>) createdObjectOrFailure;
+                    }
+                    builder.accept(createdObjectOrFailure.right().get());
+                }
+                rs.close();
+
+                return Right.of(builder.build());
+            } catch (Exception e) {
+                return Left.of(
+                    Failure.of(e.getClass().getSimpleName(), Failure.EXCEPTION, e)
+                );
+            } finally {
+                try {
+                    if (stmt != null)
+                        stmt.close();
+                } catch (SQLException e) {
+                }
             }
-        }
+        };
     }
 
-    public <T> Either<Failure, Stream<T>> queryPrepared(
+    public static <T> DbCommand<Stream<T>> queryPrepared(
         String sql,
         ThrowingConsumer<PreparedStatement, SQLException> prepare,
         ThrowingFunction<ResultSet, T, SQLException> createObject
     ) {
-        PreparedStatement stmt = null;
+        return connection -> {
+            PreparedStatement stmt = null;
 
-        try {
-            stmt = conn.prepareStatement(sql);
-
-            prepare.accept(stmt);
-
-            ResultSet rs = stmt.executeQuery();
-
-            Stream.Builder<T> builder = Stream.builder();
-            while(rs.next()) {
-                T createdObject = createObject.apply(rs);
-                builder.accept(createdObject);
-            }
-            rs.close();
-
-            return Right.of(builder.build());
-        } catch (Exception e) {
-            return Left.of(
-                Failure.of(e.getClass().getSimpleName(), Failure.EXCEPTION, e)
-            );
-        } finally {
             try {
-                if (stmt != null)
-                    stmt.close();
-            } catch (SQLException e) {
+                stmt = connection.prepareStatement(sql);
+
+                prepare.accept(stmt);
+
+                ResultSet rs = stmt.executeQuery();
+
+                Stream.Builder<T> builder = Stream.builder();
+                while(rs.next()) {
+                    T createdObject = createObject.apply(rs);
+                    builder.accept(createdObject);
+                }
+                rs.close();
+
+                return Right.of(builder.build());
+            } catch (Exception e) {
+                return Left.of(
+                    Failure.of(e.getClass().getSimpleName(), Failure.EXCEPTION, e)
+                );
+            } finally {
+                try {
+                    if (stmt != null)
+                        stmt.close();
+                } catch (SQLException e) {
+                }
             }
-        }
+        };
     }
 
-    public Either<Failure, Integer> update(String sql) {
+    public static DbCommand<Integer> update(final String sql) {
         return updatePrepared(sql, ps -> {});
     }
 
-    public Either<Failure, Integer> updatePrepared(
-        String sql,
-        ThrowingConsumer<PreparedStatement, SQLException> prepare
+    public static DbCommand<Integer> updatePrepared(
+        final String sql,
+        final ThrowingConsumer<PreparedStatement, SQLException> prepare
     ) {
-        PreparedStatement stmt = null;
+        return connection -> {
+            PreparedStatement stmt = null;
 
-        try {
-            stmt = conn.prepareStatement(sql, Statement.RETURN_GENERATED_KEYS);
-
-            prepare.accept(stmt);
-
-            stmt.executeUpdate();
-
-            ResultSet generatedKeysRS = stmt.getGeneratedKeys();
-
-            Right<Failure, Integer> result =
-                Right.of(generatedKeysRS.next() ? generatedKeysRS.getInt(1) : 0);
-
-            generatedKeysRS.close();
-
-            return result;
-        } catch (Exception e) {
-            return Left.of(
-                Failure.of(e.getClass().getSimpleName(), Failure.EXCEPTION, e)
-            );
-        } finally {
             try {
-                if (stmt != null) stmt.close();
-            } catch (SQLException e) {
-                //logger.error("Update prepared close error", e);
-            }
-        }
-    }
+                stmt = connection.prepareStatement(
+                    sql,
+                    Statement.RETURN_GENERATED_KEYS
+                );
 
-    public Either<Failure, Integer> batchUpdate(String... sqls) {
-        Either<Failure, Integer> init = Right.of(0);
-        return Stream.of(sqls)
-            .collect(Collectors.reducing(
-                init,
-                this::update,
-                (s, v) -> s.flatMap(i -> v)
-            ));
-    }
+                prepare.accept(stmt);
 
-    public Either<Failure, Integer> insert(Object object) {
-        return Record.from(object).flatMap(record -> {
-            final String fields = record
-                .fields()
-                .stream()
-                .collect(Collectors.joining(", "));
-            final String values = record
-                .fields()
-                .stream()
-                .map(f -> "?")
-                .collect(Collectors.joining(", "));
-            final Object[] params = record.values().toArray();
-            final String sql =
-                "insert into " +
-                object.getClass().getSimpleName() +
-                "(" +
-                fields +
-                ") values(" +
-                values +
-                ")"
-            ;
-            final ThrowingConsumer<PreparedStatement, SQLException> prepare =
-            ps -> {
-                for (int i=0; i<params.length; i++) {
-                    ps.setObject(i + 1, params[i]);
+                stmt.executeUpdate();
+
+                ResultSet generatedKeysRS = stmt.getGeneratedKeys();
+
+                Right<Failure, Integer> result =
+                    Right.of(generatedKeysRS.next() ? generatedKeysRS.getInt(1) : 0);
+
+                generatedKeysRS.close();
+
+                return result;
+            } catch (Exception e) {
+                return Left.of(
+                    Failure.of(e.getClass().getSimpleName(), Failure.EXCEPTION, e)
+                );
+            } finally {
+                try {
+                    if (stmt != null) stmt.close();
+                } catch (SQLException e) {
+                    //logger.error("Update prepared close error", e);
                 }
-            };
-
-            return updatePrepared(sql, prepare);
-        });
+            }
+        };
     }
 
-    public <T> Either<Failure, T> runInTransaction(
+    public static DbCommand<Integer> batchUpdate(String... sqls) {
+        return connection -> {
+            Either<Failure, Integer> init = Right.of(0);
+            return Stream.of(sqls)
+                .collect(Collectors.reducing(
+                    init,
+                    sql -> Repository.update(sql).apply(connection),
+                    (s, v) -> s.flatMap(i -> v)
+                ));
+        };
+    }
+
+    public static DbCommand<Integer> insert(Object object) {
+        return connection ->
+            Record.from(object).flatMap(record -> {
+                final String fields = record
+                    .fields()
+                    .stream()
+                    .collect(Collectors.joining(", "));
+                final String values = record
+                    .fields()
+                    .stream()
+                    .map(f -> "?")
+                    .collect(Collectors.joining(", "));
+                final Object[] params = record.values().toArray();
+                final String sql =
+                    "insert into " +
+                    object.getClass().getSimpleName() +
+                    "(" +
+                    fields +
+                    ") values(" +
+                    values +
+                    ")"
+                ;
+                final ThrowingConsumer<PreparedStatement, SQLException> prepare =
+                ps -> {
+                    for (int i=0; i<params.length; i++) {
+                        ps.setObject(i + 1, params[i]);
+                    }
+                };
+
+                return updatePrepared(sql, prepare).apply(connection);
+            });
+    }
+
+    public static <T> DbCommand<T> runInTransaction(
         Supplier<Either<Failure, T>> supplier
     ) {
-        try {
-            conn.setAutoCommit(false);
-            Either<Failure, T> result = supplier.get();
-
-            if (result.right().isPresent()) {
-                conn.commit();
-            } else {
-                conn.rollback();
-            }
-
-            return result;
-        } catch (SQLException e) {
+        return connection -> {
             try {
-                conn.rollback();
-            } catch (SQLException e1) {
-            }
-            return Left.of(
-                Failure.of(e.getClass().getSimpleName(), Failure.EXCEPTION, e)
-            );
-        } finally {
-            try {
-                conn.setAutoCommit(true);
+                connection.setAutoCommit(false);
+                Either<Failure, T> result = supplier.get();
+
+                if (result.right().isPresent()) {
+                    connection.commit();
+                } else {
+                    connection.rollback();
+                }
+
+                return result;
             } catch (SQLException e) {
+                try {
+                    connection.rollback();
+                } catch (SQLException e1) {
+                }
+                return Left.of(
+                    Failure.of(e.getClass().getSimpleName(), Failure.EXCEPTION, e)
+                );
+            } finally {
+                try {
+                    connection.setAutoCommit(true);
+                } catch (SQLException e) {
+                }
             }
-        }
+        };
     }
 }

@@ -4,6 +4,8 @@ version := "0.1.0-SNAPSHOT"
 
 description := "JDBC wrapper for very simple, functional database handling."
 
+//javacOptions += "-Xlint"
+
 javaOptions += "-Xmx512m"
 
 libraryDependencies ++= Seq(
