@@ -47,6 +47,34 @@ public class Repository {
     }
 
     public static Either<Failure, Repository> load(
+        DataSource dataSource,
+        String testSql
+    ) {
+        Connection conn = null;
+        Statement stmt = null;
+
+        try {
+            conn = dataSource.getConnection();
+            stmt = conn.createStatement();
+
+            ResultSet rs = stmt.executeQuery(testSql);
+            rs.close();
+            return Right.of(new Repository(dataSource));
+        } catch (Exception e) {
+            return Left.of(
+                Failure.of(e.getClass().getSimpleName(), Failure.EXCEPTION, e)
+            );
+        } finally {
+            try {
+                if (stmt != null) {
+                    stmt.close();
+                }
+            } catch (SQLException se) {
+            }
+        }
+    }
+
+    public static Either<Failure, Repository> load(
         String driver,
         String testSql,
         Tuple2<String, String>... properties
