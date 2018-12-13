@@ -124,10 +124,8 @@ public class Repository {
         String sql,
         ThrowingConsumer<PreparedStatement, SQLException> prepare
     ) {
-        return connection ->
-            querySinglePrepared(sql, prepare, Record.expandAs(type))
-                .apply(connection)
-                .flatten();
+        return querySinglePrepared(sql, prepare, Record.expandAs(type))
+            .flatten();
     }
 
     public static <T> DbCommand<T> querySinglePrepared(
@@ -316,10 +314,9 @@ public class Repository {
 
     public static DbCommand<Integer> batchUpdate(String... sqls) {
         return connection -> {
-            Either<Failure, Integer> init = Right.of(0);
             return Stream.of(sqls)
                 .collect(Collectors.reducing(
-                    init,
+                    Right.of(0),
                     sql -> Repository.update(sql).apply(connection),
                     (s, v) -> s.flatMap(i -> v)
                 ));
