@@ -11,8 +11,6 @@ import java.util.stream.Stream;
 import java.util.stream.Collectors;
 import java.util.function.Consumer;
 
-import org.h2.jdbcx.JdbcDataSource;
-
 import util.Either;
 import util.Failure;
 import util.Left;
