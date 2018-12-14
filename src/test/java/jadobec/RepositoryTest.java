@@ -150,8 +150,8 @@ public class RepositoryTest {
     @Test
     public void testUpdatePerson() {
         checkWithDemo(() ->
-            connection -> updatePersonName(connection, 2, "Jake Doe").flatMap(
-                id -> selectSingleAsPerson(connection, 2)
+            updatePersonName(2, "Jake Doe").then(
+                selectSingleAsPerson(2)
             ).forEach(person ->
                 assertEquals(jakeDoe, person)
             )
@@ -161,8 +161,8 @@ public class RepositoryTest {
     @Test
     public void testUpdatePreparedPerson() {
         checkWithDemo(() ->
-            connection -> updatePersonName(connection, 2, "Jake Doe").flatMap(
-                id -> selectSingleAsPerson(connection, 2)
+            updatePersonName(2, "Jake Doe").then(
+                selectSingleAsPerson(2)
             ).forEach(person ->
                 assertEquals(jakeDoe, person)
             )
@@ -172,11 +172,11 @@ public class RepositoryTest {
     @Test
     public void testGoodTransaction() {
         checkWithDemo(() ->
-            connection -> Repository.transaction(() ->
-                updatePersonName(connection, 2, "Jake Doe").flatMap(id ->
-                    updatePersonName(connection, 2, "Jare Doe")
-            )).apply(connection).flatMap(id ->
-                selectSingleAsPerson(connection, 2)
+            Repository.transaction(() ->
+                updatePersonName(2, "Jake Doe").then(
+                    updatePersonName(2, "Jare Doe")
+            )).then(
+                selectSingleAsPerson(2)
             ).forEach(person ->
                 assertEquals(jareDoe, person)
             )
@@ -187,11 +187,11 @@ public class RepositoryTest {
     public void testBadTransaction() {
         testWithDemo(connection -> {
             Repository.transaction(() ->
-                updatePersonName(connection, 2, "Jake Doe").flatMap(id ->
-                    updatePersonName(connection, 2, null)
+                updatePersonName(2, "Jake Doe").then(
+                    updatePersonName(2, null)
             )).apply(connection);
             final Either<Failure, Person> personOrFailure =
-                selectSingleAsPerson(connection, 2);
+                selectSingleAsPerson(2).apply(connection);
 
             assertEquals(Right.of(janeDoe), personOrFailure);
         });
@@ -201,36 +201,29 @@ public class RepositoryTest {
     public void testInsertPerson() {
         checkWithDemo(() ->
             Repository.insert(jaredDoe).then(
-                connection -> selectSingleAsPerson(connection, 3)
+                selectSingleAsPerson(3)
             ).forEach(person ->
                 assertEquals(jaredDoeInserted, person)
             )
         );
     }
 
-    private static Either<Failure, Integer> updatePersonName(
-        Connection connection,
-        int id,
-        String name
-    ) {
+    private static DbCommand<Integer> updatePersonName( int id, String name) {
         return Repository.updatePrepared(
             "UPDATE person SET name=? WHERE id = ?",
             ps -> {
                 ps.setString(1, name);
                 ps.setInt(2, id);
             }
-        ).apply(connection);
+        );
     }
 
-    private static Either<Failure, Person> selectSingleAsPerson(
-        Connection connection,
-        Integer id
-    ) {
+    private static DbCommand<Person> selectSingleAsPerson( Integer id) {
         return Repository.querySingleAs(
             Person.class,
             "SELECT id, name, age FROM person p WHERE id = ?",
             id
-        ).apply(connection);
+        );
     }
 
     private static <T> void checkWithDemo(Supplier<DbCommand<T>> test) {

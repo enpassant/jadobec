@@ -22,6 +22,10 @@ public interface DbCommand<T> extends Function<Connection, Either<Failure, T>> {
         return connection -> this.apply(connection).map(mapper);
     }
 
+    default <R> DbCommand<R> flatMap(Function<T, Either<Failure, R>> mapper) {
+        return connection -> this.apply(connection).flatMap(mapper);
+    }
+
     default <R> DbCommand<R> flatten() {
         return connection -> this.apply(connection).flatten();
     }

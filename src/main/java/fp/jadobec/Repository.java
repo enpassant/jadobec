@@ -386,12 +386,12 @@ public class Repository {
     }
 
     public static <T> DbCommand<T> transaction(
-        Supplier<Either<Failure, T>> supplier
+        Supplier<DbCommand<T>> supplier
     ) {
         return connection -> {
             try {
                 connection.setAutoCommit(false);
-                Either<Failure, T> result = supplier.get();
+                Either<Failure, T> result = supplier.get().apply(connection);
 
                 if (result.right().isPresent()) {
                     connection.commit();
