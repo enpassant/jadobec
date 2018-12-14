@@ -16,6 +16,7 @@ import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import javax.sql.ConnectionPoolDataSource;
 import javax.sql.DataSource;
 
 import util.Either;
@@ -25,15 +26,15 @@ import util.Right;
 import util.Tuple2;
 
 public class Repository {
-    private final DataSource dataSource;
+    private final ThrowingSupplier<Connection, SQLException> connectionFactory;
 
     private Repository(final DataSource dataSource) {
-        this.dataSource = dataSource;
+        this.connectionFactory = () -> dataSource.getConnection();
     }
 
     public <T> Either<Failure, T> use(DbCommand<T> command) {
         try {
-            final Connection connection = dataSource.getConnection();
+            final Connection connection = connectionFactory.get();
             final Either<Failure, T> result = command.apply(connection);
             connection.close();
             return result;
