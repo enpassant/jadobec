@@ -37,4 +37,8 @@ public interface DbCommand<T> extends Function<Connection, Either<Failure, T>> {
     default <R> DbCommand<R> flatten() {
         return connection -> this.apply(connection).flatten();
     }
+
+    default <R> DbCommand<R> recover(Function<Failure, R> recover) {
+        return connection -> this.apply(connection).recover(recover);
+    }
 }

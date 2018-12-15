@@ -76,20 +76,22 @@ public class RepositoryTest {
 
     @Test
     public void testQueryAsPersonFailed() {
-        testWithDemo(connection -> {
-            final Either<Failure, Stream<Person>> personsOrFailure =
-                Repository.queryAs(
-                    Person.class,
-                    "SELECT id, name FROM person"
-                ).apply(connection);
-
-            assertEquals(
-                "Left(Failure(IllegalArgumentException, EXCEPTION -> " +
-                    "java.lang.IllegalArgumentException: " +
-                    "wrong number of arguments))",
-                personsOrFailure.toString()
-            );
-        });
+        checkWithDemo(() ->
+            Repository.queryAs(
+                Person.class,
+                "SELECT id, name FROM person"
+            ).flatMap(person ->
+                connection ->Left.of(Failure.of("Wrong result!"))
+            ).recover(failure -> {
+                assertEquals(
+                    "Failure(IllegalArgumentException, EXCEPTION -> " +
+                        "java.lang.IllegalArgumentException: " +
+                        "wrong number of arguments)",
+                    failure.toString()
+                );
+                return 1;
+            })
+        );
     }
 
     @Test
@@ -185,16 +187,17 @@ public class RepositoryTest {
 
     @Test
     public void testBadTransaction() {
-        testWithDemo(connection -> {
+        checkWithDemo(() ->
             Repository.transaction(() ->
                 updatePersonName(2, "Jake Doe").then(
                     updatePersonName(2, null)
-            )).apply(connection);
-            final Either<Failure, Person> personOrFailure =
-                selectSingleAsPerson(2).apply(connection);
-
-            assertEquals(Right.of(janeDoe), personOrFailure);
-        });
+            )).recover(failure -> 1)
+            .then(
+                selectSingleAsPerson(2)
+            ).forEach(person ->
+                assertEquals(janeDoe, person)
+            )
+        );
     }
 
     @Test
@@ -232,21 +235,6 @@ public class RepositoryTest {
                 repository.use(
                     RepositoryTest.fill()
                         .flatMap(i -> test.get())
-                )
-            );
-
-        assertTrue(
-            repositoryOrFailure.toString(),
-            repositoryOrFailure.right().isPresent()
-        );
-    }
-
-    private static void testWithDemo(Consumer<Connection> test) {
-        final Either<Failure, Integer> repositoryOrFailure = loadRepository()
-            .flatMap(repository ->
-                repository.use(
-                    RepositoryTest.fill()
-                        .with(test)
                 )
             );
 
