@@ -1,4 +1,4 @@
-package jadobec;
+package fp.jadobec;
 
 @FunctionalInterface
 public interface ThrowingSupplier<T, E extends Throwable> {

@@ -1,4 +1,4 @@
-package util;
+package fp.util;
 
 import java.util.NoSuchElementException;
 import java.util.Optional;

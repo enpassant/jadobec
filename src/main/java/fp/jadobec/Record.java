@@ -1,4 +1,4 @@
-package jadobec;
+package fp.jadobec;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
@@ -13,10 +13,10 @@ import java.util.Set;
 import java.util.function.Function;
 import java.util.function.Consumer;
 
-import util.Either;
-import util.Failure;
-import util.Left;
-import util.Right;
+import fp.util.Either;
+import fp.util.Failure;
+import fp.util.Left;
+import fp.util.Right;
 
 public class Record {
     private final Map<String, Object> values;

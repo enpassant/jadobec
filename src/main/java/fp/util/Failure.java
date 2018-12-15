@@ -1,4 +1,4 @@
-package util;
+package fp.util;
 
 import java.text.MessageFormat;
 import java.util.HashMap;

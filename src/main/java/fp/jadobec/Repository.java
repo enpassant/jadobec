@@ -1,4 +1,4 @@
-package jadobec;
+package fp.jadobec;
 
 import java.lang.reflect.Constructor;
 import java.lang.reflect.Method;
@@ -19,11 +19,11 @@ import java.util.stream.Stream;
 import javax.sql.ConnectionPoolDataSource;
 import javax.sql.DataSource;
 
-import util.Either;
-import util.Failure;
-import util.Left;
-import util.Right;
-import util.Tuple2;
+import fp.util.Either;
+import fp.util.Failure;
+import fp.util.Left;
+import fp.util.Right;
+import fp.util.Tuple2;
 
 public class Repository {
     private final ThrowingSupplier<Connection, SQLException> connectionFactory;

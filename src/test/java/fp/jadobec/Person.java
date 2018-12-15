@@ -1,4 +1,4 @@
-package jadobec;
+package fp.jadobec;
 
 import java.util.Objects;
 

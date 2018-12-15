@@ -1,4 +1,4 @@
-package jadobec;
+package fp.jadobec;
 
 @FunctionalInterface
 public interface ThrowingFunction<T, R, E extends Throwable> {

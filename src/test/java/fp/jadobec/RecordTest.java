@@ -1,11 +1,11 @@
-package jadobec;
+package fp.jadobec;
 
 import static org.junit.Assert.*;
 import org.junit.Test;
 
-import util.Either;
-import util.Failure;
-import util.Right;
+import fp.util.Either;
+import fp.util.Failure;
+import fp.util.Right;
 
 public class RecordTest {
     @Test

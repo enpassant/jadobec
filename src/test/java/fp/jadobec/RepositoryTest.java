@@ -1,4 +1,4 @@
-package jadobec;
+package fp.jadobec;
 
 import static org.junit.Assert.*;
 import org.junit.Test;
@@ -13,11 +13,11 @@ import java.util.stream.Collectors;
 import java.util.function.Consumer;
 import java.util.function.Supplier;
 
-import util.Either;
-import util.Failure;
-import util.Left;
-import util.Right;
-import util.Tuple2;
+import fp.util.Either;
+import fp.util.Failure;
+import fp.util.Left;
+import fp.util.Right;
+import fp.util.Tuple2;
 
 public class RepositoryTest {
     private final Person johnDoe = Person.of(1, "John Doe", 32);

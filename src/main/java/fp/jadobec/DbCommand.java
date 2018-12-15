@@ -1,11 +1,11 @@
-package jadobec;
+package fp.jadobec;
 
 import java.sql.Connection;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
-import util.Either;
-import util.Failure;
+import fp.util.Either;
+import fp.util.Failure;
 
 public interface DbCommand<T> extends Function<Connection, Either<Failure, T>> {
     default <R> DbCommand<R> then(DbCommand<R> other) {
