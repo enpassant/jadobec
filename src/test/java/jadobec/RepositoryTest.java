@@ -229,9 +229,9 @@ public class RepositoryTest {
     private static <T> void checkWithDemo(Supplier<DbCommand<T>> test) {
         final Either<Failure, T> repositoryOrFailure = loadRepository()
             .flatMap(repository ->
-                repository.use(connection ->
-                    RepositoryTest.fill().apply(connection)
-                        .flatMap( i -> test.get().apply(connection))
+                repository.use(
+                    RepositoryTest.fill()
+                        .flatMap(i -> test.get())
                 )
             );
 
@@ -244,9 +244,9 @@ public class RepositoryTest {
     private static void testWithDemo(Consumer<Connection> test) {
         final Either<Failure, Integer> repositoryOrFailure = loadRepository()
             .flatMap(repository ->
-                repository.use(connection ->
-                    RepositoryTest.fill().apply(connection)
-                        .forEach(i -> test.accept(connection))
+                repository.use(
+                    RepositoryTest.fill()
+                        .with(test)
                 )
             );
 

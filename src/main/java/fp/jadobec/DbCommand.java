@@ -14,6 +14,12 @@ public interface DbCommand<T> extends Function<Connection, Either<Failure, T>> {
         );
     }
 
+    default DbCommand<T> with(Consumer<Connection> consumer) {
+        return connection -> this.apply(connection).forEach(
+            t-> consumer.accept(connection)
+        );
+    }
+
     default DbCommand<T> forEach(Consumer<T> consumer) {
         return connection -> this.apply(connection).forEach(consumer);
     }
@@ -22,8 +28,10 @@ public interface DbCommand<T> extends Function<Connection, Either<Failure, T>> {
         return connection -> this.apply(connection).map(mapper);
     }
 
-    default <R> DbCommand<R> flatMap(Function<T, Either<Failure, R>> mapper) {
-        return connection -> this.apply(connection).flatMap(mapper);
+    default <R> DbCommand<R> flatMap(Function<T, DbCommand<R>> mapper) {
+        return connection -> this.apply(connection).flatMap(
+            t -> mapper.apply(t).apply(connection)
+        );
     }
 
     default <R> DbCommand<R> flatten() {
