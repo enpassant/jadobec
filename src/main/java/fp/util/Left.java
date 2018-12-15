@@ -38,6 +38,11 @@ public final class Left<L, R> implements Either<L, R> {
         return f.apply(value);
     }
 
+    @Override
+    public <B> Either<L, B> recover(Function<L, B> f) {
+        return Right.of(f.apply(value));
+    }
+
     @SuppressWarnings("unchecked")
     @Override
     public <B> Either<L, B> flatten() {

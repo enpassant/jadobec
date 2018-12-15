@@ -9,6 +9,7 @@ public interface Either<L, R> {
     <B> Either<B, R> mapLeft(Function<L, B> f);
     <B> Either<L, B> flatMap(Function<R, Either<L, B>> f);
     <B> Either<B, R> flatMapLeft(Function<L, Either<B, R>> f);
+    <B> Either<L, B> recover(Function<L, B> f);
     <B> Either<L, B> flatten();
     Either<L, R> forEach(Consumer<R> f);
     Either<L, R> forEachLeft(Consumer<L> f);

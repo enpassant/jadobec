@@ -39,6 +39,12 @@ public final class Right<L, R> implements Either<L, R> {
 
     @SuppressWarnings("unchecked")
     @Override
+    public <B> Either<L, B> recover(Function<L, B> f) {
+        return (Either<L, B>) this;
+    }
+
+    @SuppressWarnings("unchecked")
+    @Override
     public <B> Either<L, B> flatten() {
         return (Either<L, B>) value;
     }
