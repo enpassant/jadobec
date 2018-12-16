@@ -76,6 +76,11 @@ public final class Right<L, R> implements Either<L, R> {
     }
 
     @Override
+    public boolean isRight() {
+        return true;
+    }
+
+    @Override
     public R get() {
         return value;
     }

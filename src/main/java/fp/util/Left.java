@@ -76,6 +76,11 @@ public final class Left<L, R> implements Either<L, R> {
     }
 
     @Override
+    public boolean isRight() {
+        return false;
+    }
+
+    @Override
     public R get() {
         throw new NoSuchElementException();
     }

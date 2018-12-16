@@ -16,9 +16,10 @@ public interface Either<L, R> {
     R orElse(R value);
     Optional<L> left();
     Optional<R> right();
+    boolean isRight();
     R get();
 
-    public static <L, R> Either<L, R> ofOptional(L left, Optional<R> optional) {
+    static <L, R> Either<L, R> ofOptional(L left, Optional<R> optional) {
         if (optional.isPresent()) {
             return Right.of(optional.get());
         } else {
