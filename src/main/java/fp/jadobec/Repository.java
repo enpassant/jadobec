@@ -119,9 +119,14 @@ public class Repository {
 
     public static <T> DbCommand<T> querySingle(
         String sql,
-        ThrowingFunction<ResultSet, T, SQLException> createObject
+        ThrowingFunction<ResultSet, T, SQLException> createObject,
+        Object... params
     ) {
-        ThrowingConsumer<PreparedStatement, SQLException> prepare = ps -> {};
+        ThrowingConsumer<PreparedStatement, SQLException> prepare = ps -> {
+            for (int i=0; i<params.length; i++) {
+                ps.setObject(i + 1, params[i]);
+            }
+        };
 
         return querySinglePrepared(
             sql,
@@ -201,18 +206,28 @@ public class Repository {
 
     public static <T> DbCommand<List<T>> queryAs(
         Class<T> type,
-        String sql
+        String sql,
+        Object... params
     ) {
-        ThrowingConsumer<PreparedStatement, SQLException> prepare = ps -> {};
+        ThrowingConsumer<PreparedStatement, SQLException> prepare = ps -> {
+            for (int i=0; i<params.length; i++) {
+                ps.setObject(i + 1, params[i]);
+            }
+        };
 
         return queryPreparedAs(type, sql, prepare);
     }
 
     public static <T> DbCommand<List<T>> query(
         String sql,
-        ThrowingFunction<ResultSet, T, SQLException> createObject
+        ThrowingFunction<ResultSet, T, SQLException> createObject,
+        Object... params
     ) {
-        ThrowingConsumer<PreparedStatement, SQLException> prepare = ps -> {};
+        ThrowingConsumer<PreparedStatement, SQLException> prepare = ps -> {
+            for (int i=0; i<params.length; i++) {
+                ps.setObject(i + 1, params[i]);
+            }
+        };
 
         return queryPrepared(
             sql,
