@@ -25,6 +25,11 @@ public class Record {
         this.values = values;
     }
 
+    public <T> T fieldOrElse(String name, T elseValue) {
+        return Optional.ofNullable((T) values.get(name))
+            .orElse(elseValue);
+    }
+
     public Optional<Object> field(String name) {
         return Optional.ofNullable(values.get(name));
     }

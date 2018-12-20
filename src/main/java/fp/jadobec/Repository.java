@@ -9,8 +9,10 @@ import java.sql.SQLException;
 import java.sql.Statement;
 import java.time.LocalDateTime;
 import java.time.ZoneId;
+import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -197,7 +199,7 @@ public class Repository {
         };
     }
 
-    public static <T> DbCommand<Stream<T>> queryAs(
+    public static <T> DbCommand<List<T>> queryAs(
         Class<T> type,
         String sql
     ) {
@@ -206,7 +208,7 @@ public class Repository {
         return queryPreparedAs(type, sql, prepare);
     }
 
-    public static <T> DbCommand<Stream<T>> query(
+    public static <T> DbCommand<List<T>> query(
         String sql,
         ThrowingFunction<ResultSet, T, SQLException> createObject
     ) {
@@ -219,7 +221,7 @@ public class Repository {
         );
     }
 
-    public static <T> DbCommand<Stream<T>> queryPreparedAs(
+    public static <T> DbCommand<List<T>> queryPreparedAs(
         Class<T> type,
         String sql,
         ThrowingConsumer<PreparedStatement, SQLException> prepare
@@ -234,19 +236,19 @@ public class Repository {
 
                 ResultSet rs = stmt.executeQuery();
 
-                Stream.Builder<T> builder = Stream.builder();
+                List<T> list = new ArrayList();
                 while(rs.next()) {
                     Either<Failure, T> createdObjectOrFailure =
                         Record.expandAs(type).apply(rs);
                     if (createdObjectOrFailure.left().isPresent()) {
                         rs.close();
-                        return (Either<Failure, Stream<T>>) createdObjectOrFailure;
+                        return (Either<Failure, List<T>>) createdObjectOrFailure;
                     }
-                    builder.accept(createdObjectOrFailure.right().get());
+                    list.add(createdObjectOrFailure.right().get());
                 }
                 rs.close();
 
-                return Right.of(builder.build());
+                return Right.of(list);
             } catch (Exception e) {
                 return Left.of(
                     Failure.of(e.getClass().getSimpleName(), Failure.EXCEPTION, e)
@@ -261,7 +263,7 @@ public class Repository {
         };
     }
 
-    public static <T> DbCommand<Stream<T>> queryPrepared(
+    public static <T> DbCommand<List<T>> queryPrepared(
         String sql,
         ThrowingConsumer<PreparedStatement, SQLException> prepare,
         ThrowingFunction<ResultSet, T, SQLException> createObject
@@ -276,14 +278,14 @@ public class Repository {
 
                 ResultSet rs = stmt.executeQuery();
 
-                Stream.Builder<T> builder = Stream.builder();
+                List<T> list = new ArrayList();
                 while(rs.next()) {
                     T createdObject = createObject.apply(rs);
-                    builder.accept(createdObject);
+                    list.add(createdObject);
                 }
                 rs.close();
 
-                return Right.of(builder.build());
+                return Right.of(list);
             } catch (Exception e) {
                 return Left.of(
                     Failure.of(e.getClass().getSimpleName(), Failure.EXCEPTION, e)

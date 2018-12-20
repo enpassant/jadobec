@@ -6,8 +6,13 @@ import java.util.function.Function;
 
 import fp.util.Either;
 import fp.util.Failure;
+import fp.util.Right;
 
 public interface DbCommand<T> extends Function<Connection, Either<Failure, T>> {
+    static <T> DbCommand<T> fix(T t) {
+        return connection -> Right.of(t);
+    }
+
     default <R> DbCommand<R> then(DbCommand<R> other) {
         return connection -> this.apply(connection).flatMap(
             t -> other.apply(connection)
