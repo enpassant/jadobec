@@ -1,8 +1,10 @@
 package fp.jadobec;
 
 import java.sql.Connection;
+import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import fp.util.Either;
 import fp.util.Failure;
@@ -45,5 +47,15 @@ public interface DbCommand<T> extends Function<Connection, Either<Failure, T>> {
 
     default <R> DbCommand<R> recover(Function<Failure, R> recover) {
         return connection -> this.apply(connection).recover(recover);
+    }
+
+    default <R, U> DbCommand<List<Either<Failure, R>>> flatMapList(
+        Function<U, DbCommand<R>> mapper
+    ) {
+        return this.flatMap(items -> connection ->
+             Right.of(((List<U>) items).stream()
+                .map(item -> mapper.apply(item).apply(connection))
+                .collect(Collectors.toList())
+        ));
     }
 }
