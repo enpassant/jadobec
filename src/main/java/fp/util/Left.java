@@ -81,6 +81,11 @@ public final class Left<L, R> implements Either<L, R> {
     }
 
     @Override
+    public Either<R, L> swap() {
+        return Right.of(value);
+    }
+
+    @Override
     public R get() {
         throw new NoSuchElementException();
     }

@@ -17,6 +17,7 @@ public interface Either<L, R> {
     Optional<L> left();
     Optional<R> right();
     boolean isRight();
+    Either<R, L> swap();
     R get();
 
     static <L, R> Either<L, R> ofOptional(L left, Optional<R> optional) {

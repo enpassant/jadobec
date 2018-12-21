@@ -81,6 +81,11 @@ public final class Right<L, R> implements Either<L, R> {
     }
 
     @Override
+    public Either<R, L> swap() {
+        return Left.of(value);
+    }
+
+    @Override
     public R get() {
         return value;
     }
