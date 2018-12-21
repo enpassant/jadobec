@@ -31,7 +31,7 @@ public class RepositoryTest {
 
     @Test
     public void testQuerySinglePerson() {
-        checkWithDemo(() ->
+        checkDbCommand(
             Repository.querySingle(
                 "SELECT id, name, age FROM person WHERE id = 2",
                 rs -> Person.of(
@@ -47,7 +47,7 @@ public class RepositoryTest {
 
     @Test
     public void testQuerySingleAsPerson() {
-        checkWithDemo(() ->
+        checkDbCommand(
             Repository.querySingleAs(
                 Person.class,
                 "SELECT id, name, age FROM person p WHERE id = ? and age < ?",
@@ -61,7 +61,7 @@ public class RepositoryTest {
 
     @Test
     public void testQueryAsPerson() {
-        checkWithDemo(() ->
+        checkDbCommand(
             Repository.queryAs(
                 Person.class,
                 "SELECT id, name, age FROM person"
@@ -76,7 +76,7 @@ public class RepositoryTest {
 
     @Test
     public void testQueryAsPersonFailed() {
-        checkWithDemo(() ->
+        checkDbCommand(
             Repository.queryAs(
                 Person.class,
                 "SELECT id, name FROM person"
@@ -96,7 +96,7 @@ public class RepositoryTest {
 
     @Test
     public void testQueryPerson() {
-        checkWithDemo(() ->
+        checkDbCommand(
             Repository.query(
                 "SELECT id, name, age FROM person",
                 rs -> Person.of(
@@ -115,7 +115,7 @@ public class RepositoryTest {
 
     @Test
     public void testQueryPreparedAsPerson() {
-        checkWithDemo(() ->
+        checkDbCommand(
             Repository.queryPreparedAs(
                 Person.class,
                 "SELECT id, name, age FROM person WHERE age < ?",
@@ -131,7 +131,7 @@ public class RepositoryTest {
 
     @Test
     public void testQueryPreparedPerson() {
-        checkWithDemo(() ->
+        checkDbCommand(
             Repository.queryPrepared(
                 "SELECT id, name, age FROM person WHERE age < ?",
                 ps -> ps.setInt(1, 40),
@@ -151,7 +151,7 @@ public class RepositoryTest {
 
     @Test
     public void testUpdatePerson() {
-        checkWithDemo(() ->
+        checkDbCommand(
             updatePersonName(2, "Jake Doe").then(
                 selectSingleAsPerson(2)
             ).forEach(person ->
@@ -162,7 +162,7 @@ public class RepositoryTest {
 
     @Test
     public void testUpdatePreparedPerson() {
-        checkWithDemo(() ->
+        checkDbCommand(
             updatePersonName(2, "Jake Doe").then(
                 selectSingleAsPerson(2)
             ).forEach(person ->
@@ -173,7 +173,7 @@ public class RepositoryTest {
 
     @Test
     public void testGoodTransaction() {
-        checkWithDemo(() ->
+        checkDbCommand(
             Repository.transaction(() ->
                 updatePersonName(2, "Jake Doe").then(
                     updatePersonName(2, "Jare Doe")
@@ -187,7 +187,7 @@ public class RepositoryTest {
 
     @Test
     public void testBadTransaction() {
-        checkWithDemo(() ->
+        checkDbCommand(
             Repository.transaction(() ->
                 updatePersonName(2, "Jake Doe").then(
                     updatePersonName(2, null)
@@ -202,7 +202,7 @@ public class RepositoryTest {
 
     @Test
     public void testInsertPerson() {
-        checkWithDemo(() ->
+        checkDbCommand(
             Repository.insert(jaredDoe).then(
                 selectSingleAsPerson(3)
             ).forEach(person ->
@@ -229,12 +229,12 @@ public class RepositoryTest {
         );
     }
 
-    private static <T> void checkWithDemo(Supplier<DbCommand<T>> test) {
+    private static <T> void checkDbCommand(DbCommand<T> testDbCommand) {
         final Either<Failure, T> repositoryOrFailure = loadRepository()
             .flatMap(repository ->
                 repository.use(
                     RepositoryTest.fill()
-                        .flatMap(i -> test.get())
+                        .flatMap(i -> testDbCommand)
                 )
             );
 
