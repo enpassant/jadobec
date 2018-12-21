@@ -1,6 +1,7 @@
 package fp.jadobec;
 
 import java.sql.Connection;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -49,7 +50,7 @@ public interface DbCommand<T> extends Function<Connection, Either<Failure, T>> {
         return connection -> this.apply(connection).recover(recover);
     }
 
-    default <R, U> DbCommand<List<Either<Failure, R>>> flatMapList(
+    default <R, U> DbCommand<List<Either<Failure, R>>> mapList(
         Function<U, DbCommand<R>> mapper
     ) {
         return this.flatMap(items -> connection ->
@@ -57,5 +58,23 @@ public interface DbCommand<T> extends Function<Connection, Either<Failure, T>> {
                 .map(item -> mapper.apply(item).apply(connection))
                 .collect(Collectors.toList())
         ));
+    }
+
+    default <R, U> DbCommand<List<R>> flatMapList(
+        Function<U, DbCommand<R>> mapper
+    ) {
+        return this.flatMap(items -> connection -> {
+            final List<R> result = new ArrayList<>();
+            for (final U item : (List<U>) items) {
+                final Either<Failure, R> mappedItem =
+                    mapper.apply(item).apply(connection);
+                if (mappedItem.left().isPresent()) {
+                    return (Either<Failure, List<R>>) mappedItem;
+                } else {
+                    result.add(mappedItem.right().get());
+                }
+            }
+            return Right.of(result);
+        });
     }
 }
