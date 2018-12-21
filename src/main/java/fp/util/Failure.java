@@ -97,6 +97,21 @@ public class Failure {
         return "Failure(" + code + paramStr + ")";
     }
 
+    @Override
+    public boolean equals(Object other) {
+        if (other instanceof Failure) {
+            Failure failure = (Failure) other;
+            return failure.toString().equals(this.toString());
+        } else {
+            return false;
+        }
+    }
+
+    @Override
+    public int hashCode() {
+        return code.hashCode();
+    }
+
     public static <E extends Exception, R> R ignoreException(E e, R r) {
         e.getCause();
         return r;
