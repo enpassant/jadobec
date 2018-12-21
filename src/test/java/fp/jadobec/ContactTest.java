@@ -37,7 +37,8 @@ public class ContactTest {
                 queryUsers()
             ).forEach(users ->
                 assertArrayEquals(expectedUsers.toArray(), users.toArray())
-        ));
+            )
+        );
     }
 
     @Test
@@ -58,7 +59,8 @@ public class ContactTest {
                     .mapList(ContactTest::addOneEmail)
             ).forEach(users ->
                 assertArrayEquals(expectedUsers.toArray(), users.toArray())
-            ));
+            )
+        );
     }
 
     @Test
@@ -94,7 +96,8 @@ public class ContactTest {
                     .mapList(ContactTest::addEmails)
             ).forEach(users ->
                 assertArrayEquals(expectedUsers.toArray(), users.toArray())
-            ));
+            )
+        );
     }
 
     private static final DbCommand<Integer> createAndFill =
