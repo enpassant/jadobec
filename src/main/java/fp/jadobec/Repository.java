@@ -135,35 +135,6 @@ public class Repository {
         );
     }
 
-    public static <T> DbCommand<T> querySingleAs(
-        Class<T> type,
-        String sql,
-        Object... params
-    ) {
-        return connection -> {
-            ThrowingConsumer<PreparedStatement, SQLException> prepare = ps -> {
-                for (int i=0; i<params.length; i++) {
-                    ps.setObject(i + 1, params[i]);
-                }
-            };
-
-            return querySinglePrepared(
-                sql,
-                prepare,
-                Record.expandAs(type)
-            ).apply(connection).flatten();
-        };
-    }
-
-    public static <T> DbCommand<T> querySinglePreparedAs(
-        Class<T> type,
-        String sql,
-        ThrowingConsumer<PreparedStatement, SQLException> prepare
-    ) {
-        return querySinglePrepared(sql, prepare, Record.expandAs(type))
-            .flatten();
-    }
-
     public static <T> DbCommand<T> querySinglePrepared(
         String sql,
         ThrowingConsumer<PreparedStatement, SQLException> prepare,
@@ -202,20 +173,6 @@ public class Repository {
                 }
             }
         };
-    }
-
-    public static <T> DbCommand<List<T>> queryAs(
-        Class<T> type,
-        String sql,
-        Object... params
-    ) {
-        ThrowingConsumer<PreparedStatement, SQLException> prepare = ps -> {
-            for (int i=0; i<params.length; i++) {
-                ps.setObject(i + 1, params[i]);
-            }
-        };
-
-        return queryPreparedAs(type, sql, prepare);
     }
 
     public static <T> DbCommand<List<T>> query(
@@ -367,39 +324,6 @@ public class Repository {
                     (s, v) -> s.flatMap(i -> v)
                 ));
         };
-    }
-
-    public static DbCommand<Integer> insert(Object object) {
-        return connection ->
-            Record.from(object).flatMap(record -> {
-                final String fields = record
-                    .fields()
-                    .stream()
-                    .collect(Collectors.joining(", "));
-                final String values = record
-                    .fields()
-                    .stream()
-                    .map(f -> "?")
-                    .collect(Collectors.joining(", "));
-                final Object[] params = record.values().toArray();
-                final String sql =
-                    "insert into " +
-                    object.getClass().getSimpleName() +
-                    "(" +
-                    fields +
-                    ") values(" +
-                    values +
-                    ")"
-                ;
-                final ThrowingConsumer<PreparedStatement, SQLException> prepare =
-                ps -> {
-                    for (int i=0; i<params.length; i++) {
-                        ps.setObject(i + 1, params[i]);
-                    }
-                };
-
-                return updatePrepared(sql, prepare).apply(connection);
-            });
     }
 
     public static <T> DbCommand<T> transaction(
