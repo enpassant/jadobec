@@ -26,7 +26,7 @@ import fp.util.Tuple2;
 public class ContactTest {
     @Test
     public void testTempUsers() {
-        final List<User> expectedUsers = Arrays.asList(
+        final List<Either<Failure, User>> expectedUsers = Arrays.asList(
             User.of(3, "Jake Doe"),
             User.of(2, "Jane Doe"),
             User.of(1, "John Doe")
@@ -45,18 +45,18 @@ public class ContactTest {
     public void testSingleContact() {
         final List<Either<Failure, User>> expectedUsers = Arrays.asList(
             Left.of(Failure.of("SqlQueryFailed")),
-            Right.of(User.of(2, "Jane Doe")
-                .addEmail(Email.of("jane@doe.com", false))
+            User.of(2, "Jane Doe").map(user ->
+                user.addEmail(Email.of("jane@doe.com", false))
             ),
-            Right.of(User.of(1, "John Doe")
-                .addEmail(Email.of("john@doe.com", true))
+            User.of(1, "John Doe").map(user ->
+                user.addEmail(Email.of("john@doe.com", true))
             )
         );
 
         checkDbCommand(
             createAndFill.then(
                 queryUsers()
-                    .mapList(ContactTest::addOneEmail)
+                    .mapListEither(ContactTest::addOneEmail)
             ).forEach(users ->
                 assertArrayEquals(expectedUsers.toArray(), users.toArray())
             )
@@ -68,7 +68,7 @@ public class ContactTest {
         checkDbCommand(
             createAndFill.then(
                 queryUsers()
-                    .flatMapList(ContactTest::addOneEmail)
+                    .flatMapListEither(ContactTest::addOneEmail)
             ).forEach(users ->
                 fail(users.toString())
             ).recover(failure -> {
@@ -81,19 +81,19 @@ public class ContactTest {
     @Test
     public void testContacts() {
         final List<Either<Failure, User>> expectedUsers = Arrays.asList(
-            Right.of(User.of(3, "Jake Doe")),
-            Right.of(User.of(2, "Jane Doe")
-                .addEmail(Email.of("jane.doe@doe.com", true))
+            User.of(3, "Jake Doe"),
+            User.of(2, "Jane Doe").map(user ->
+                user.addEmail(Email.of("jane.doe@doe.com", true))
             ),
-            Right.of(User.of(1, "John Doe")
-                .addEmail(Email.of("john@doe.com", true))
+            User.of(1, "John Doe").map(user ->
+                user.addEmail(Email.of("john@doe.com", true))
             )
         );
 
         checkDbCommand(
             createAndFill.then(
                 queryUsers()
-                    .mapList(ContactTest::addEmails)
+                    .mapListEither(ContactTest::addEmails)
             ).forEach(users ->
                 assertArrayEquals(expectedUsers.toArray(), users.toArray())
             )
@@ -151,7 +151,7 @@ public class ContactTest {
         );
     }
 
-    private static DbCommand<List<User>> queryUsers() {
+    private static DbCommand<List<Either<Failure, User>>> queryUsers() {
         return Repository.query(
             "SELECT id_user, name FROM user ORDER BY name",
             rs -> User.of(rs.getInt(1), rs.getString(2))
@@ -207,8 +207,16 @@ public class ContactTest {
     }
 
     private static interface User {
-        public static User of(int id, String name) {
-            return new TempUser(id, name, Optional.empty());
+        public static Either<Failure, User> of(int id, String name) {
+            if (name.trim().isEmpty()) {
+                return Left.of(
+                    Failure.of("Wrong user name")
+                );
+            } else {
+                return Right.of(
+                    new TempUser(id, name, Optional.empty())
+                );
+            }
         }
         public User addEmail(Email email);
         public int getId();
