@@ -36,7 +36,10 @@ public class ContactTest {
             createAndFill.then(
                 queryUsers()
             ).forEach(users ->
-                assertArrayEquals(expectedUsers.toArray(), users.toArray())
+                assertArrayEquals(
+                    expectedUsers.toArray(),
+                    users.collect(Collectors.toList()).toArray()
+                )
             )
         );
     }
@@ -68,13 +71,9 @@ public class ContactTest {
         checkDbCommand(
             createAndFill.then(
                 queryUsers()
-                    .flatMapListEither(ContactTest::addOneEmail)
-            ).forEach(users ->
-                fail(users.toString())
-            ).recover(failure -> {
-                assertEquals(Failure.of("SqlQueryFailed"), failure);
-                return true;
-            })
+                    .mapListEither(ContactTest::addOneEmail)
+                    .map(items -> items.noneMatch(Either::isRight))
+            ).forEach(isFailure -> assertFalse(isFailure))
         );
     }
 
@@ -151,7 +150,7 @@ public class ContactTest {
         );
     }
 
-    private static DbCommand<List<Either<Failure, User>>> queryUsers() {
+    private static DbCommand<Stream<Either<Failure, User>>> queryUsers() {
         return Repository.query(
             "SELECT id_user, name FROM user ORDER BY name",
             rs -> User.of(rs.getInt(1), rs.getString(2))
@@ -181,7 +180,7 @@ public class ContactTest {
         );
     }
 
-    private static DbCommand<List<Email>> queryEmails(User user) {
+    private static DbCommand<Stream<Email>> queryEmails(User user) {
         return Repository.query(
             "SELECT email, validated " +
                 "FROM email " +

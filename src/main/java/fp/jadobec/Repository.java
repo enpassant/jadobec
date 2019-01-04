@@ -12,11 +12,14 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.Collection;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
+import java.util.Spliterators;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
+import java.util.stream.StreamSupport;
 
 import javax.sql.ConnectionPoolDataSource;
 import javax.sql.DataSource;
@@ -175,9 +178,9 @@ public class Repository {
         };
     }
 
-    public static <T> DbCommand<List<T>> query(
+    public static <T> DbCommand<Stream<T>> query(
         String sql,
-        ThrowingFunction<ResultSet, T, SQLException> createObject,
+        Extractor<T> createObject,
         Object... params
     ) {
         ThrowingConsumer<PreparedStatement, SQLException> prepare = ps -> {
@@ -193,52 +196,10 @@ public class Repository {
         );
     }
 
-    public static <T> DbCommand<List<T>> queryPreparedAs(
-        Class<T> type,
-        String sql,
-        ThrowingConsumer<PreparedStatement, SQLException> prepare
-    ) {
-        return connection -> {
-            PreparedStatement stmt = null;
-
-            try {
-                stmt = connection.prepareStatement(sql);
-
-                prepare.accept(stmt);
-
-                ResultSet rs = stmt.executeQuery();
-
-                List<T> list = new ArrayList();
-                while(rs.next()) {
-                    Either<Failure, T> createdObjectOrFailure =
-                        Record.expandAs(type).apply(rs);
-                    if (createdObjectOrFailure.left().isPresent()) {
-                        rs.close();
-                        return (Either<Failure, List<T>>) createdObjectOrFailure;
-                    }
-                    list.add(createdObjectOrFailure.right().get());
-                }
-                rs.close();
-
-                return Right.of(list);
-            } catch (Exception e) {
-                return Left.of(
-                    Failure.of(e.getClass().getSimpleName(), Failure.EXCEPTION, e)
-                );
-            } finally {
-                try {
-                    if (stmt != null)
-                        stmt.close();
-                } catch (SQLException e) {
-                }
-            }
-        };
-    }
-
-    public static <T> DbCommand<List<T>> queryPrepared(
+    public static <T> DbCommand<Stream<T>> queryPrepared(
         String sql,
         ThrowingConsumer<PreparedStatement, SQLException> prepare,
-        ThrowingFunction<ResultSet, T, SQLException> createObject
+        Extractor<T> createObject
     ) {
         return connection -> {
             PreparedStatement stmt = null;
@@ -249,25 +210,11 @@ public class Repository {
                 prepare.accept(stmt);
 
                 ResultSet rs = stmt.executeQuery();
-
-                List<T> list = new ArrayList();
-                while(rs.next()) {
-                    T createdObject = createObject.apply(rs);
-                    list.add(createdObject);
-                }
-                rs.close();
-
-                return Right.of(list);
+                return Right.of(stream(rs, createObject));
             } catch (Exception e) {
                 return Left.of(
                     Failure.of(e.getClass().getSimpleName(), Failure.EXCEPTION, e)
                 );
-            } finally {
-                try {
-                    if (stmt != null)
-                        stmt.close();
-                } catch (SQLException e) {
-                }
             }
         };
     }
@@ -356,5 +303,61 @@ public class Repository {
                 }
             }
         };
+    }
+
+    private static <T> Stream<T> stream(
+        final ResultSet resultSet,
+        final Extractor extractor
+    ) {
+        ResultSetIterator iterator = new ResultSetIterator(resultSet, extractor);
+        return (Stream<T>) StreamSupport.stream(
+            Spliterators.spliteratorUnknownSize(iterator, 0),
+            false
+        ).onClose(() -> {
+            try {
+                iterator.close();
+            } catch (Exception e) {
+            }
+        });
+    }
+
+    @FunctionalInterface
+    public static interface Extractor<T> {
+        T extract(ResultSet rs) throws SQLException;
+    }
+
+    private static class ResultSetIterator<T>
+        implements Iterator<T>, AutoCloseable
+    {
+        private final ResultSet resultSet;
+        private final Extractor<T> extractor;
+
+        public ResultSetIterator(final ResultSet resultSet, final Extractor<T> extractor) {
+            this.extractor = extractor;
+            this.resultSet = resultSet;
+        }
+
+        @Override
+        public boolean hasNext() {
+            try {
+                return resultSet.next();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        @Override
+        public T next() {
+            try {
+                return extractor.extract(resultSet);
+            } catch (SQLException e) {
+                throw new RuntimeException(e);
+            }
+        }
+
+        @Override
+        public void close() throws SQLException {
+            resultSet.close();
+        }
     }
 }

@@ -6,9 +6,11 @@ import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import fp.util.Either;
 import fp.util.Failure;
+import fp.util.Left;
 import fp.util.Right;
 
 public interface DbCommand<T> extends Function<Connection, Either<Failure, T>> {
@@ -50,62 +52,40 @@ public interface DbCommand<T> extends Function<Connection, Either<Failure, T>> {
         return connection -> this.apply(connection).recover(recover);
     }
 
-    default <R, U> DbCommand<List<Either<Failure, R>>> mapList(
+    default <R, U> DbCommand<Stream<Either<Failure, R>>> mapList(
         Function<U, DbCommand<R>> mapper
     ) {
         return this.flatMap(items -> connection ->
-             Right.of(((List<U>) items).stream()
+             Right.of(((Stream<U>) items)
                 .map(item -> mapper.apply(item).apply(connection))
-                .collect(Collectors.toList())
         ));
     }
 
-    default <R, U> DbCommand<List<Either<Failure, R>>> mapListEither(
+    default <R, U> DbCommand<Stream<Either<Failure, R>>> mapListEither(
         Function<U, DbCommand<R>> mapper
     ) {
         return this.flatMap(items -> connection ->
-             Right.of(((List<Either<Failure, U>>) items).stream()
+             Right.of(((Stream<Either<Failure, U>>) items)
                 .map(item -> item.flatMap(
                     i -> mapper.apply(i).apply(connection))
                 )
-                .collect(Collectors.toList())
         ));
     }
 
-    default <R, U> DbCommand<List<R>> flatMapList(
-        Function<U, DbCommand<R>> mapper
-    ) {
-        return this.flatMap(items -> connection -> {
-            final List<R> result = new ArrayList<>();
-            for (final U item : (List<U>) items) {
-                final Either<Failure, R> mappedItem =
-                    mapper.apply(item).apply(connection);
-                if (mappedItem.left().isPresent()) {
-                    return (Either<Failure, List<R>>) mappedItem;
-                } else {
-                    result.add(mappedItem.right().get());
-                }
-            }
-            return Right.of(result);
-        });
-    }
-
-    default <R, U> DbCommand<List<R>> flatMapListEither(
-        Function<U, DbCommand<R>> mapper
-    ) {
-        return this.flatMap(items -> connection -> {
-            final List<R> result = new ArrayList<>();
-            for (final Either<Failure, U> item : (List<Either<Failure, U>>) items) {
-                final Either<Failure, R> mappedItem = item.flatMap(i ->
-                    mapper.apply(i).apply(connection)
-                );
-                if (mappedItem.left().isPresent()) {
-                    return (Either<Failure, List<R>>) mappedItem;
-                } else {
-                    result.add(mappedItem.right().get());
-                }
-            }
-            return Right.of(result);
-        });
+    default <U> DbCommand<Stream<U>> shortCircuit() {
+        try {
+            return this.flatMap(items -> connection -> Right.of(
+                ((Stream<Either<Failure, U>>) items)
+                    .map(i -> {
+                        if (i.left().isPresent()) {
+                            throw new RuntimeException(i.left().get().getCode());
+                        }
+                        return i.right().get();
+                    })
+            ));
+        } catch(Exception e) {
+            return (DbCommand<Stream<U>>)
+                (connection -> Left.of(Failure.of(e.getMessage())));
+        }
     }
 }

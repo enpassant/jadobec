@@ -34,7 +34,7 @@ public class NumericTest {
             fillNumeric("cos", x -> Math.cos(x)).then(
             fillNumeric("lin", x -> x))));
 
-        final Either<Failure, List<Record>>
+        final Either<Failure, Stream<Record>>
             dataOrFailure = loadRepository()
                 .flatMap(repository -> repository.use(
                     createAndFill.then(
@@ -48,7 +48,7 @@ public class NumericTest {
         );
     }
 
-    public DbCommand<List<Record>> queryNumericData() {
+    public DbCommand<Stream<Record>> queryNumericData() {
         return Repository.query(
             "SELECT l.title, d.x, d.y " +
                 "FROM data d JOIN label l ON d.id_label=l.id_label " +

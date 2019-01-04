@@ -58,7 +58,7 @@ public class RepositoryTest {
             ).forEach(persons ->
                 assertEquals(
                     expectedPersons,
-                    persons
+                    persons.collect(Collectors.toList())
                 )
             )
         );
@@ -78,7 +78,7 @@ public class RepositoryTest {
             ).forEach(persons ->
                 assertEquals(
                     expectedPersons,
-                    persons
+                    persons.collect(Collectors.toList())
                 )
             )
         );
