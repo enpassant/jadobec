@@ -76,6 +76,11 @@ public final class Left<L, R> implements Either<L, R> {
     }
 
     @Override
+    public boolean isLeft() {
+        return true;
+    }
+
+    @Override
     public boolean isRight() {
         return false;
     }

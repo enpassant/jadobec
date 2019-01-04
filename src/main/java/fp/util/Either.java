@@ -16,6 +16,7 @@ public interface Either<L, R> {
     R orElse(R value);
     Optional<L> left();
     Optional<R> right();
+    boolean isLeft();
     boolean isRight();
     Either<R, L> swap();
     R get();
