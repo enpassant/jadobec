@@ -64,6 +64,12 @@ public class Record {
         return rs -> ofAs(rs, type);
     }
 
+    public Record copy(Consumer<Builder> factory) {
+        final Builder builder = new Builder(values);
+        factory.accept(builder);
+        return builder.build();
+    }
+
     public static Record build(Consumer<Builder> factory) {
         final Builder builder = new Builder();
         factory.accept(builder);
@@ -141,10 +147,30 @@ public class Record {
     }
 
     public static final class Builder {
-        private final Map<String, Object> values = new LinkedHashMap<>();
+        private final Map<String, Object> values;
+
+        private Builder() {
+            this.values = new LinkedHashMap<>();
+        }
+
+        private Builder(Map<String, Object> values) {
+            this.values = values;
+        }
 
         public Builder field(String name, Object value) {
             values.put(name, value);
+            return this;
+        }
+
+        public <T, R> Builder modify(String name, Function<T, R> mapper) {
+            try {
+                if (values.containsKey(name)) {
+                    final T value = (T) values.get(name);
+                    final R result = mapper.apply(value);
+                    values.put(name, result);
+                }
+            } catch(Exception e) {}
+
             return this;
         }
 
