@@ -47,7 +47,7 @@ public class ContactTest {
     @Test
     public void testSingleContact() {
         final List<Either<Failure, User>> expectedUsers = Arrays.asList(
-            Left.of(Failure.of("SqlQueryFailed")),
+            Left.of(Failure.of("Missing result")),
             User.of(2, "Jane Doe").map(user ->
                 user.addEmail(Email.of("jane@doe.com", false))
             ),

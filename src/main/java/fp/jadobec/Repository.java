@@ -122,7 +122,7 @@ public class Repository {
 
     public static <T> DbCommand<T> querySingle(
         String sql,
-        ThrowingFunction<ResultSet, T, SQLException> createObject,
+        Extractor<T> createObject,
         Object... params
     ) {
         ThrowingConsumer<PreparedStatement, SQLException> prepare = ps -> {
@@ -131,51 +131,21 @@ public class Repository {
             }
         };
 
-        return querySinglePrepared(
-            sql,
-            prepare,
-            createObject
-        );
+        return querySinglePrepared(sql, prepare, createObject);
     }
 
     public static <T> DbCommand<T> querySinglePrepared(
         String sql,
         ThrowingConsumer<PreparedStatement, SQLException> prepare,
-        ThrowingFunction<ResultSet, T, SQLException> createObject
+        Extractor<T> createObject
     ) {
-        return connection -> {
-            PreparedStatement stmt = null;
-
-            try {
-                stmt = connection.prepareStatement(sql);
-
-                prepare.accept(stmt);
-
-                ResultSet rs = stmt.executeQuery();
-
-                T createdObject = null;
-                while (rs.next()) {
-                    createdObject = createObject.apply(rs);
-                    if (createdObject != null) {
-                        break;
-                    }
-                }
-                rs.close();
-                return (createdObject == null) ?
-                    Left.of(Failure.of("SqlQueryFailed")) :
-                    Right.of(createdObject);
-            } catch (Exception e) {
-                return Left.of(
-                    Failure.of(e.getClass().getSimpleName(), Failure.EXCEPTION, e)
-                );
-            } finally {
-                try {
-                    if (stmt != null)
-                        stmt.close();
-                } catch (SQLException e) {
-                }
-            }
-        };
+        return queryPrepared(sql, prepare, createObject)
+            .flatMap(items -> connection ->
+                Either.ofOptional(
+                    Failure.of("Missing result"),
+                    items.findFirst()
+                )
+            );
     }
 
     public static <T> DbCommand<Stream<T>> query(
@@ -189,11 +159,7 @@ public class Repository {
             }
         };
 
-        return queryPrepared(
-            sql,
-            prepare,
-            createObject
-        );
+        return queryPrepared(sql, prepare, createObject);
     }
 
     public static <T> DbCommand<Stream<T>> queryPrepared(
@@ -319,11 +285,6 @@ public class Repository {
             } catch (Exception e) {
             }
         });
-    }
-
-    @FunctionalInterface
-    public static interface Extractor<T> {
-        T extract(ResultSet rs) throws SQLException;
     }
 
     private static class ResultSetIterator<T>

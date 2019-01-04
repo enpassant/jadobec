@@ -89,7 +89,7 @@ public class RepositoryMagic {
                 List<T> list = new ArrayList();
                 while(rs.next()) {
                     Either<Failure, T> createdObjectOrFailure =
-                        Record.expandAs(type).apply(rs);
+                        Record.expandAs(type).extract(rs);
                     if (createdObjectOrFailure.left().isPresent()) {
                         rs.close();
                         return (Either<Failure, List<T>>) createdObjectOrFailure;

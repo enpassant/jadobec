@@ -60,9 +60,7 @@ public class Record {
         return of(rs).flatMap(record -> record.as(type));
     }
 
-    public static <T> ThrowingFunction<ResultSet, Either<Failure, T>, SQLException>
-        expandAs(Class<T> type)
-    {
+    public static <T> Extractor<Either<Failure, T>> expandAs(Class<T> type) {
         return rs -> ofAs(rs, type);
     }
 
