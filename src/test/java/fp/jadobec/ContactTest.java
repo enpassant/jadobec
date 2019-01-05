@@ -106,7 +106,7 @@ public class ContactTest {
             createAndFill.then(
                 queryUserIds()
                     .map(items -> items
-                        .filter(ContactTest::slowIdCheck)
+                        .filter(ContactTest::checkUserIdSlow)
                         .findFirst()
                     )
                     .flatMap(ContactTest::querySingleUser)
@@ -219,7 +219,7 @@ public class ContactTest {
         );
     }
 
-    private static boolean slowIdCheck(Integer id) {
+    private static boolean checkUserIdSlow(Integer id) {
         return (id == 2);
     }
 
