@@ -27,8 +27,8 @@ public class NumericTest {
             fillNumeric("cos(x)", x -> Math.cos(x)).then(
             fillNumeric("x", x -> x))));
 
-    private static Either<Failure, Repository> loadRepository() {
-        return Repository.load(
+    private static Either<Failure, Repository> createRepository() {
+        return Repository.create(
             "org.h2.jdbcx.JdbcDataSource",
             "SELECT 1",
             Tuple2.of("URL", "jdbc:h2:mem:")
@@ -173,7 +173,7 @@ public class NumericTest {
     }
 
     private static <T> void checkDbCommand(DbCommand<T> testDbCommand) {
-        final Either<Failure, T> repositoryOrFailure = loadRepository()
+        final Either<Failure, T> repositoryOrFailure = createRepository()
             .flatMap(repository ->
                 repository.use(
                     createAndFill

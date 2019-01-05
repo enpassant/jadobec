@@ -52,7 +52,7 @@ public class Repository {
         }
     }
 
-    public static Either<Failure, Repository> load(
+    public static Either<Failure, Repository> create(
         DataSource dataSource,
         String testSql
     ) {
@@ -80,7 +80,7 @@ public class Repository {
         }
     }
 
-    public static Either<Failure, Repository> load(
+    public static Either<Failure, Repository> create(
         String driver,
         String testSql,
         Tuple2<String, String>... properties
