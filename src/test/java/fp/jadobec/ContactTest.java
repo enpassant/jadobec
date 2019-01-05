@@ -99,6 +99,27 @@ public class ContactTest {
         );
     }
 
+    @Test
+    public void testPartialLoad() {
+        final Either<Failure, User> expectedUser = User.of(2, "Jane Doe");
+        final DbCommand<Either<Failure, User>> dbCommandIdCheckedUser =
+            createAndFill.then(
+                queryUserIds()
+                    .map(items -> items
+                        .filter(ContactTest::slowIdCheck)
+                        .findFirst()
+                    )
+                    .flatMap(ContactTest::querySingleUser)
+            );
+
+        checkDbCommand(
+            dbCommandIdCheckedUser
+                .forEach(user ->
+                    assertEquals(expectedUser, user)
+                )
+        );
+    }
+
     private static final DbCommand<Integer> createAndFill =
         Repository.transaction(() ->
             createDb().then(
@@ -189,6 +210,31 @@ public class ContactTest {
             rs -> Email.of(rs.getString(1), rs.getBoolean(2)),
             user.getId()
         );
+    }
+
+    private static DbCommand<Stream<Integer>> queryUserIds() {
+        return Repository.query(
+            "SELECT id_user FROM user ORDER BY name",
+            rs -> rs.getInt(1)
+        );
+    }
+
+    private static boolean slowIdCheck(Integer id) {
+        return (id == 2);
+    }
+
+    private static DbCommand<Either<Failure, User>>
+        querySingleUser(Optional<Integer> idOpt)
+    {
+        if (idOpt.isPresent()) {
+            return Repository.querySingle(
+                "SELECT id_user, name FROM user where id_user = ?",
+                rs -> User.of(rs.getInt(1), rs.getString(2)),
+                idOpt.get()
+            );
+        } else {
+            return connection -> Left.of(Failure.of("Missing user id"));
+        }
     }
 
     private static <T> void checkDbCommand(DbCommand<T> testDbCommand) {
