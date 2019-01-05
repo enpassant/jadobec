@@ -4,7 +4,9 @@ import static org.junit.Assert.*;
 import org.junit.Test;
 
 import java.math.BigDecimal;
+import java.math.RoundingMode;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Stream;
 import java.util.stream.Collectors;
 import java.util.function.Function;
@@ -15,9 +17,16 @@ import fp.jadobec.Repository;
 
 import fp.util.Either;
 import fp.util.Failure;
+import fp.util.Left;
 import fp.util.Tuple2;
 
 public class NumericTest {
+    private static final DbCommand<Integer> createAndFill =
+        createNumericDb().then(
+            fillNumeric("sin(x)", x -> Math.sin(x)).then(
+            fillNumeric("cos(x)", x -> Math.cos(x)).then(
+            fillNumeric("x", x -> x))));
+
     private static Either<Failure, Repository> loadRepository() {
         return Repository.load(
             "org.h2.jdbcx.JdbcDataSource",
@@ -28,33 +37,75 @@ public class NumericTest {
 
     @Test
     public void testNumeric() {
-        final DbCommand<Integer> createAndFill =
-            createNumericDb().then(
-            fillNumeric("sin", x -> Math.sin(x)).then(
-            fillNumeric("cos", x -> Math.cos(x)).then(
-            fillNumeric("lin", x -> x))));
-
-        final Either<Failure, Stream<Record>>
-            dataOrFailure = loadRepository()
-                .flatMap(repository -> repository.use(
-                    createAndFill.then(
-                        queryNumericData()
-                    )
-                ));
-
-        assertTrue(
-            dataOrFailure.toString(),
-            dataOrFailure.right().isPresent()
+        checkDbCommand(
+            queryNumericData()
         );
     }
 
-    public DbCommand<Stream<Record>> queryNumericData() {
+    @Test
+    public void testReciprocalSum() {
+        checkDbCommand(
+            queryNumericData()
+                .map(items -> items
+                    .map(NumericTest::calcReciprocal)
+                    //.peek(System.out::println)
+                    .filter(NumericTest::isFieldYIsRight)
+                    .map(NumericTest::mapFieldYRight)
+                    .reduce(BigDecimal::add)
+                ).forEach(sum ->
+                    assertEquals(Optional.of(new BigDecimal(-45)), sum)
+                )
+        );
+    }
+
+    @Test
+    public void testReciprocalXSum() {
+        checkDbCommand(
+            queryNumericData()
+                .map(items -> items
+                    .filter(record ->
+                        record.fieldOrElse("title", "").equals("sin(x)")
+                    )
+                    //.peek(System.out::println)
+                    .map(NumericTest::calcReciprocal)
+                    //.peek(System.out::println)
+                    .filter(NumericTest::isFieldYIsRight)
+                    //.peek(System.out::println)
+                    .map(NumericTest::mapFieldYRight)
+                    .reduce(BigDecimal::add)
+                ).forEach(sum ->
+                    assertEquals(Optional.of(new BigDecimal(0)), sum)
+                )
+        );
+    }
+
+    private static Record calcReciprocal(Record record) {
+        return record.copy(builder -> builder
+            .modify("title", (String title) -> "1/" + title)
+            .modify("y", (BigDecimal y) -> Failure.tryCatch(
+                () -> BigDecimal.ONE.divide(y, RoundingMode.HALF_UP))
+            )
+        );
+    }
+
+    private static DbCommand<Stream<Record>> queryNumericData() {
         return Repository.query(
             "SELECT l.title, d.x, d.y " +
                 "FROM data d JOIN label l ON d.id_label=l.id_label " +
                 "ORDER BY x",
             rs -> Record.of(rs).get()
         );
+    }
+
+    private static final Either<Failure, BigDecimal> wrongValue =
+        Left.of(Failure.of("Wrong value"));
+
+    private static boolean isFieldYIsRight(Record record) {
+        return record.fieldOrElse("y", wrongValue).isRight();
+    }
+
+    private static BigDecimal mapFieldYRight(Record record) {
+        return record.fieldOrElse("y", wrongValue).get();
     }
 
     private static DbCommand<Integer> fillNumeric(
@@ -118,6 +169,21 @@ public class NumericTest {
                 ps.setDouble(2, x);
                 ps.setDouble(3, y);
             }
+        );
+    }
+
+    private static <T> void checkDbCommand(DbCommand<T> testDbCommand) {
+        final Either<Failure, T> repositoryOrFailure = loadRepository()
+            .flatMap(repository ->
+                repository.use(
+                    createAndFill
+                        .flatMap(i -> testDbCommand)
+                )
+            );
+
+        assertTrue(
+            repositoryOrFailure.toString(),
+            repositoryOrFailure.right().isPresent()
         );
     }
 }
