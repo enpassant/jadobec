@@ -71,21 +71,4 @@ public interface DbCommand<T> extends Function<Connection, Either<Failure, T>> {
                 )
         ));
     }
-
-    default <U> DbCommand<Stream<U>> shortCircuit() {
-        try {
-            return this.flatMap(items -> connection -> Right.of(
-                ((Stream<Either<Failure, U>>) items)
-                    .map(i -> {
-                        if (i.left().isPresent()) {
-                            throw new RuntimeException(i.left().get().getCode());
-                        }
-                        return i.right().get();
-                    })
-            ));
-        } catch(Exception e) {
-            return (DbCommand<Stream<U>>)
-                (connection -> Left.of(Failure.of(e.getMessage())));
-        }
-    }
 }
