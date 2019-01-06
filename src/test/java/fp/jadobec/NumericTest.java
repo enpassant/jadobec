@@ -9,7 +9,10 @@ import java.util.List;
 import java.util.Optional;
 import java.util.stream.Stream;
 import java.util.stream.Collectors;
+import java.util.function.Consumer;
 import java.util.function.Function;
+import java.util.logging.Level;
+import java.util.logging.Logger;
 
 import fp.jadobec.DbCommand;
 import fp.jadobec.Record;
@@ -21,6 +24,11 @@ import fp.util.Left;
 import fp.util.Tuple2;
 
 public class NumericTest {
+    private static Logger logger = Logger.getLogger(NumericTest.class.getSimpleName());
+    private static Consumer<Object> log(Level level, String message) {
+        return object -> logger.log(level, message, object);
+    }
+
     private static final DbCommand<Integer> createAndFill =
         createNumericDb().then(
             fillNumeric("sin(x)", x -> Math.sin(x)).then(
@@ -48,7 +56,7 @@ public class NumericTest {
             queryNumericData()
                 .map(items -> items
                     .map(NumericTest::calcReciprocal)
-                    //.peek(System.out::println)
+                    .peek(log(Level.FINEST, "Calculated reciprocal values: {0}"))
                     .filter(NumericTest::isFieldYIsRight)
                     .map(NumericTest::mapFieldYRight)
                     .reduce(BigDecimal::add)
@@ -66,11 +74,11 @@ public class NumericTest {
                     .filter(record ->
                         record.fieldOrElse("title", "").equals("sin(x)")
                     )
-                    //.peek(System.out::println)
+                    .peek(log(Level.FINEST, "sin(x) values: {0}"))
                     .map(NumericTest::calcReciprocal)
-                    //.peek(System.out::println)
+                    .peek(log(Level.FINEST, "Calculated 1/sin(x) values: {0}"))
                     .filter(NumericTest::isFieldYIsRight)
-                    //.peek(System.out::println)
+                    .peek(log(Level.FINEST, "Filtered 1/sin(x) right values: {0}"))
                     .map(NumericTest::mapFieldYRight)
                     .reduce(BigDecimal::add)
                 ).forEach(sum ->
@@ -119,7 +127,6 @@ public class NumericTest {
                 .iterate(three.negate(), x -> x.add(step))
                 .limit(1000)
                 .filter(x -> x.compareTo(three) <= 0)
-                //.peek(System.out::println)
                 .map(x ->
                     insertData(
                         idLabel,
