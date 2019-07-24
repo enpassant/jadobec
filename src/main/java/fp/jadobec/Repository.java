@@ -30,7 +30,7 @@ public class Repository {
         this.connectionFactory = () -> dataSource.getConnection();
     }
 
-    public <T> Either<Failure, T> use(DbCommand<T> command) {
+    public <T> Either<Failure, T> use(DbCommand<Failure, T> command) {
         try {
             final Connection connection = connectionFactory.get();
             final Either<Failure, T> result = command.apply(connection);
@@ -109,7 +109,7 @@ public class Repository {
         }
     }
 
-    public static <T> DbCommand<T> querySingle(
+    public static <T> DbCommand<Failure, T> querySingle(
         String sql,
         Extractor<T> createObject,
         Object... params
@@ -123,7 +123,7 @@ public class Repository {
         return querySinglePrepared(sql, prepare, createObject);
     }
 
-    public static <T> DbCommand<T> querySinglePrepared(
+    public static <T> DbCommand<Failure, T> querySinglePrepared(
         String sql,
         ThrowingConsumer<PreparedStatement, SQLException> prepare,
         Extractor<T> createObject
@@ -137,7 +137,7 @@ public class Repository {
             );
     }
 
-    public static <T> DbCommand<Stream<T>> query(
+    public static <T> DbCommand<Failure, Stream<T>> query(
         String sql,
         Extractor<T> createObject,
         Object... params
@@ -151,7 +151,7 @@ public class Repository {
         return queryPrepared(sql, prepare, createObject);
     }
 
-    public static <T> DbCommand<Stream<T>> queryPrepared(
+    public static <T> DbCommand<Failure, Stream<T>> queryPrepared(
         String sql,
         ThrowingConsumer<PreparedStatement, SQLException> prepare,
         Extractor<T> createObject
@@ -174,11 +174,11 @@ public class Repository {
         };
     }
 
-    public static DbCommand<Integer> update(final String sql) {
+    public static DbCommand<Failure, Integer> update(final String sql) {
         return updatePrepared(sql, ps -> {});
     }
 
-    public static DbCommand<Integer> updatePrepared(
+    public static DbCommand<Failure, Integer> updatePrepared(
         final String sql,
         final ThrowingConsumer<PreparedStatement, SQLException> prepare
     ) {
@@ -217,7 +217,7 @@ public class Repository {
         };
     }
 
-    public static DbCommand<Integer> batchUpdate(String... sqls) {
+    public static DbCommand<Failure, Integer> batchUpdate(String... sqls) {
         return connection -> {
             return Stream.of(sqls)
                 .collect(Collectors.reducing(
@@ -228,8 +228,8 @@ public class Repository {
         };
     }
 
-    public static <T> DbCommand<T> transaction(
-        Supplier<DbCommand<T>> supplier
+    public static <T> DbCommand<Failure, T> transaction(
+        Supplier<DbCommand<Failure, T>> supplier
     ) {
         return connection -> {
             try {

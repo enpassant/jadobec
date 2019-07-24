@@ -1,22 +1,16 @@
 package fp.jadobec;
 
-import static org.junit.Assert.*;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
-import java.sql.Connection;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Stream;
 import java.util.stream.Collectors;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
+
+import org.junit.Test;
 
 import fp.util.Either;
 import fp.util.Failure;
-import fp.util.Left;
-import fp.util.Right;
 import fp.util.Tuple2;
 
 public class RepositoryTest {
@@ -135,7 +129,7 @@ public class RepositoryTest {
         );
     }
 
-    private static DbCommand<Integer> updatePersonName( int id, String name) {
+    private static DbCommand<Failure, Integer> updatePersonName( int id, String name) {
         return Repository.updatePrepared(
             "UPDATE person SET name=? WHERE id = ?",
             ps -> {
@@ -145,7 +139,7 @@ public class RepositoryTest {
         );
     }
 
-    private static DbCommand<Person> selectSingleAsPerson( Integer id) {
+    private static DbCommand<Failure, Person> selectSingleAsPerson( Integer id) {
         return RepositoryMagic.querySingleAs(
             Person.class,
             "SELECT id, name, age FROM person p WHERE id = ?",
@@ -153,7 +147,7 @@ public class RepositoryTest {
         );
     }
 
-    private static <T> void checkDbCommand(DbCommand<T> testDbCommand) {
+    private static <T> void checkDbCommand(DbCommand<Failure, T> testDbCommand) {
         final Either<Failure, T> repositoryOrFailure = createRepository()
             .flatMap(repository ->
                 repository.use(
@@ -176,7 +170,7 @@ public class RepositoryTest {
         );
     }
 
-    private static DbCommand<Integer> fill() {
+    private static DbCommand<Failure, Integer> fill() {
         return Repository.batchUpdate(
             "CREATE TABLE person(" +
                 "id INT auto_increment, " +

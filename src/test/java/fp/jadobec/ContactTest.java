@@ -101,7 +101,7 @@ public class ContactTest {
     @Test
     public void testPartialLoad() {
         final Either<Failure, User> expectedUser = User.of(2, "Jane Doe");
-        final DbCommand<Either<Failure, User>> dbCommandIdCheckedUser =
+        final DbCommand<Failure, Either<Failure, User>> dbCommandIdCheckedUser =
             createAndFill.then(
                 queryUserIds()
                     .map(items -> items
@@ -119,7 +119,7 @@ public class ContactTest {
         );
     }
 
-    private static final DbCommand<Integer> createAndFill =
+    private static final DbCommand<Failure, Integer> createAndFill =
         Repository.transaction(() ->
             createDb().then(
                 insertData()
@@ -134,7 +134,7 @@ public class ContactTest {
         );
     }
 
-    private static DbCommand<Integer> createDb() {
+    private static DbCommand<Failure, Integer> createDb() {
         return Repository.batchUpdate(
             "CREATE TABLE user(" +
                 "id_user INT auto_increment, " +
@@ -152,7 +152,7 @@ public class ContactTest {
         );
     }
 
-    private static DbCommand<Integer> insertData() {
+    private static DbCommand<Failure, Integer> insertData() {
         return Repository.batchUpdate(
             "INSERT INTO user(id_user, name) VALUES(1, 'John Doe')",
             "INSERT INTO email(id_user, email, validated) " +
@@ -170,26 +170,26 @@ public class ContactTest {
         );
     }
 
-    private static DbCommand<Stream<Either<Failure, User>>> queryUsers() {
+    private static DbCommand<Failure, Stream<Either<Failure, User>>> queryUsers() {
         return Repository.query(
             "SELECT id_user, name FROM user ORDER BY name",
             rs -> User.of(rs.getInt(1), rs.getString(2))
         );
     }
 
-    private static DbCommand<User> addOneEmail(final User user) {
+    private static DbCommand<Failure, User> addOneEmail(final User user) {
         return querySingleEmail(user)
             .map(user::addEmail)
         ;
     }
 
-    private static DbCommand<User> addEmails(final User user) {
+    private static DbCommand<Failure, User> addEmails(final User user) {
         return queryEmails(user)
             .map(StreamUtil.reduce(user, User::addEmail))
         ;
     }
 
-    private static DbCommand<Email> querySingleEmail(User user) {
+    private static DbCommand<Failure, Email> querySingleEmail(User user) {
         return Repository.querySingle(
             "SELECT email, validated " +
                 "FROM email " +
@@ -200,7 +200,7 @@ public class ContactTest {
         );
     }
 
-    private static DbCommand<Stream<Email>> queryEmails(User user) {
+    private static DbCommand<Failure, Stream<Email>> queryEmails(User user) {
         return Repository.query(
             "SELECT email, validated " +
                 "FROM email " +
@@ -211,7 +211,7 @@ public class ContactTest {
         );
     }
 
-    private static DbCommand<Stream<Integer>> queryUserIds() {
+    private static DbCommand<Failure, Stream<Integer>> queryUserIds() {
         return Repository.query(
             "SELECT id_user FROM user ORDER BY name",
             rs -> rs.getInt(1)
@@ -222,7 +222,7 @@ public class ContactTest {
         return (id == 2);
     }
 
-    private static DbCommand<Either<Failure, User>>
+    private static DbCommand<Failure, Either<Failure, User>>
         querySingleUser(Optional<Integer> idOpt)
     {
         if (idOpt.isPresent()) {
@@ -236,7 +236,7 @@ public class ContactTest {
         }
     }
 
-    private static <T> void checkDbCommand(DbCommand<T> testDbCommand) {
+    private static <T> void checkDbCommand(DbCommand<Failure, T> testDbCommand) {
         final Either<Failure, T> repositoryOrFailure = createRepository()
             .flatMap(repository ->
                 repository.use(

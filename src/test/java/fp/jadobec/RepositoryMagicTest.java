@@ -100,7 +100,7 @@ public class RepositoryMagicTest {
         );
     }
 
-    private static DbCommand<Person> selectSingleAsPerson( Integer id) {
+    private static DbCommand<Failure, Person> selectSingleAsPerson( Integer id) {
         return RepositoryMagic.querySingleAs(
             Person.class,
             "SELECT id, name, age FROM person p WHERE id = ?",
@@ -108,7 +108,7 @@ public class RepositoryMagicTest {
         );
     }
 
-    private static <T> void checkDbCommand(DbCommand<T> testDbCommand) {
+    private static <T> void checkDbCommand(DbCommand<Failure, T> testDbCommand) {
         final Either<Failure, T> repositoryOrFailure = createRepository()
             .flatMap(repository ->
                 repository.use(
@@ -131,7 +131,7 @@ public class RepositoryMagicTest {
         );
     }
 
-    private static DbCommand<Integer> fill() {
+    private static DbCommand<Failure, Integer> fill() {
         return Repository.batchUpdate(
             "CREATE TABLE person(" +
                 "id INT auto_increment, " +

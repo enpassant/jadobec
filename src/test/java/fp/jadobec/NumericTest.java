@@ -27,7 +27,7 @@ public class NumericTest {
         return object -> logger.log(level, message, object);
     }
 
-    private static final DbCommand<Integer> createAndFill =
+    private static final DbCommand<Failure, Integer> createAndFill =
         createNumericDb().then(
             fillNumeric("sin(x)", x -> Math.sin(x)).then(
             fillNumeric("cos(x)", x -> Math.cos(x)).then(
@@ -94,7 +94,7 @@ public class NumericTest {
         );
     }
 
-    private static DbCommand<Stream<Record>> queryNumericData() {
+    private static DbCommand<Failure, Stream<Record>> queryNumericData() {
         return Repository.query(
             "SELECT l.title, d.x, d.y " +
                 "FROM data d JOIN label l ON d.id_label=l.id_label " +
@@ -114,7 +114,7 @@ public class NumericTest {
         return record.fieldOrElse("y", wrongValue).get();
     }
 
-    private static DbCommand<Integer> fillNumeric(
+    private static DbCommand<Failure, Integer> fillNumeric(
         final String label,
         final Function<Double, Double> fn
     ) {
@@ -140,7 +140,7 @@ public class NumericTest {
             );
     }
 
-    private static DbCommand<Integer> createNumericDb() {
+    private static DbCommand<Failure, Integer> createNumericDb() {
         return Repository.batchUpdate(
             "CREATE TABLE label(" +
                 "id_label INT auto_increment, " +
@@ -155,14 +155,14 @@ public class NumericTest {
         );
     }
 
-    private static DbCommand<Integer> insertLabel(final String label) {
+    private static DbCommand<Failure, Integer> insertLabel(final String label) {
         return Repository.updatePrepared(
             "INSERT INTO label(title) values(?)",
             ps -> ps.setString(1, label)
         );
     }
 
-    private static DbCommand<Integer> insertData(
+    private static DbCommand<Failure, Integer> insertData(
         final int idLabel,
         final double x,
         final double y
@@ -177,7 +177,7 @@ public class NumericTest {
         );
     }
 
-    private static <T> void checkDbCommand(DbCommand<T> testDbCommand) {
+    private static <T> void checkDbCommand(DbCommand<Failure, T> testDbCommand) {
         final Either<Failure, T> repositoryOrFailure = createRepository()
             .flatMap(repository ->
                 repository.use(

@@ -14,7 +14,7 @@ import fp.util.Left;
 import fp.util.Right;
 
 public class RepositoryMagic {
-    public static <T> DbCommand<T> querySingleAs(
+    public static <T> DbCommand<Failure, T> querySingleAs(
         Class<T> type,
         String sql,
         Object... params
@@ -34,7 +34,7 @@ public class RepositoryMagic {
         };
     }
 
-    public static <T> DbCommand<T> querySinglePreparedAs(
+    public static <T> DbCommand<Failure, T> querySinglePreparedAs(
         Class<T> type,
         String sql,
         ThrowingConsumer<PreparedStatement, SQLException> prepare
@@ -43,7 +43,7 @@ public class RepositoryMagic {
             .flatten();
     }
 
-    public static <T> DbCommand<List<T>> queryAs(
+    public static <T> DbCommand<Failure, List<T>> queryAs(
         Class<T> type,
         String sql,
         Object... params
@@ -57,7 +57,7 @@ public class RepositoryMagic {
         return queryPreparedAs(type, sql, prepare);
     }
 
-    public static <T> DbCommand<List<T>> queryPreparedAs(
+    public static <T> DbCommand<Failure, List<T>> queryPreparedAs(
         Class<T> type,
         String sql,
         ThrowingConsumer<PreparedStatement, SQLException> prepare
@@ -99,7 +99,7 @@ public class RepositoryMagic {
         };
     }
 
-    public static DbCommand<Integer> insert(Object object) {
+    public static DbCommand<Failure, Integer> insert(Object object) {
         return connection ->
             Record.from(object).flatMap(record -> {
                 final String fields = record

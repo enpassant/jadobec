@@ -1,59 +1,54 @@
 package fp.jadobec;
 
 import java.sql.Connection;
-import java.util.ArrayList;
-import java.util.List;
 import java.util.function.Consumer;
 import java.util.function.Function;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import fp.util.Either;
-import fp.util.Failure;
-import fp.util.Left;
 import fp.util.Right;
 
-public interface DbCommand<T> extends Function<Connection, Either<Failure, T>> {
-    static <T> DbCommand<T> fix(T t) {
+public interface DbCommand<F, T> extends Function<Connection, Either<F, T>> {
+    static <F, T> DbCommand<F, T> fix(T t) {
         return connection -> Right.of(t);
     }
 
-    default <R> DbCommand<R> then(DbCommand<R> other) {
+    default <R> DbCommand<F, R> then(DbCommand<F, R> other) {
         return connection -> this.apply(connection).flatMap(
             t -> other.apply(connection)
         );
     }
 
-    default DbCommand<T> with(Consumer<Connection> consumer) {
+    default DbCommand<F, T> with(Consumer<Connection> consumer) {
         return connection -> this.apply(connection).forEach(
             t-> consumer.accept(connection)
         );
     }
 
-    default DbCommand<T> forEach(Consumer<T> consumer) {
+    default DbCommand<F, T> forEach(Consumer<T> consumer) {
         return connection -> this.apply(connection).forEach(consumer);
     }
 
-    default <R> DbCommand<R> map(Function<T,R> mapper) {
+    default <R> DbCommand<F, R> map(Function<T,R> mapper) {
         return connection -> this.apply(connection).map(mapper);
     }
 
-    default <R> DbCommand<R> flatMap(Function<T, DbCommand<R>> mapper) {
+    default <R> DbCommand<F, R> flatMap(Function<T, DbCommand<F, R>> mapper) {
         return connection -> this.apply(connection).flatMap(
             t -> mapper.apply(t).apply(connection)
         );
     }
 
-    default <R> DbCommand<R> flatten() {
+    default <R> DbCommand<F, R> flatten() {
         return connection -> this.apply(connection).flatten();
     }
 
-    default <R> DbCommand<R> recover(Function<Failure, R> recover) {
+    default <R> DbCommand<F, R> recover(Function<F, R> recover) {
         return connection -> this.apply(connection).recover(recover);
     }
 
-    default <R, U> DbCommand<Stream<Either<Failure, R>>> mapList(
-        Function<U, DbCommand<R>> mapper
+    default <R, U> DbCommand<F, Stream<Either<F, R>>> mapList(
+        Function<U, DbCommand<F, R>> mapper
     ) {
         return this.flatMap(items -> connection ->
              Right.of(((Stream<U>) items)
@@ -61,11 +56,11 @@ public interface DbCommand<T> extends Function<Connection, Either<Failure, T>> {
         ));
     }
 
-    default <R, U> DbCommand<Stream<Either<Failure, R>>> mapListEither(
-        Function<U, DbCommand<R>> mapper
+    default <R, U> DbCommand<F, Stream<Either<F, R>>> mapListEither(
+        Function<U, DbCommand<F, R>> mapper
     ) {
         return this.flatMap(items -> connection ->
-             Right.of(((Stream<Either<Failure, U>>) items)
+             Right.of(((Stream<Either<F, U>>) items)
                 .map(item -> item.flatMap(
                     i -> mapper.apply(i).apply(connection))
                 )
