@@ -1,22 +1,17 @@
 package fp.jadobec;
 
-import static org.junit.Assert.*;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
-import java.sql.Connection;
 import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.stream.Stream;
-import java.util.stream.Collectors;
-import java.util.function.Consumer;
-import java.util.function.Supplier;
+
+import org.junit.Test;
 
 import fp.util.Either;
 import fp.util.Failure;
+import fp.util.GeneralFailure;
 import fp.util.Left;
-import fp.util.Right;
 import fp.util.Tuple2;
 
 public class RepositoryMagicTest {
@@ -65,10 +60,10 @@ public class RepositoryMagicTest {
                 Person.class,
                 "SELECT id, name FROM person"
             ).flatMap(person ->
-                connection ->Left.of(Failure.of("Wrong result!"))
+                connection ->Left.of(GeneralFailure.of("Wrong result!"))
             ).recover(failure -> {
                 assertEquals(
-                    "Failure(IllegalArgumentException, EXCEPTION -> " +
+                    "GeneralFailure(IllegalArgumentException, EXCEPTION -> " +
                         "java.lang.IllegalArgumentException: " +
                         "wrong number of arguments)",
                     failure.toString()

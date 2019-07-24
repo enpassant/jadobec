@@ -1,23 +1,22 @@
 package fp.jadobec;
 
-import static org.junit.Assert.*;
-import org.junit.Test;
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
 
-import java.math.BigDecimal;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Stream;
 import java.util.stream.Collectors;
-import java.util.function.Function;
+import java.util.stream.Stream;
 
-import fp.jadobec.DbCommand;
-import fp.jadobec.Record;
-import fp.jadobec.Repository;
+import org.junit.Test;
 
 import fp.util.Either;
 import fp.util.Failure;
+import fp.util.GeneralFailure;
 import fp.util.Left;
 import fp.util.Right;
 import fp.util.StreamUtil;
@@ -47,7 +46,7 @@ public class ContactTest {
     @Test
     public void testSingleContact() {
         final List<Either<Failure, User>> expectedUsers = Arrays.asList(
-            Left.of(Failure.of("Missing result")),
+            Left.of(GeneralFailure.of("Missing result")),
             User.of(2, "Jane Doe").map(user ->
                 user.addEmail(Email.of("jane@doe.com", false))
             ),
@@ -233,7 +232,7 @@ public class ContactTest {
                 idOpt.get()
             );
         } else {
-            return connection -> Left.of(Failure.of("Missing user id"));
+            return connection -> Left.of(GeneralFailure.of("Missing user id"));
         }
     }
 
@@ -255,7 +254,7 @@ public class ContactTest {
         public static Either<Failure, User> of(int id, String name) {
             if (name.trim().isEmpty()) {
                 return Left.of(
-                    Failure.of("Wrong user name")
+                	GeneralFailure.of("Wrong user name")
                 );
             } else {
                 return Right.of(

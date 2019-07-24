@@ -7,25 +7,18 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
 import java.util.Spliterators;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
-import javax.sql.ConnectionPoolDataSource;
 import javax.sql.DataSource;
 
 import fp.util.Either;
 import fp.util.Failure;
+import fp.util.GeneralFailure;
 import fp.util.Left;
 import fp.util.Right;
 import fp.util.Tuple2;
@@ -44,11 +37,7 @@ public class Repository {
             connection.close();
             return result;
         } catch (SQLException e) {
-            return Left.of(Failure.of(
-                e.getClass().getSimpleName(),
-                Failure.EXCEPTION,
-                e
-            ));
+            return Left.of(GeneralFailure.of(e));
         }
     }
 
@@ -68,7 +57,7 @@ public class Repository {
             return Right.of(new Repository(dataSource));
         } catch (Exception e) {
             return Left.of(
-                Failure.of(e.getClass().getSimpleName(), Failure.EXCEPTION, e)
+            	GeneralFailure.of(e)
             );
         } finally {
             try {
@@ -108,7 +97,7 @@ public class Repository {
             return Right.of(new Repository(dataSource));
         } catch (Exception e) {
             return Left.of(
-                Failure.of(e.getClass().getSimpleName(), Failure.EXCEPTION, e)
+            	GeneralFailure.of(e)
             );
         } finally {
             try {
@@ -142,7 +131,7 @@ public class Repository {
         return queryPrepared(sql, prepare, createObject)
             .flatMap(items -> connection ->
                 Either.ofOptional(
-                    Failure.of("Missing result"),
+                	GeneralFailure.of("Missing result"),
                     items.findFirst()
                 )
             );
@@ -179,7 +168,7 @@ public class Repository {
                 return Right.of(stream(rs, createObject));
             } catch (Exception e) {
                 return Left.of(
-                    Failure.of(e.getClass().getSimpleName(), Failure.EXCEPTION, e)
+                	GeneralFailure.of(e)
                 );
             }
         };
@@ -216,7 +205,7 @@ public class Repository {
                 return result;
             } catch (Exception e) {
                 return Left.of(
-                    Failure.of(e.getClass().getSimpleName(), Failure.EXCEPTION, e)
+                	GeneralFailure.of(e)
                 );
             } finally {
                 try {
@@ -260,7 +249,7 @@ public class Repository {
                 } catch (SQLException e1) {
                 }
                 return Left.of(
-                    Failure.of(e.getClass().getSimpleName(), Failure.EXCEPTION, e)
+                	GeneralFailure.of(e)
                 );
             } finally {
                 try {

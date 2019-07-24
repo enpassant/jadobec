@@ -1,25 +1,23 @@
 package fp.jadobec;
 
-import static org.junit.Assert.*;
-import org.junit.Test;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.util.List;
 import java.util.Optional;
-import java.util.stream.Stream;
-import java.util.stream.Collectors;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
+import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
-import fp.jadobec.DbCommand;
-import fp.jadobec.Record;
-import fp.jadobec.Repository;
+import org.junit.Test;
 
 import fp.util.Either;
 import fp.util.Failure;
+import fp.util.GeneralFailure;
 import fp.util.Left;
 import fp.util.Tuple2;
 
@@ -90,7 +88,7 @@ public class NumericTest {
     private static Record calcReciprocal(Record record) {
         return record.copy(builder -> builder
             .modify("title", (String title) -> "1/" + title)
-            .modify("y", (BigDecimal y) -> Failure.tryCatch(
+            .modify("y", (BigDecimal y) -> GeneralFailure.tryCatch(
                 () -> BigDecimal.ONE.divide(y, RoundingMode.HALF_UP))
             )
         );
@@ -106,7 +104,7 @@ public class NumericTest {
     }
 
     private static final Either<Failure, BigDecimal> wrongValue =
-        Left.of(Failure.of("Wrong value"));
+        Left.of(GeneralFailure.of("Wrong value"));
 
     private static boolean isFieldYIsRight(Record record) {
         return record.fieldOrElse("y", wrongValue).isRight();

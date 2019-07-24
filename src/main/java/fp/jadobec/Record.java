@@ -4,17 +4,17 @@ import java.lang.reflect.Constructor;
 import java.lang.reflect.Field;
 import java.sql.ResultSet;
 import java.sql.ResultSetMetaData;
-import java.sql.SQLException;
 import java.util.Collection;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.function.Consumer;
+import java.util.function.Function;
 
 import fp.util.Either;
 import fp.util.Failure;
+import fp.util.GeneralFailure;
 import fp.util.Left;
 import fp.util.Right;
 
@@ -51,7 +51,7 @@ public class Record {
             return Right.of((T) ctRet.newInstance(arglist));
         } catch(Exception e) {
             return Left.of(
-                Failure.of(e.getClass().getSimpleName(), Failure.EXCEPTION, e)
+            	GeneralFailure.of(e)
             );
         }
     }
@@ -80,7 +80,7 @@ public class Record {
         ThrowingConsumer<Builder, Exception> factory
     ) {
         final Builder builder = new Builder();
-        return Failure.tryCatch(() -> {
+        return GeneralFailure.tryCatch(() -> {
             factory.accept(builder);
             return builder.build();
         });
@@ -101,7 +101,7 @@ public class Record {
     }
 
     public static Either<Failure, Record> of(ResultSet rs) {
-        return Failure.tryCatch(() -> {
+        return GeneralFailure.tryCatch(() -> {
             final Map<String, Object> values = new LinkedHashMap<>();
             final ResultSetMetaData rsmd = rs.getMetaData();
             final int numberOfColumns = rsmd.getColumnCount();

@@ -1,31 +1,17 @@
 package fp.jadobec;
 
-import java.lang.reflect.Constructor;
-import java.lang.reflect.Method;
-import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
-import java.sql.Statement;
-import java.time.LocalDateTime;
-import java.time.ZoneId;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
 import java.util.List;
-import java.util.Map;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
-import java.util.stream.Stream;
-
-import javax.sql.ConnectionPoolDataSource;
-import javax.sql.DataSource;
 
 import fp.util.Either;
 import fp.util.Failure;
+import fp.util.GeneralFailure;
 import fp.util.Left;
 import fp.util.Right;
-import fp.util.Tuple2;
 
 public class RepositoryMagic {
     public static <T> DbCommand<T> querySingleAs(
@@ -101,7 +87,7 @@ public class RepositoryMagic {
                 return Right.of(list);
             } catch (Exception e) {
                 return Left.of(
-                    Failure.of(e.getClass().getSimpleName(), Failure.EXCEPTION, e)
+                	GeneralFailure.of(e)
                 );
             } finally {
                 try {
