@@ -8,6 +8,7 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Iterator;
+import java.util.Optional;
 import java.util.Spliterators;
 import java.util.function.Supplier;
 import java.util.stream.Collectors;
@@ -129,12 +130,14 @@ public class Repository {
         Extractor<T> createObject
     ) {
         return queryPrepared(sql, prepare, createObject)
-            .flatMap(items -> connection ->
-                Either.ofOptional(
+            .flatMap(items -> connection -> {
+            	final Optional<T> firstValue = items.findFirst();
+            	items.close();
+                return Either.ofOptional(
                 	GeneralFailure.of("Missing result"),
-                    items.findFirst()
-                )
-            );
+                    firstValue
+                );
+            });
     }
 
     public static <T> DbCommand<Failure, Stream<T>> query(
@@ -307,6 +310,7 @@ public class Repository {
 
         @Override
         public void close() throws SQLException {
+        	resultSet.getStatement().close();
             resultSet.close();
         }
     }
