@@ -57,7 +57,8 @@ public class RepositoryMagic {
         return queryPreparedAs(type, sql, prepare);
     }
 
-    public static <T> DbCommand<Failure, List<T>> queryPreparedAs(
+    @SuppressWarnings("unchecked")
+	public static <T> DbCommand<Failure, List<T>> queryPreparedAs(
         Class<T> type,
         String sql,
         ThrowingConsumer<PreparedStatement, SQLException> prepare
@@ -72,7 +73,7 @@ public class RepositoryMagic {
 
                 ResultSet rs = stmt.executeQuery();
 
-                List<T> list = new ArrayList();
+                List<T> list = new ArrayList<T>();
                 while(rs.next()) {
                     Either<Failure, T> createdObjectOrFailure =
                         Record.expandAs(type).extract(rs);

@@ -70,7 +70,8 @@ public class Repository {
         }
     }
 
-    public static Either<Failure, Repository> create(
+    @SafeVarargs
+	public static Either<Failure, Repository> create(
         String driver,
         String testSql,
         Tuple2<String, String>... properties
@@ -265,9 +266,9 @@ public class Repository {
 
     private static <T> Stream<T> stream(
         final ResultSet resultSet,
-        final Extractor extractor
+        final Extractor<T> extractor
     ) {
-        ResultSetIterator iterator = new ResultSetIterator(resultSet, extractor);
+        ResultSetIterator<T> iterator = new ResultSetIterator<T>(resultSet, extractor);
         return (Stream<T>) StreamSupport.stream(
             Spliterators.spliteratorUnknownSize(iterator, 0),
             false

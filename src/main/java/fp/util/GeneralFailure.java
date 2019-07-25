@@ -5,7 +5,6 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
-import java.util.function.Function;
 
 public class GeneralFailure implements Failure {
     public static final String EXCEPTION = "EXCEPTION";

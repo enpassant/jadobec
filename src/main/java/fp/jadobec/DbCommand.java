@@ -47,7 +47,8 @@ public interface DbCommand<F, T> extends Function<Connection, Either<F, T>> {
         return connection -> this.apply(connection).recover(recover);
     }
 
-    default <R, U> DbCommand<F, Stream<Either<F, R>>> mapList(
+    @SuppressWarnings("unchecked")
+	default <R, U> DbCommand<F, Stream<Either<F, R>>> mapList(
         Function<U, DbCommand<F, R>> mapper
     ) {
         return this.flatMap(items -> connection ->
@@ -56,7 +57,8 @@ public interface DbCommand<F, T> extends Function<Connection, Either<F, T>> {
         ));
     }
 
-    default <R, U> DbCommand<F, Stream<Either<F, R>>> mapListEither(
+    @SuppressWarnings("unchecked")
+	default <R, U> DbCommand<F, Stream<Either<F, R>>> mapListEither(
         Function<U, DbCommand<F, R>> mapper
     ) {
         return this.flatMap(items -> connection ->

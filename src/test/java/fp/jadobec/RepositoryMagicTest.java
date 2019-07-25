@@ -17,8 +17,6 @@ import fp.util.Tuple2;
 public class RepositoryMagicTest {
     private final Person johnDoe = Person.of(1, "John Doe", 32);
     private final Person janeDoe = Person.of(2, "Jane Doe", 28);
-    private final Person jakeDoe = Person.of(2, "Jake Doe", 28);
-    private final Person jareDoe = Person.of(2, "Jare Doe", 28);
     private final Person jaredDoe = Person.of(null, "Jared Doe", 12);
     private final Person jaredDoeInserted = Person.of(3, "Jared Doe", 12);
 
