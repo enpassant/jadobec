@@ -1,6 +1,7 @@
 package fp.util;
 
 import java.util.function.BiFunction;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.stream.Stream;
 
@@ -20,14 +21,23 @@ public final class StreamUtil {
         };
     }
 
+    public static <T> Consumer<Stream<T>> consume(
+        Consumer<Stream<T>> fn
+    ) {
+        return items -> {
+        	fn.accept(items);
+        	items.close();
+        };
+    }
+
     public static <T, R> Function<Stream<T>, R> use(
-            Function<Stream<T>, R> fn
-        ) {
-            return items -> {
-            	R result = fn.apply(items);
-            	items.close();
-            	return result;
-            };
-        }
+        Function<Stream<T>, R> fn
+    ) {
+        return items -> {
+        	R result = fn.apply(items);
+        	items.close();
+        	return result;
+        };
+    }
 }
 
