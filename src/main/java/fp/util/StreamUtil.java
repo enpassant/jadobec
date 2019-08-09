@@ -1,5 +1,9 @@
 package fp.util;
 
+import java.io.BufferedWriter;
+import java.io.OutputStream;
+import java.io.OutputStreamWriter;
+import java.io.PrintWriter;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -38,6 +42,24 @@ public final class StreamUtil {
         	items.close();
         	return result;
         };
+    }
+
+    public static <T> void consumeToOutputStream(
+    	OutputStream os,
+    	Stream<T> stream,
+    	String prefix,
+    	String suffix,
+        Consumer<Tuple2<PrintWriter, T>> fn
+    ) {
+        try ( PrintWriter writer = new PrintWriter(
+    		new BufferedWriter(
+    			new OutputStreamWriter( os ) 
+    	) ) ) { 
+            writer.print(prefix);
+        	stream.forEach(item -> fn.accept(Tuple2.of(writer, item)));
+        	stream.close();
+            writer.print( suffix );
+        }
     }
 }
 
