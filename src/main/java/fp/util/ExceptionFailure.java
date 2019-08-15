@@ -1,9 +1,5 @@
 package fp.util;
 
-import fp.jadobec.ThrowingConsumer;
-import fp.jadobec.ThrowingFunction;
-import fp.jadobec.ThrowingSupplier;
-
 public class ExceptionFailure implements Failure {
 	private final Exception exception;
 
@@ -16,7 +12,7 @@ public class ExceptionFailure implements Failure {
     }
     
     public static <E extends Exception, R> Either<Failure, R> tryCatch(
-        SupplierCatch<E, R> process
+        ThrowingSupplier<R, E> process
     ) {
         try {
             return Right.of(process.get());

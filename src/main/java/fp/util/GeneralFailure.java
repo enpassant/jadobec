@@ -36,7 +36,7 @@ public class GeneralFailure implements Failure {
     }
     
     public static <E extends Exception, R> Either<Failure, R> tryCatch(
-        SupplierCatch<E, R> process
+        ThrowingSupplier<R, E> process
     ) {
         try {
             return Right.of(process.get());
@@ -49,7 +49,7 @@ public class GeneralFailure implements Failure {
 
     public static <E extends Exception, R> Either<Failure, R> tryCatch(
         String code,
-        SupplierCatch<E, R> process
+        ThrowingSupplier<R, E> process
     ) {
         try {
             return Right.of(process.get());

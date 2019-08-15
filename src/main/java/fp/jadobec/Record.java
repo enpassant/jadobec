@@ -17,6 +17,7 @@ import fp.util.Failure;
 import fp.util.ExceptionFailure;
 import fp.util.Left;
 import fp.util.Right;
+import fp.util.ThrowingConsumer;
 
 public class Record {
     private final Map<String, Object> values;

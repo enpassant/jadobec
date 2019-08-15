@@ -22,6 +22,8 @@ import fp.util.Failure;
 import fp.util.GeneralFailure;
 import fp.util.Left;
 import fp.util.Right;
+import fp.util.ThrowingConsumer;
+import fp.util.ThrowingSupplier;
 import fp.util.Tuple2;
 
 public class Repository {
