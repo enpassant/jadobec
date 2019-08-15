@@ -1,5 +1,9 @@
 package fp.util;
 
+import fp.jadobec.ThrowingConsumer;
+import fp.jadobec.ThrowingFunction;
+import fp.jadobec.ThrowingSupplier;
+
 public class ExceptionFailure implements Failure {
 	private final Exception exception;
 
@@ -20,6 +24,31 @@ public class ExceptionFailure implements Failure {
             return Left.of(
                 ExceptionFailure.of(e)
             );
+        }
+    }
+    
+    public static <E extends Exception, F, R>
+    	Either<Failure, R> tryCatchFinal
+    (
+    	ThrowingSupplier<F, E> supplier,
+        ThrowingFunction<F, R, E> function,
+        ThrowingConsumer<F, E> finalConsumer
+    ) {
+    	F resource = null;
+        try {
+        	resource = supplier.get();
+            return Right.of(function.apply(resource));
+        } catch(Exception e) {
+            return Left.of(
+                ExceptionFailure.of(e)
+            );
+        } finally {
+        	try {
+        		if (resource != null) {
+        			finalConsumer.accept(resource);
+        		}
+        	} catch(Exception e2) {      		
+        	}
         }
     }
 
