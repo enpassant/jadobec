@@ -61,8 +61,7 @@ public class RepositoryMagicTest {
                 connection ->Left.of(GeneralFailure.of("Wrong result!"))
             ).recover(failure -> {
                 assertEquals(
-                    "GeneralFailure(IllegalArgumentException, EXCEPTION -> " +
-                        "java.lang.IllegalArgumentException: " +
+                    "ExceptionFailure(java.lang.IllegalArgumentException: " +
                         "wrong number of arguments)",
                     failure.toString()
                 );

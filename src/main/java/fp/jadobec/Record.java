@@ -14,7 +14,7 @@ import java.util.function.Function;
 
 import fp.util.Either;
 import fp.util.Failure;
-import fp.util.GeneralFailure;
+import fp.util.ExceptionFailure;
 import fp.util.Left;
 import fp.util.Right;
 
@@ -53,7 +53,7 @@ public class Record {
             return Right.of((T) ctRet.newInstance(arglist));
         } catch(Exception e) {
             return Left.of(
-            	GeneralFailure.of(e)
+            	ExceptionFailure.of(e)
             );
         }
     }
@@ -82,7 +82,7 @@ public class Record {
         ThrowingConsumer<Builder, Exception> factory
     ) {
         final Builder builder = new Builder();
-        return GeneralFailure.tryCatch(() -> {
+        return ExceptionFailure.tryCatch(() -> {
             factory.accept(builder);
             return builder.build();
         });
@@ -103,7 +103,7 @@ public class Record {
     }
 
     public static Either<Failure, Record> of(ResultSet rs) {
-        return GeneralFailure.tryCatch(() -> {
+        return ExceptionFailure.tryCatch(() -> {
             final Map<String, Object> values = new LinkedHashMap<>();
             final ResultSetMetaData rsmd = rs.getMetaData();
             final int numberOfColumns = rsmd.getColumnCount();

@@ -16,10 +16,10 @@ import org.junit.Test;
 
 import fp.util.Either;
 import fp.util.Failure;
-import fp.util.GeneralFailure;
 import fp.util.Left;
 import fp.util.Right;
 import fp.util.StreamUtil;
+import fp.util.GeneralFailure;
 import fp.util.Tuple2;
 
 public class ContactTest {

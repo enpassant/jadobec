@@ -9,7 +9,7 @@ import java.util.stream.Collectors;
 
 import fp.util.Either;
 import fp.util.Failure;
-import fp.util.GeneralFailure;
+import fp.util.ExceptionFailure;
 import fp.util.Left;
 import fp.util.Right;
 
@@ -88,7 +88,7 @@ public class RepositoryMagic {
                 return Right.of(list);
             } catch (Exception e) {
                 return Left.of(
-                	GeneralFailure.of(e)
+                	ExceptionFailure.of(e)
                 );
             } finally {
                 try {

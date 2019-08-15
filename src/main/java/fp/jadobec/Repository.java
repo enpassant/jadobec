@@ -17,6 +17,7 @@ import java.util.stream.StreamSupport;
 import javax.sql.DataSource;
 
 import fp.util.Either;
+import fp.util.ExceptionFailure;
 import fp.util.Failure;
 import fp.util.GeneralFailure;
 import fp.util.Left;
@@ -37,7 +38,7 @@ public class Repository {
             connection.close();
             return result;
         } catch (SQLException e) {
-            return Left.of(GeneralFailure.of(e));
+            return Left.of(ExceptionFailure.of(e));
         }
     }
 
@@ -57,7 +58,7 @@ public class Repository {
             return Right.of(new Repository(dataSource));
         } catch (Exception e) {
             return Left.of(
-            	GeneralFailure.of(e)
+            	ExceptionFailure.of(e)
             );
         } finally {
             try {
@@ -98,7 +99,7 @@ public class Repository {
             return Right.of(new Repository(dataSource));
         } catch (Exception e) {
             return Left.of(
-            	GeneralFailure.of(e)
+            	ExceptionFailure.of(e)
             );
         } finally {
             try {
@@ -171,7 +172,7 @@ public class Repository {
                 return Right.of(stream(rs, createObject));
             } catch (Exception e) {
                 return Left.of(
-                	GeneralFailure.of(e)
+                	ExceptionFailure.of(e)
                 );
             }
         };
@@ -208,7 +209,7 @@ public class Repository {
                 return result;
             } catch (Exception e) {
                 return Left.of(
-                	GeneralFailure.of(e)
+                	ExceptionFailure.of(e)
                 );
             } finally {
                 try {
@@ -252,7 +253,7 @@ public class Repository {
                 } catch (SQLException e1) {
                 }
                 return Left.of(
-                	GeneralFailure.of(e)
+                	ExceptionFailure.of(e)
                 );
             } finally {
                 try {
