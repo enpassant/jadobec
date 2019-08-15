@@ -10,7 +10,6 @@ import java.sql.Statement;
 import java.util.Iterator;
 import java.util.Optional;
 import java.util.Spliterators;
-import java.util.function.Supplier;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
@@ -233,12 +232,12 @@ public class Repository {
     }
 
     public static <T> DbCommand<Failure, T> transaction(
-        Supplier<DbCommand<Failure, T>> supplier
+        DbCommand<Failure, T> dbCommand
     ) {
         return connection -> {
             try {
                 connection.setAutoCommit(false);
-                Either<Failure, T> result = supplier.get().apply(connection);
+                Either<Failure, T> result = dbCommand.apply(connection);
 
                 if (result.right().isPresent()) {
                     connection.commit();

@@ -120,7 +120,7 @@ public class ContactTest {
     }
 
     private static final DbCommand<Failure, Integer> createAndFill =
-        Repository.transaction(() ->
+        Repository.transaction(
             createDb().then(
                 insertData()
             )

@@ -101,7 +101,7 @@ public class RepositoryTest {
     @Test
     public void testGoodTransaction() {
         checkDbCommand(
-            Repository.transaction(() ->
+            Repository.transaction(
                 updatePersonName(2, "Jake Doe").then(
                     updatePersonName(2, "Jare Doe")
             )).then(
@@ -115,7 +115,7 @@ public class RepositoryTest {
     @Test
     public void testBadTransaction() {
         checkDbCommand(
-            Repository.transaction(() ->
+            Repository.transaction(
                 updatePersonName(2, "Jake Doe").then(
                     updatePersonName(2, null)
             )).recover(failure -> 1)
