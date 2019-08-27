@@ -14,6 +14,12 @@ public class IOTest {
     }
 
     @Test
+    public void testFail() {
+        IO<Void, String, ?> io = IO.fail("Syntax error");
+        Assert.assertEquals(Left.of("Syntax error"), IO.evaluate(null, io));
+    }
+
+    @Test
     public void testFlatMapIO() {
         IO<Void, Void, Integer> io = IO.pure(4).flatMap(
         	n -> IO.effectTotal(() -> n * n)
@@ -116,7 +122,7 @@ public class IOTest {
     
     @Test
     public void testMutuallyTailRecursive() {
-        IO<Void, Void, Boolean> io = even(1000000);
+        IO<Void, Void, Boolean> io = even(100000);
         Assert.assertEquals(Right.of(true), IO.evaluate(null, io));
     }
 }

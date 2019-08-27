@@ -26,6 +26,10 @@ public abstract class IO<C, F, R> {
         return new Pure<R>(r);
     }
     
+	public static <F> IO<Void, F, ?> fail(F f) {
+        return new Fail<F>(f);
+    }
+    
 	public static <R> IO<Void, Void, R> effectTotal(Supplier<R> supplier) {
         return new EffectTotal<R>(supplier);
     }
@@ -64,16 +68,15 @@ public abstract class IO<C, F, R> {
 				break;
 			case Pure:
 				value = ((Pure<R>) curIo).r;
-				curIo = null;
 				break;
+			case Fail:
+				return (Either<F, R>) Left.of(((Fail<F>) curIo).f);
 			case EffectTotal:
 				value = ((EffectTotal<R>) curIo).supplier.get();
-				curIo = null;
 				break;
 			case EffectPartial: {
 				try {
 					value = ((EffectPartial<Throwable, R>) curIo).supplier.get();
-					curIo = null;
 				} catch (Throwable e) {
 					return (Either<F, R>) Left.of(e);
 				}
@@ -114,6 +117,7 @@ public abstract class IO<C, F, R> {
 		Bracket,
 		Provide,
 		Pure,
+		Fail,
 		EffectTotal,
 		EffectPartial,
 		FlatMap
@@ -140,6 +144,14 @@ public abstract class IO<C, F, R> {
     	public Pure(R r) {
     		tag = Tag.Pure;
     		this.r = r;
+		}
+    }
+	
+    private static class Fail<F> extends IO<Void, F, Object> {
+    	final F f;
+    	public Fail(F f) {
+    		tag = Tag.Fail;
+    		this.f = f;
 		}
     }
 	
