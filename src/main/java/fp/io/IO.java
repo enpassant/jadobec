@@ -32,39 +32,62 @@ public abstract class IO<C, F, R> {
         return new EffectPartial<F, R>(supplier);
     }
     
-	public <F2, R2> IO<C, F, R2> flatMap(Function<R, IO<C, F2, R2>> fn) {
+	public <F2, R2> IO<C, F2, R2> flatMap(Function<R, IO<C, F2, R2>> fn) {
         return new FlatMap<C, F, F2, R, R2>(this, fn);
     }
     
+	public static <C, F, A, R> IO<C, F, R> bracket(
+		IO<C, F, A> acquire,
+		Function<A, IO<C, F, ?>> release,
+		Function<A, IO<C, F, R>> use
+	) {
+        return new Bracket<C, F, A, R>(
+        	acquire,
+        	release,
+        	use
+        );
+    }
+    
     @SuppressWarnings("unchecked")
-	public <F2, R2> Either<F2, R2> evaluate(C context) {
+	public <F2, R2> Either<F, R> evaluate(C context) {
     	switch (this.tag) {
 		case Access:
-			return (Either<F2, R2>) Right.of(((Access<C>) this).fn.apply(context));
+			return (Either<F, R>) Right.of(((Access<C>) this).fn.apply(context));
 		case Pure:
-			return (Either<F2, R2>) Right.of(((Pure<R2>) this).r);
+			return (Either<F, R>) Right.of(((Pure<R>) this).r);
 		case EffectTotal:
-			return (Either<F2, R2>) Right.of(((EffectTotal<R2>) this).supplier.get());
-		case EffectPartial:
+			return (Either<F, R>) Right.of(((EffectTotal<R>) this).supplier.get());
+		case EffectPartial: {
 			R result;
 			try {
 				result = ((EffectPartial<Throwable, R>) this).supplier.get();
-				return (Either<F2, R2>) Right.of(result);
+				return (Either<F, R>) Right.of(result);
 			} catch (Throwable e) {
-				return (Either<F2, R2>) Left.of(e);
+				return (Either<F, R>) Left.of(e);
 			}
+		}
+		case Bracket: {
+			final Bracket<C, F, R2, R> bracketIO = (Bracket<C, F, R2, R>) this;
+			Either<F, R2> resource = bracketIO.acquire.evaluate(context);
+			return (Either<F, R>) resource.flatMap(a -> {
+				final Either<F, R> result = bracketIO.use.apply(a).evaluate(context);
+				bracketIO.release.apply(a).evaluate(context);
+				return result;
+			});
+		}
 		case FlatMap:
-			final FlatMap<C, F, F2, R, R2> flatmapIO = (FlatMap<C, F, F2, R, R2>) this;
-			return ((Either<F2, R>) flatmapIO.io.evaluate(context)).flatMap(
+			final FlatMap<C, F2, F, R2, R> flatmapIO = (FlatMap<C, F2, F, R2, R>) this;
+			return ((Either<F, R2>) flatmapIO.io.evaluate(context)).flatMap(
 				r -> flatmapIO.fn.apply(r).evaluate(context)
 			);
 		default:
-			return (Either<F2, R2>) Left.of(GeneralFailure.of("Interrupt"));
+			return (Either<F, R>) Left.of(GeneralFailure.of("Interrupt"));
     	}
     }
     
 	enum Tag {
 		Access,
+		Bracket,
 		Provide,
 		Pure,
 		EffectTotal,
@@ -113,8 +136,25 @@ public abstract class IO<C, F, R> {
     		this.supplier = supplier;
 		}
     }
-	
-    private static class FlatMap<C, F, F2, R, R2> extends IO<C, F, R2> {
+
+    private static class Bracket<C, F, A, R> extends IO<C, F, R> {
+		IO<C, F, A> acquire;
+		Function<A, IO<C, F, ?>> release;
+		Function<A, IO<C, F, R>> use;
+    	
+    	public Bracket(
+			IO<C, F, A> acquire,
+			Function<A, IO<C, F, ?>> release,
+			Function<A, IO<C, F, R>> use
+    	) {
+    		tag = Tag.Bracket;
+    		this.acquire = acquire;
+    		this.release = release;
+    		this.use = use;
+		}
+    }
+
+    private static class FlatMap<C, F, F2, R, R2> extends IO<C, F2, R2> {
     	final IO<C, F, R> io;
     	final Function<R, IO<C, F2, R2>> fn;
     	
