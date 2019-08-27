@@ -1,7 +1,5 @@
 package fp.io;
 
-import java.math.BigInteger;
-
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -12,7 +10,7 @@ public class IOTest {
     @Test
     public void testPureIO() {
         IO<Void, Void, Integer> io = IO.pure(4);
-        Assert.assertEquals(Right.of(4), io.evaluate(null));
+        Assert.assertEquals(Right.of(4), IO.evaluate(null, io));
     }
 
     @Test
@@ -20,7 +18,7 @@ public class IOTest {
         IO<Void, Void, Integer> io = IO.pure(4).flatMap(
         	n -> IO.effectTotal(() -> n * n)
         );
-        Assert.assertEquals(Right.of(16), io.evaluate(null));
+        Assert.assertEquals(Right.of(16), IO.evaluate(null, io));
     }
 
     @Test
@@ -30,7 +28,7 @@ public class IOTest {
         );
         Assert.assertEquals(
         	Right.of(16),
-        	io.evaluate(null)
+        	IO.evaluate(null, io)
         );
     }
 
@@ -41,7 +39,7 @@ public class IOTest {
         );
         Assert.assertEquals(
         	Left.of(new ArithmeticException("/ by zero")).toString(),
-        	io.evaluate(null).toString()
+        	IO.evaluate(null, io).toString()
         );
     }
 
@@ -50,7 +48,7 @@ public class IOTest {
         IO<Integer, Void, Integer> io = IO.access(
         	(Integer n) -> n * n
         );
-        Assert.assertEquals(Right.of(16), io.evaluate(4));
+        Assert.assertEquals(Right.of(16), IO.evaluate(4, io));
     }
     
     private static class Resource {
@@ -76,7 +74,7 @@ public class IOTest {
         	resource -> IO.effectTotal(() -> { resource.close(); return 1; }),
         	resource -> IO.effectTotal(() -> resource.use(10))
         );
-        Assert.assertEquals(Right.of(10), io.evaluate(null));
+        Assert.assertEquals(Right.of(10), IO.evaluate(null, io));
         Assert.assertFalse(res.acquired);
     }
 
@@ -101,8 +99,24 @@ public class IOTest {
                 )
         	)
         );
-        Assert.assertEquals(Right.of(16), io.evaluate(null));
+        Assert.assertEquals(Right.of(16), IO.evaluate(null, io));
         Assert.assertFalse(res1.acquired);
         Assert.assertFalse(res2.acquired);
+    }
+    
+    private IO<Void, Void, Boolean> odd(int n) {
+    	return IO.effectTotal(() -> n == 0)
+    		.flatMap(b -> b ? IO.pure(false) : even(n - 1) );
+    }
+    
+    private IO<Void, Void, Boolean> even(int n) {
+    	return IO.effectTotal(() -> n == 0)
+    		.flatMap(b -> b ? IO.pure(true) : odd(n - 1) );
+    }
+    
+    @Test
+    public void testMutuallyTailRecursive() {
+        IO<Void, Void, Boolean> io = even(1000000);
+        Assert.assertEquals(Right.of(true), IO.evaluate(null, io));
     }
 }

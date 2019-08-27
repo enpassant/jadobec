@@ -1,5 +1,7 @@
 package fp.io;
 
+import java.util.ArrayDeque;
+import java.util.Deque;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -49,40 +51,62 @@ public abstract class IO<C, F, R> {
     }
     
     @SuppressWarnings("unchecked")
-	public <F2, R2> Either<F, R> evaluate(C context) {
-    	switch (this.tag) {
-		case Access:
-			return (Either<F, R>) Right.of(((Access<C>) this).fn.apply(context));
-		case Pure:
-			return (Either<F, R>) Right.of(((Pure<R>) this).r);
-		case EffectTotal:
-			return (Either<F, R>) Right.of(((EffectTotal<R>) this).supplier.get());
-		case EffectPartial: {
-			R result;
-			try {
-				result = ((EffectPartial<Throwable, R>) this).supplier.get();
-				return (Either<F, R>) Right.of(result);
-			} catch (Throwable e) {
-				return (Either<F, R>) Left.of(e);
+	public static <C, F, F2, R, R2> Either<F, R> evaluate(C context, IO<C, F, R> io) {
+    	IO<C, F, R> curIo = io;
+    	Object value = null;
+    	
+    	Deque<Function<?, IO<C, F, ?>>> stack = new ArrayDeque<Function<?, IO<C, F, ?>>>();
+    	
+    	while (curIo != null) {
+	    	switch (curIo.tag) {
+			case Access:
+				value = ((Access<C>) curIo).fn.apply(context);
+				break;
+			case Pure:
+				value = ((Pure<R>) curIo).r;
+				curIo = null;
+				break;
+			case EffectTotal:
+				value = ((EffectTotal<R>) curIo).supplier.get();
+				curIo = null;
+				break;
+			case EffectPartial: {
+				try {
+					value = ((EffectPartial<Throwable, R>) curIo).supplier.get();
+					curIo = null;
+				} catch (Throwable e) {
+					return (Either<F, R>) Left.of(e);
+				}
+				break;
 			}
-		}
-		case Bracket: {
-			final Bracket<C, F, R2, R> bracketIO = (Bracket<C, F, R2, R>) this;
-			Either<F, R2> resource = bracketIO.acquire.evaluate(context);
-			return (Either<F, R>) resource.flatMap(a -> {
-				final Either<F, R> result = bracketIO.use.apply(a).evaluate(context);
-				bracketIO.release.apply(a).evaluate(context);
-				return result;
-			});
-		}
-		case FlatMap:
-			final FlatMap<C, F2, F, R2, R> flatmapIO = (FlatMap<C, F2, F, R2, R>) this;
-			return ((Either<F, R2>) flatmapIO.io.evaluate(context)).flatMap(
-				r -> flatmapIO.fn.apply(r).evaluate(context)
-			);
-		default:
-			return (Either<F, R>) Left.of(GeneralFailure.of("Interrupt"));
+			case Bracket: {
+				final Bracket<C, F, R2, R> bracketIO = (Bracket<C, F, R2, R>) curIo;
+				Either<F, R2> resource = evaluate(context, bracketIO.acquire);
+				return (Either<F, R>) resource.flatMap(a -> {
+					final Either<F, R> result = evaluate(context, bracketIO.use.apply(a));
+					evaluate(context, bracketIO.release.apply(a));
+					return result;
+				});
+			}
+			case FlatMap:
+				final FlatMap<C, F2, F, R2, R> flatmapIO = (FlatMap<C, F2, F, R2, R>) curIo;
+				stack.push((R2 v) -> flatmapIO.fn.apply(v));
+				stack.push(v -> (IO<C, F, ?>) flatmapIO.io);
+				break;
+			default:
+				return (Either<F, R>) Left.of(GeneralFailure.of("Interrupt"));
+	    	}
+	    	
+	    	if (stack.isEmpty()) {
+	    		curIo = null;
+	    	} else {
+	    		final Function<Object, IO<C, F, ?>> fn =
+	    			(Function<Object, IO<C, F, ?>>) stack.pop();
+	    		curIo = (IO<C, F, R>) fn.apply(value);
+	    	}
     	}
+    	
+    	return (Either<F, R>) Right.of(value);
     }
     
 	enum Tag {
