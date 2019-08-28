@@ -1,5 +1,10 @@
 package fp.io;
 
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ForkJoinPool;
+import java.util.function.Function;
+
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -124,5 +129,30 @@ public class IOTest {
     public void testMutuallyTailRecursive() {
         IO<Void, Void, Boolean> io = even(100000);
         Assert.assertEquals(Right.of(true), IO.evaluate(null, io));
+    }
+	
+    @Test
+    public void testLock() {
+		ExecutorService asyncExecutor = Executors.newFixedThreadPool(4);
+		ExecutorService blockingExecutor = Executors.newCachedThreadPool();
+		ExecutorService calcExecutor = new ForkJoinPool(2);
+	
+        Function<Integer, IO<Void, Void, Integer>> fnIo = n -> IO.effectTotal(() -> {
+//        	System.out.println(n + ": " + Thread.currentThread().getName());
+        	return n + 1;
+        });
+        IO<Void, Void, Integer> lockIo = IO.pure(1).flatMap(n ->
+	        fnIo.apply(n).on(asyncExecutor).flatMap(n1 -> 
+	        	fnIo.apply(n1).on(blockingExecutor).flatMap(n2 ->
+	        		fnIo.apply(n2).flatMap(n3 ->
+	        		fnIo.apply(n3).flatMap(n4 ->
+	        		fnIo.apply(n4).flatMap(n5 ->
+	        			fnIo.apply(n5).on(calcExecutor).flatMap(fnIo)
+        ))))));
+        Assert.assertEquals(Right.of(8), IO.evaluate(null, lockIo));
+        
+        asyncExecutor.shutdown();
+        blockingExecutor.shutdown();
+        calcExecutor.shutdown();
     }
 }

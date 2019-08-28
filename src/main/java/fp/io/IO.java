@@ -2,10 +2,14 @@ package fp.io;
 
 import java.util.ArrayDeque;
 import java.util.Deque;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.Future;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 import fp.util.Either;
+import fp.util.Failure;
 import fp.util.GeneralFailure;
 import fp.util.Left;
 import fp.util.Right;
@@ -42,6 +46,10 @@ public abstract class IO<C, F, R> {
         return new FlatMap<C, F, F2, R, R2>(this, fn);
     }
     
+	public IO<C, F, R> on(ExecutorService executor) {
+        return new Lock<C, F, R>(this, executor);
+    }
+    
 	public static <C, F, A, R> IO<C, F, R> bracket(
 		IO<C, F, A> acquire,
 		Function<A, IO<C, F, ?>> release,
@@ -59,7 +67,8 @@ public abstract class IO<C, F, R> {
     	IO<C, F, R> curIo = io;
     	Object value = null;
     	
-    	Deque<Function<?, IO<C, F, ?>>> stack = new ArrayDeque<Function<?, IO<C, F, ?>>>();
+    	Deque<Function<?, IO<C, F, ?>>> stack =
+    		new ArrayDeque<Function<?, IO<C, F, ?>>>();
     	
     	while (curIo != null) {
 	    	switch (curIo.tag) {
@@ -96,6 +105,10 @@ public abstract class IO<C, F, R> {
 				stack.push((R2 v) -> flatmapIO.fn.apply(v));
 				stack.push(v -> (IO<C, F, ?>) flatmapIO.io);
 				break;
+			case Lock:
+				final Lock<C, F, R> lockIo = (Lock<C, F, R>) curIo;
+				value = lockIo.executor.submit(() -> evaluate(context, lockIo.io));
+				break;
 			default:
 				return (Either<F, R>) Left.of(GeneralFailure.of("Interrupt"));
 	    	}
@@ -105,10 +118,18 @@ public abstract class IO<C, F, R> {
 	    	} else {
 	    		final Function<Object, IO<C, F, ?>> fn =
 	    			(Function<Object, IO<C, F, ?>>) stack.pop();
+	    		if (value instanceof Future) {
+					Future<Either<?, ?>> futureValue = (Future<Either<?, ?>>) value;
+					value = Failure.tryCatchOptional(() -> futureValue.get()).get().get();
+				}
 	    		curIo = (IO<C, F, R>) fn.apply(value);
 	    	}
     	}
     	
+		if (value instanceof Future) {
+			Future<Either<?, ?>> futureValue = (Future<Either<?, ?>>) value;
+			value = Failure.tryCatchOptional(() -> futureValue.get()).get().get();
+		}
     	return (Either<F, R>) Right.of(value);
     }
     
@@ -120,7 +141,8 @@ public abstract class IO<C, F, R> {
 		Fail,
 		EffectTotal,
 		EffectPartial,
-		FlatMap
+		FlatMap,
+		Lock
 	}
 	
     private static class Access<C> extends IO<C, Void, C> {
@@ -198,6 +220,16 @@ public abstract class IO<C, F, R> {
     		tag = Tag.FlatMap;
     		this.io = io;
     		this.fn = fn;
+		}
+    }
+	
+    private static class Lock<C, F, R> extends IO<C, F, R> {
+    	final IO<C, F, R> io;
+    	final ExecutorService executor;
+    	public Lock(IO<C, F, R> io, ExecutorService executor) {
+    		tag = Tag.Lock;
+    		this.io = io;
+    		this.executor = executor;
 		}
     }
 
