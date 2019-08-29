@@ -168,4 +168,15 @@ public class IOTest {
         blockingExecutor.shutdown();
         calcExecutor.shutdown();
     }
+
+    @Test
+    public void testPeek() {
+        final Resource res = new Resource();
+        IO<Void, Void, Resource> io = IO.pure(res)
+        	.peek(r1 -> r1.use(4))
+        	.peek(r2 -> r2.close());
+        Assert.assertEquals(Right.of(res), IO.evaluate(null, io));
+        Assert.assertEquals(4, res.usage);
+        Assert.assertEquals(false, res.acquired);
+    }
 }

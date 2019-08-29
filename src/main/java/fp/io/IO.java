@@ -4,6 +4,7 @@ import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
@@ -35,6 +36,10 @@ public abstract class IO<C, F, R> {
     
 	public static <F> IO<Void, F, ?> fail(F f) {
         return new Fail<F>(f);
+    }
+    
+	public IO<C, F, R> peek(Consumer<R> consumer) {
+        return new Peek<C, F, R>(this, consumer);
     }
     
 	public static <R> IO<Void, Void, R> effectTotal(Supplier<R> supplier) {
@@ -120,6 +125,14 @@ public abstract class IO<C, F, R> {
 				final Lock<C, F, R> lockIo = (Lock<C, F, R>) curIo;
 				value = lockIo.executor.submit(() -> evaluate(context, lockIo.io));
 				break;
+			case Peek:
+				final Peek<C, F, R> peekIO = (Peek<C, F, R>) curIo;
+				stack.push((R r) -> {
+					peekIO.consumer.accept(r);
+					return (IO<C, F, ?>) IO.pure(r);
+				});
+				stack.push(v -> (IO<C, F, ?>) peekIO.io);
+				break;
 			default:
 				return (Either<F, R>) Left.of(GeneralFailure.of("Interrupt"));
 	    	}
@@ -154,7 +167,8 @@ public abstract class IO<C, F, R> {
 		EffectTotal,
 		EffectPartial,
 		FlatMap,
-		Lock
+		Lock,
+		Peek
 	}
 
     private static class Absolve<C, F, R> extends IO<C, F, R> {
@@ -253,6 +267,17 @@ public abstract class IO<C, F, R> {
     		tag = Tag.Lock;
     		this.io = io;
     		this.executor = executor;
+		}
+    }
+	
+    private static class Peek<C, F, R> extends IO<C, F, R> {
+    	final IO<C, F, R> io;
+    	final Consumer<R> consumer;
+    	
+    	public Peek(IO<C, F, R> io, Consumer<R> consumer) {
+    		tag = Tag.Peek;
+    		this.io = io;
+    		this.consumer = consumer;
 		}
     }
 
