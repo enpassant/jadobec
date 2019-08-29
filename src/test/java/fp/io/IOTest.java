@@ -8,10 +8,23 @@ import java.util.function.Function;
 import org.junit.Assert;
 import org.junit.Test;
 
+import fp.util.Either;
 import fp.util.Left;
 import fp.util.Right;
 
 public class IOTest {
+    @Test
+    public void testAbsolveSuccess() {
+        IO<Void, Void, Integer> io = IO.absolve(IO.pure(Right.of(4)));
+        Assert.assertEquals(Right.of(4), IO.evaluate(null, io));
+    }
+
+    @Test
+    public void testAbsolveFailure() {
+        IO<Void, Integer, Integer> io = IO.absolve(IO.pure(Left.of(4)));
+        Assert.assertEquals(Left.of(4), IO.evaluate(null, io));
+    }
+
     @Test
     public void testPureIO() {
         IO<Void, Void, Integer> io = IO.pure(4);

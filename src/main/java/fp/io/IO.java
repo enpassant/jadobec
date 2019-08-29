@@ -3,7 +3,6 @@ package fp.io;
 import java.util.ArrayDeque;
 import java.util.Deque;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Future;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -17,6 +16,10 @@ import fp.util.ThrowingSupplier;
 
 public abstract class IO<C, F, R> {
 	Tag tag;
+    
+	public static <C, F, R> IO<C, F, R> absolve(IO<C, ?, Either<F, R>> io) {
+        return new Absolve<C, F, R>(io);
+    }
 	
 	public static <C, R> IO<C, Void, R> access(Function<C, R> fn) {
         return new Access<C, R>(fn);
@@ -72,6 +75,14 @@ public abstract class IO<C, F, R> {
     	
     	while (curIo != null) {
 	    	switch (curIo.tag) {
+			case Absolve:
+				final Absolve<C, F, R> absolveIO = (Absolve<C, F, R>) curIo;
+				stack.push((Either<F, R> v) -> v.isLeft() ?
+					(IO<C, F, ?>) IO.fail(v.left().get()) :
+					(IO<C, F, ?>) IO.pure(v.right().get())
+				);
+				stack.push(v -> (IO<C, F, ?>) absolveIO.io);
+				break;
 			case Access:
 				value = ((Access<C, R>) curIo).fn.apply(context);
 				break;
@@ -134,6 +145,7 @@ public abstract class IO<C, F, R> {
     }
     
 	enum Tag {
+		Absolve,
 		Access,
 		Bracket,
 		Provide,
@@ -144,6 +156,17 @@ public abstract class IO<C, F, R> {
 		FlatMap,
 		Lock
 	}
+
+    private static class Absolve<C, F, R> extends IO<C, F, R> {
+		final IO<C, ?, Either<F, R>> io;
+    	
+		public Absolve(
+			IO<C, ?, Either<F, R>> io
+    	) {
+    		tag = Tag.Absolve;
+			this.io = io;
+		}
+    }
 	
     private static class Access<C, R> extends IO<C, Void, R> {
     	final Function<C, R> fn;
