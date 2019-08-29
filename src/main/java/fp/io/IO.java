@@ -30,12 +30,12 @@ public abstract class IO<C, F, R> {
         return new Provide<C>(c);
     }
     
-	public static <R> IO<Void, Void, R> pure(R r) {
-        return new Pure<R>(r);
+	public static <C, F, R> IO<C, F, R> pure(R r) {
+        return new Pure<C, F, R>(r);
     }
     
-	public static <F> IO<Void, F, ?> fail(F f) {
-        return new Fail<F>(f);
+	public static <C, F, R> IO<C, F, R> fail(F f) {
+        return new Fail<C, F, R>(f);
     }
     
 	public IO<C, F, R> peek(Consumer<R> consumer) {
@@ -92,10 +92,10 @@ public abstract class IO<C, F, R> {
 				value = ((Access<C, R>) curIo).fn.apply(context);
 				break;
 			case Pure:
-				value = ((Pure<R>) curIo).r;
+				value = ((Pure<C, F, R>) curIo).r;
 				break;
 			case Fail:
-				return (Either<F, R>) Left.of(((Fail<F>) curIo).f);
+				return (Either<F, R>) Left.of(((Fail<C, F, R>) curIo).f);
 			case EffectTotal:
 				value = ((EffectTotal<R>) curIo).supplier.get();
 				break;
@@ -198,7 +198,7 @@ public abstract class IO<C, F, R> {
 		}
     }
 	
-    private static class Pure<R> extends IO<Void, Void, R> {
+    private static class Pure<C, F, R> extends IO<C, F, R> {
     	final R r;
     	public Pure(R r) {
     		tag = Tag.Pure;
@@ -206,7 +206,7 @@ public abstract class IO<C, F, R> {
 		}
     }
 	
-    private static class Fail<F> extends IO<Void, F, Object> {
+    private static class Fail<C, F, R> extends IO<C, F, R> {
     	final F f;
     	public Fail(F f) {
     		tag = Tag.Fail;
