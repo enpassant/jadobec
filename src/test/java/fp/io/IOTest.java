@@ -37,6 +37,28 @@ public class IOTest {
     }
 
     @Test
+    public void testFoldSuccess() {
+    	IO<Void, String, Integer> ioValue = IO.pure(4);
+        IO<Void, String, Integer> io = ioValue
+        	.foldM(
+        		v -> IO.pure(8),
+        		v -> IO.pure(v * v)
+        	);
+        Assert.assertEquals(Right.of(16), IO.evaluate(null, io));
+    }
+
+    @Test
+    public void testFoldFailure() {
+        IO<Void, String, Integer> ioValue = IO.fail("Error");
+        IO<Void, String, Integer> io = ioValue
+        	.foldM(
+        		v -> IO.pure(8),
+        		v -> IO.pure(v * v)
+        	);
+        Assert.assertEquals(Right.of(8), IO.evaluate(null, io));
+    }
+
+    @Test
     public void testFlatMapIO() {
         IO<Object, Void, Integer> io = IO.pure(4).flatMap(
         	n -> IO.effectTotal(() -> n * n)

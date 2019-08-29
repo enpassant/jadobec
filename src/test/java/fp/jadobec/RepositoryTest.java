@@ -3,12 +3,14 @@ package fp.jadobec;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.sql.Connection;
 import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
 import org.junit.Test;
 
+import fp.io.IO;
 import fp.util.Either;
 import fp.util.Failure;
 import fp.util.Tuple2;
@@ -22,32 +24,32 @@ public class RepositoryTest {
     private final List<Person> expectedPersons = Arrays.asList(johnDoe, janeDoe);
 
     @Test
-    public void testQuerySinglePerson() {
-        checkDbCommand(
-            Repository.querySingle(
+    public void testQuerySinglePersonIO() {
+        checkDbCommandIO(
+            Repository.querySingleIO(
                 "SELECT id, name, age FROM person WHERE id = 2",
                 rs -> Person.of(
                     rs.getInt("id"),
                     rs.getString("name"),
                     rs.getInt("age")
                 )
-            ).forEach(person ->
+            ).peek(person ->
                 assertEquals(janeDoe, person)
             )
         );
     }
 
     @Test
-    public void testQueryPerson() {
-        checkDbCommand(
-            Repository.query(
+    public void testQueryPersonIO() {
+        checkDbCommandIO(
+            Repository.queryIO(
                 "SELECT id, name, age FROM person",
                 rs -> Person.of(
                     rs.getInt("id"),
                     rs.getString("name"),
                     rs.getInt("age")
                 )
-            ).forEach(persons ->
+            ).peek(persons ->
                 assertEquals(
                     expectedPersons,
                     persons.collect(Collectors.toList())
@@ -57,9 +59,9 @@ public class RepositoryTest {
     }
 
     @Test
-    public void testQueryPreparedPerson() {
-        checkDbCommand(
-            Repository.queryPrepared(
+    public void testQueryPreparedPersonIO() {
+        checkDbCommandIO(
+            Repository.queryPreparedIO(
                 "SELECT id, name, age FROM person WHERE age < ?",
                 ps -> ps.setInt(1, 40),
                 rs -> Person.of(
@@ -67,7 +69,7 @@ public class RepositoryTest {
                     rs.getString("name"),
                     rs.getInt("age")
                 )
-            ).forEach(persons ->
+            ).peek(persons ->
                 assertEquals(
                     expectedPersons,
                     persons.collect(Collectors.toList())
@@ -77,22 +79,22 @@ public class RepositoryTest {
     }
 
     @Test
-    public void testUpdatePerson() {
-        checkDbCommand(
-            updatePersonName(2, "Jake Doe").then(
-                selectSingleAsPerson(2)
-            ).forEach(person ->
+    public void testUpdatePersonIO() {
+        checkDbCommandIO(
+            updatePersonNameIO(2, "Jake Doe").flatMap(v ->
+                selectSingleAsPersonIO(2)
+            ).peek(person ->
                 assertEquals(jakeDoe, person)
             )
         );
     }
 
     @Test
-    public void testUpdatePreparedPerson() {
-        checkDbCommand(
-            updatePersonName(2, "Jake Doe").then(
-                selectSingleAsPerson(2)
-            ).forEach(person ->
+    public void testUpdatePreparedPersonIO() {
+        checkDbCommandIO(
+            updatePersonNameIO(2, "Jake Doe").flatMap(v ->
+                selectSingleAsPersonIO(2)
+            ).peek(person ->
                 assertEquals(jakeDoe, person)
             )
         );
@@ -100,13 +102,13 @@ public class RepositoryTest {
 
     @Test
     public void testGoodTransaction() {
-        checkDbCommand(
-            Repository.transaction(
-                updatePersonName(2, "Jake Doe").then(
-                    updatePersonName(2, "Jare Doe")
-            )).then(
-                selectSingleAsPerson(2)
-            ).forEach(person ->
+        checkDbCommandIO(
+            Repository.transactionIO(
+                updatePersonNameIO(2, "Jake Doe").flatMap(v ->
+                    updatePersonNameIO(2, "Jare Doe")
+            )).flatMap(v ->
+                selectSingleAsPersonIO(2)
+            ).peek(person ->
                 assertEquals(jareDoe, person)
             )
         );
@@ -114,21 +116,21 @@ public class RepositoryTest {
 
     @Test
     public void testBadTransaction() {
-        checkDbCommand(
-            Repository.transaction(
-                updatePersonName(2, "Jake Doe").then(
-                    updatePersonName(2, null)
-            )).recover(failure -> 1)
-            .then(
-                selectSingleAsPerson(2)
-            ).forEach(person ->
+        checkDbCommandIO(
+            Repository.transactionIO(
+                updatePersonNameIO(2, "Jake Doe").flatMap(v ->
+                    updatePersonNameIO(2, null)
+            )).foldM(failure -> IO.pure(1), success -> IO.pure(success))
+            .flatMap(v ->
+                selectSingleAsPersonIO(2)
+            ).peek(person ->
                 assertEquals(janeDoe, person)
             )
         );
     }
 
-    private static DbCommand<Failure, Integer> updatePersonName( int id, String name) {
-        return Repository.updatePrepared(
+    private static IO<Connection, Failure, Integer> updatePersonNameIO(int id, String name) {
+        return Repository.updatePreparedIO(
             "UPDATE person SET name=? WHERE id = ?",
             ps -> {
                 ps.setString(1, name);
@@ -137,19 +139,19 @@ public class RepositoryTest {
         );
     }
 
-    private static DbCommand<Failure, Person> selectSingleAsPerson( Integer id) {
-        return RepositoryMagic.querySingleAs(
+    private static IO<Connection, Failure, Person> selectSingleAsPersonIO( Integer id) {
+        return RepositoryMagic.querySingleAsIO(
             Person.class,
             "SELECT id, name, age FROM person p WHERE id = ?",
             id
         );
     }
 
-    private static <T> void checkDbCommand(DbCommand<Failure, T> testDbCommand) {
+    private static <T> void checkDbCommandIO(IO<Connection, Failure, T> testDbCommand) {
         final Either<Failure, T> repositoryOrFailure = createRepository()
             .flatMap(repository ->
-                repository.use(
-                    RepositoryTest.fill()
+                repository.useIO(
+                    RepositoryTest.fillIO()
                         .flatMap(i -> testDbCommand)
                 )
             );
@@ -168,8 +170,8 @@ public class RepositoryTest {
         );
     }
 
-    private static DbCommand<Failure, Integer> fill() {
-        return Repository.batchUpdate(
+    private static IO<Connection, Failure, Integer> fillIO() {
+        return Repository.batchUpdateIO(
             "CREATE TABLE person(" +
                 "id INT auto_increment, " +
                 "name VARCHAR(30) NOT NULL, " +

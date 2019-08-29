@@ -1,5 +1,6 @@
 package fp.jadobec;
 
+import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
@@ -7,9 +8,10 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import fp.io.IO;
 import fp.util.Either;
-import fp.util.Failure;
 import fp.util.ExceptionFailure;
+import fp.util.Failure;
 import fp.util.Left;
 import fp.util.Right;
 import fp.util.ThrowingConsumer;
@@ -34,6 +36,26 @@ public class RepositoryMagic {
             ).apply(connection).flatten();
         };
     }
+
+    public static <T> IO<Connection, Failure, T> querySingleAsIO(
+            Class<T> type,
+            String sql,
+            Object... params
+        ) {
+            return IO.absolve(IO.access(connection -> {
+                ThrowingConsumer<PreparedStatement, SQLException> prepare = ps -> {
+                    for (int i=0; i<params.length; i++) {
+                        ps.setObject(i + 1, params[i]);
+                    }
+                };
+
+                return IO.evaluate(connection, Repository.querySinglePreparedIO(
+                    sql,
+                    prepare,
+                    Record.expandAs(type)
+                )).flatten();
+            }));
+        }
 
     public static <T> DbCommand<Failure, T> querySinglePreparedAs(
         Class<T> type,
