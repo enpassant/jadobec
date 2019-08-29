@@ -56,10 +56,10 @@ public class IOTest {
 
     @Test
     public void testContext() {
-        IO<Integer, Void, Integer> io = IO.access(
-        	(Integer n) -> n * n
+        IO<Integer, Void, String> io = IO.access(
+        	(Integer n) -> Integer.toString(n * n)
         );
-        Assert.assertEquals(Right.of(16), IO.evaluate(4, io));
+        Assert.assertEquals(Right.of("16"), IO.evaluate(4, io));
     }
     
     private static class Resource {

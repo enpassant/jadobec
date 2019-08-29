@@ -18,8 +18,8 @@ import fp.util.ThrowingSupplier;
 public abstract class IO<C, F, R> {
 	Tag tag;
 	
-	public static <C> IO<C, Void, C> access(Function<C, C> fn) {
-        return new Access<C>(fn);
+	public static <C, R> IO<C, Void, R> access(Function<C, R> fn) {
+        return new Access<C, R>(fn);
     }
     
 	public static <C> IO<C, Void, Void> provide(C c) {
@@ -73,7 +73,7 @@ public abstract class IO<C, F, R> {
     	while (curIo != null) {
 	    	switch (curIo.tag) {
 			case Access:
-				value = ((Access<C>) curIo).fn.apply(context);
+				value = ((Access<C, R>) curIo).fn.apply(context);
 				break;
 			case Pure:
 				value = ((Pure<R>) curIo).r;
@@ -145,9 +145,9 @@ public abstract class IO<C, F, R> {
 		Lock
 	}
 	
-    private static class Access<C> extends IO<C, Void, C> {
-    	final Function<C, C> fn;
-    	public Access(Function<C, C> fn) {
+    private static class Access<C, R> extends IO<C, Void, R> {
+    	final Function<C, R> fn;
+    	public Access(Function<C, R> fn) {
     		tag = Tag.Access;
     		this.fn = fn;
 		}
