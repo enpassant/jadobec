@@ -42,12 +42,14 @@ public abstract class IO<C, F, R> {
         return new Peek<C, F, R>(this, consumer);
     }
     
-	public static <R> IO<Void, Void, R> effectTotal(Supplier<R> supplier) {
-        return new EffectTotal<R>(supplier);
+	public static <C, F, R> IO<C, F, R> effectTotal(Supplier<R> supplier) {
+        return new EffectTotal<C, F, R>(supplier);
     }
     
-	public static <F extends Throwable, R> IO<Void, F, R> effectPartial(ThrowingSupplier<R, F> supplier) {
-        return new EffectPartial<F, R>(supplier);
+	public static <C, F extends Throwable, R> IO<C, F, R> effectPartial(
+		ThrowingSupplier<R, F> supplier
+	) {
+        return new EffectPartial<C, F, R>(supplier);
     }
     
 	public <F2, R2> IO<C, F2, R2> flatMap(Function<R, IO<C, F2, R2>> fn) {
@@ -97,11 +99,11 @@ public abstract class IO<C, F, R> {
 			case Fail:
 				return (Either<F, R>) Left.of(((Fail<C, F, R>) curIo).f);
 			case EffectTotal:
-				value = ((EffectTotal<R>) curIo).supplier.get();
+				value = ((EffectTotal<C, F, R>) curIo).supplier.get();
 				break;
 			case EffectPartial: {
 				try {
-					value = ((EffectPartial<Throwable, R>) curIo).supplier.get();
+					value = ((EffectPartial<C, Throwable, R>) curIo).supplier.get();
 				} catch (Throwable e) {
 					return (Either<F, R>) Left.of(e);
 				}
@@ -214,7 +216,7 @@ public abstract class IO<C, F, R> {
 		}
     }
 	
-    private static class EffectTotal<R> extends IO<Void, Void, R> {
+    private static class EffectTotal<C, F, R> extends IO<C, F, R> {
     	final Supplier<R> supplier;
     	
     	public EffectTotal(Supplier<R> supplier) {
@@ -223,7 +225,7 @@ public abstract class IO<C, F, R> {
 		}
     }
 	
-    private static class EffectPartial<F extends Throwable, R> extends IO<Void, F, R> {
+    private static class EffectPartial<C, F extends Throwable, R> extends IO<C, F, R> {
     	final ThrowingSupplier<R, F> supplier;
     	
     	public EffectPartial(ThrowingSupplier<R, F> supplier) {

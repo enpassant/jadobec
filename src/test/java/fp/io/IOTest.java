@@ -8,7 +8,6 @@ import java.util.function.Function;
 import org.junit.Assert;
 import org.junit.Test;
 
-import fp.util.Either;
 import fp.util.Left;
 import fp.util.Right;
 
@@ -39,7 +38,7 @@ public class IOTest {
 
     @Test
     public void testFlatMapIO() {
-        IO<Void, Void, Integer> io = IO.pure(4).flatMap(
+        IO<Object, Void, Integer> io = IO.pure(4).flatMap(
         	n -> IO.effectTotal(() -> n * n)
         );
         Assert.assertEquals(Right.of(16), IO.evaluate(null, io));
@@ -47,7 +46,7 @@ public class IOTest {
 
     @Test
     public void testEffectPartial() {
-        IO<Void, Void, Integer> io = IO.effectPartial(() -> 8 / 2).flatMap(
+        IO<Object, Void, Integer> io = IO.effectPartial(() -> 8 / 2).flatMap(
         	(Integer n) -> IO.effectTotal(() -> n * n)
         );
         Assert.assertEquals(
@@ -58,7 +57,7 @@ public class IOTest {
 
     @Test
     public void testEffectPartialWithFailure() {
-        IO<Void, Void, Integer> io = IO.effectPartial(() -> 8 / 0).flatMap(
+        IO<Object, Void, Integer> io = IO.effectPartial(() -> 8 / 0).flatMap(
         	(Integer n) -> IO.effectTotal(() -> n * n)
         );
         Assert.assertEquals(
@@ -106,7 +105,7 @@ public class IOTest {
     public void testNestedBracket() {
         final Resource res1 = new Resource();
         final Resource res2 = new Resource();
-        final IO<Void, Void, Integer> io = IO.bracket(
+        final IO<Object, Void, Integer> io = IO.bracket(
         	IO.effectTotal(() -> res1),
         	resource -> IO.effectTotal(() -> {
         		resource.close();
@@ -128,19 +127,19 @@ public class IOTest {
         Assert.assertFalse(res2.acquired);
     }
     
-    private IO<Void, Void, Boolean> odd(int n) {
+    private IO<Object, Void, Boolean> odd(int n) {
     	return IO.effectTotal(() -> n == 0)
     		.flatMap(b -> b ? IO.pure(false) : even(n - 1) );
     }
     
-    private IO<Void, Void, Boolean> even(int n) {
+    private IO<Object, Void, Boolean> even(int n) {
     	return IO.effectTotal(() -> n == 0)
     		.flatMap(b -> b ? IO.pure(true) : odd(n - 1) );
     }
     
     @Test
     public void testMutuallyTailRecursive() {
-        IO<Void, Void, Boolean> io = even(100000);
+        IO<Object, Void, Boolean> io = even(100000);
         Assert.assertEquals(Right.of(true), IO.evaluate(null, io));
     }
 	
@@ -150,11 +149,11 @@ public class IOTest {
 		ExecutorService blockingExecutor = Executors.newCachedThreadPool();
 		ExecutorService calcExecutor = new ForkJoinPool(2);
 	
-        Function<Integer, IO<Void, Void, Integer>> fnIo = n -> IO.effectTotal(() -> {
+        Function<Integer, IO<Object, Void, Integer>> fnIo = n -> IO.effectTotal(() -> {
 //        	System.out.println(n + ": " + Thread.currentThread().getName());
         	return n + 1;
         });
-        IO<Void, Void, Integer> lockIo = IO.pure(1).flatMap(n ->
+        IO<Object, Void, Integer> lockIo = IO.pure(1).flatMap(n ->
 	        fnIo.apply(n).on(asyncExecutor).flatMap(n1 -> 
 	        	fnIo.apply(n1).on(blockingExecutor).flatMap(n2 ->
 	        		fnIo.apply(n2).flatMap(n3 ->
@@ -172,7 +171,7 @@ public class IOTest {
     @Test
     public void testPeek() {
         final Resource res = new Resource();
-        IO<Void, Void, Resource> io = IO.pure(res)
+        IO<Object, Object, Resource> io = IO.pure(res)
         	.peek(r1 -> r1.use(4))
         	.peek(r2 -> r2.close());
         Assert.assertEquals(Right.of(res), IO.evaluate(null, io));
