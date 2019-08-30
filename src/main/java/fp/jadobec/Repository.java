@@ -61,13 +61,13 @@ public class Repository {
         String testSql
     ) {
         return ExceptionFailure.tryCatchFinal(
-        	() -> dataSource.getConnection().createStatement(),
-        	stmt -> {
-        		ResultSet rs = stmt.executeQuery(testSql);
-        		rs.close();
-        		return new Repository(dataSource);
-        	},
-        	stmt -> stmt.close()
+            () -> dataSource.getConnection().createStatement(),
+            stmt -> {
+                ResultSet rs = stmt.executeQuery(testSql);
+                rs.close();
+                return new Repository(dataSource);
+            },
+            stmt -> stmt.close()
         );
     }
 
@@ -165,9 +165,9 @@ public class Repository {
             .flatMap(items -> {
             	final Optional<T> firstValue = items.findFirst();
             	items.close();
-                return firstValue.isPresent() ? 
-                	IO.pure(firstValue.get()) :
-                	IO.fail((Failure) GeneralFailure.of("Missing result"))
+                return firstValue.isPresent() ?
+                    IO.pure(firstValue.get()) :
+                    IO.fail((Failure) GeneralFailure.of("Missing result"))
                 ;
             });
     }
@@ -407,7 +407,7 @@ public class Repository {
                 } catch (SQLException e1) {
                 }
                 return Left.of(
-                	ExceptionFailure.of(e)
+                    ExceptionFailure.of(e)
                 );
             } finally {
                 try {
@@ -465,7 +465,7 @@ public class Repository {
 
         @Override
         public void close() throws SQLException {
-        	resultSet.getStatement().close();
+            resultSet.getStatement().close();
             resultSet.close();
         }
     }
