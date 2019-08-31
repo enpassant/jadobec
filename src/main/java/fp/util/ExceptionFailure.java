@@ -1,16 +1,16 @@
 package fp.util;
 
 public class ExceptionFailure implements Failure {
-	private final Exception exception;
+    private final Exception exception;
 
-	private ExceptionFailure(Exception exception) {
+    private ExceptionFailure(Exception exception) {
         this.exception = exception;
     }
 
     public static ExceptionFailure of(Exception exception) {
         return new ExceptionFailure(exception);
     }
-    
+
     public static <E extends Exception, R> Either<Failure, R> tryCatch(
         ThrowingSupplier<R, E> process
     ) {
@@ -22,7 +22,7 @@ public class ExceptionFailure implements Failure {
             );
         }
     }
-    
+
     public static <E extends Exception, F, R>
     	Either<Failure, R> tryCatchFinal
     (
@@ -32,19 +32,19 @@ public class ExceptionFailure implements Failure {
     ) {
     	F resource = null;
         try {
-        	resource = supplier.get();
+            resource = supplier.get();
             return Right.of(function.apply(resource));
         } catch(Exception e) {
             return Left.of(
                 ExceptionFailure.of(e)
             );
         } finally {
-        	try {
-        		if (resource != null) {
-        			finalConsumer.accept(resource);
-        		}
-        	} catch(Exception e2) {      		
-        	}
+            try {
+                if (resource != null) {
+                    finalConsumer.accept(resource);
+                }
+        	} catch(Exception e2) {
+            }
         }
     }
 
