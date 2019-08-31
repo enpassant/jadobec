@@ -1,17 +1,17 @@
 package fp.util;
 
 public class ExceptionFailure implements Failure {
-    private final Exception exception;
+    private final Throwable throwable;
 
-    private ExceptionFailure(Exception exception) {
-        this.exception = exception;
+    private ExceptionFailure(Throwable throwable) {
+        this.throwable = throwable;
     }
 
-    public static ExceptionFailure of(Exception exception) {
-        return new ExceptionFailure(exception);
+    public static ExceptionFailure of(Throwable throwable) {
+        return new ExceptionFailure(throwable);
     }
 
-    public static <E extends Exception, R> Either<Failure, R> tryCatch(
+    public static <E extends Throwable, R> Either<Failure, R> tryCatch(
         ThrowingSupplier<R, E> process
     ) {
         try {
@@ -23,7 +23,7 @@ public class ExceptionFailure implements Failure {
         }
     }
 
-    public static <E extends Exception, F, R>
+    public static <E extends Throwable, F, R>
     	Either<Failure, R> tryCatchFinal
     (
     	ThrowingSupplier<F, E> supplier,
@@ -50,7 +50,7 @@ public class ExceptionFailure implements Failure {
 
     @Override
     public String toString() {
-        return "ExceptionFailure(" + exception.toString() + ")";
+        return "ExceptionFailure(" + throwable.toString() + ")";
     }
 
     @Override
@@ -65,6 +65,6 @@ public class ExceptionFailure implements Failure {
 
     @Override
     public int hashCode() {
-        return exception.hashCode();
+        return throwable.hashCode();
     }
 }
