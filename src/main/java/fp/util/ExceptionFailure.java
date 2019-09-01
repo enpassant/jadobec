@@ -16,7 +16,7 @@ public class ExceptionFailure implements Failure {
     ) {
         try {
             return Right.of(process.get());
-        } catch(Exception e) {
+        } catch(Throwable e) {
             return Left.of(
                 ExceptionFailure.of(e)
             );
@@ -34,7 +34,7 @@ public class ExceptionFailure implements Failure {
         try {
             resource = supplier.get();
             return Right.of(function.apply(resource));
-        } catch(Exception e) {
+        } catch(Throwable e) {
             return Left.of(
                 ExceptionFailure.of(e)
             );
@@ -43,7 +43,7 @@ public class ExceptionFailure implements Failure {
                 if (resource != null) {
                     finalConsumer.accept(resource);
                 }
-        	} catch(Exception e2) {
+        	} catch(Throwable e2) {
             }
         }
     }

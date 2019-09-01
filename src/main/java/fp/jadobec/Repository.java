@@ -386,36 +386,41 @@ public class Repository {
         };
     }
 
+    private static IO<Connection, Failure, Connection> setAutoCommit(
+        Connection connection,
+        boolean flag
+    ) {
+        return IO.absolve(IO.effectTotal(() ->
+            ExceptionFailure.tryCatch(() -> {
+                connection.setAutoCommit(flag);
+                return connection;
+            })
+        ));
+    }
+
     public static <T> IO<Connection, Failure, T> transactionIO(
     	IO<Connection, Failure, T> dbCommand
     ) {
-        return IO.absolve(IO.access(connection -> {
-            try {
-                connection.setAutoCommit(false);
-                Either<Failure, T> result = IO.evaluate(connection, dbCommand);
-
-                if (result.right().isPresent()) {
-                    connection.commit();
-                } else {
-                    connection.rollback();
-                }
-
-                return result;
-            } catch (SQLException e) {
-                try {
-                    connection.rollback();
-                } catch (SQLException e1) {
-                }
-                return Left.of(
-                    ExceptionFailure.of(e)
-                );
-            } finally {
-                try {
-                    connection.setAutoCommit(true);
-                } catch (SQLException e) {
-                }
-            }
-        }));
+        return IO.access((Connection conn) -> conn).flatMap(
+            connection -> IO.bracket(
+                setAutoCommit(connection, false),
+                connection2 -> setAutoCommit(connection2, true),
+                connection3 -> dbCommand.foldM(
+                    failure -> {
+                        try {
+                            connection3.rollback();
+                        } catch(SQLException e) {};
+                        return IO.fail(failure);
+                    },
+                    success -> {
+                        try {
+                            connection3.commit();
+                        } catch(SQLException e) {};
+                        return IO.pure(success);
+                    }
+                )
+            )
+        );
     }
 
     private static <T> Stream<T> stream(
