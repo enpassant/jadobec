@@ -37,15 +37,6 @@ public class RepositoryMagic {
         }));
     }
 
-    public static <T> DbCommand<Failure, T> querySinglePreparedAs(
-        Class<T> type,
-        String sql,
-        ThrowingConsumer<PreparedStatement, SQLException> prepare
-    ) {
-        return Repository.querySinglePrepared(sql, prepare, Record.expandAs(type))
-            .flatten();
-    }
-
     public static <T> IO<Connection, Failure, List<T>> queryAs(
         Class<T> type,
         String sql,
@@ -132,7 +123,10 @@ public class RepositoryMagic {
                     }
                 };
 
-                return Repository.updatePrepared(sql, prepare).apply(connection);
+                return IO.evaluate(
+                	connection,
+                	Repository.updatePreparedIO(sql, prepare)
+                );
             })
         ));
     }
