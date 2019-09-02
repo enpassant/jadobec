@@ -67,6 +67,10 @@ public abstract class IO<C, F, R> {
         return new FlatMap<C, F, F2, R, R2>(this, fn);
     }
 
+    public <R2> IO<C, F, R2> map(Function<R, R2> fn) {
+        return new FlatMap<C, F, F, R, R2>(this, r -> IO.pure(fn.apply(r)));
+    }
+
     public IO<C, F, R> on(ExecutorService executor) {
         return new Lock<C, F, R>(this, executor);
     }
