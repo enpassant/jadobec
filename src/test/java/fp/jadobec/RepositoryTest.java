@@ -140,7 +140,7 @@ public class RepositoryTest {
     }
 
     private static IO<Connection, Failure, Person> selectSingleAsPersonIO( Integer id) {
-        return RepositoryMagic.querySingleAsIO(
+        return RepositoryMagic.querySingleAs(
             Person.class,
             "SELECT id, name, age FROM person p WHERE id = ?",
             id

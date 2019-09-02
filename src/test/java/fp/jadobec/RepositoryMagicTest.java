@@ -26,7 +26,7 @@ public class RepositoryMagicTest {
     @Test
     public void testQuerySingleAsPerson() {
         checkDbCommand(
-            RepositoryMagic.querySingleAsIO(
+            RepositoryMagic.querySingleAs(
                 Person.class,
                 "SELECT id, name, age FROM person p WHERE id = ? and age < ?",
                 2,
@@ -99,7 +99,7 @@ public class RepositoryMagicTest {
     }
 
     private static IO<Connection, Failure, Person> selectSingleAsPerson( Integer id) {
-        return RepositoryMagic.querySingleAsIO(
+        return RepositoryMagic.querySingleAs(
             Person.class,
             "SELECT id, name, age FROM person p WHERE id = ?",
             id

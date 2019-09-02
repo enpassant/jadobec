@@ -17,45 +17,25 @@ import fp.util.Right;
 import fp.util.ThrowingConsumer;
 
 public class RepositoryMagic {
-    public static <T> DbCommand<Failure, T> querySingleAs(
+    public static <T> IO<Connection, Failure, T> querySingleAs(
         Class<T> type,
         String sql,
         Object... params
     ) {
-        return connection -> {
+        return IO.absolve(IO.access(connection -> {
             ThrowingConsumer<PreparedStatement, SQLException> prepare = ps -> {
                 for (int i=0; i<params.length; i++) {
                     ps.setObject(i + 1, params[i]);
                 }
             };
 
-            return Repository.querySinglePrepared(
+            return IO.evaluate(connection, Repository.querySinglePreparedIO(
                 sql,
                 prepare,
                 Record.expandAs(type)
-            ).apply(connection).flatten();
-        };
+            )).flatten();
+        }));
     }
-
-    public static <T> IO<Connection, Failure, T> querySingleAsIO(
-            Class<T> type,
-            String sql,
-            Object... params
-        ) {
-            return IO.absolve(IO.access(connection -> {
-                ThrowingConsumer<PreparedStatement, SQLException> prepare = ps -> {
-                    for (int i=0; i<params.length; i++) {
-                        ps.setObject(i + 1, params[i]);
-                    }
-                };
-
-                return IO.evaluate(connection, Repository.querySinglePreparedIO(
-                    sql,
-                    prepare,
-                    Record.expandAs(type)
-                )).flatten();
-            }));
-        }
 
     public static <T> DbCommand<Failure, T> querySinglePreparedAs(
         Class<T> type,
