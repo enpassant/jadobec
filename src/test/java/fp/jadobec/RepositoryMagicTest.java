@@ -3,15 +3,16 @@ package fp.jadobec;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
 
+import java.sql.Connection;
 import java.util.Arrays;
 import java.util.List;
 
 import org.junit.Test;
 
+import fp.io.IO;
 import fp.util.Either;
 import fp.util.Failure;
 import fp.util.GeneralFailure;
-import fp.util.Left;
 import fp.util.Tuple2;
 
 public class RepositoryMagicTest {
@@ -25,12 +26,12 @@ public class RepositoryMagicTest {
     @Test
     public void testQuerySingleAsPerson() {
         checkDbCommand(
-            RepositoryMagic.querySingleAs(
+            RepositoryMagic.querySingleAsIO(
                 Person.class,
                 "SELECT id, name, age FROM person p WHERE id = ? and age < ?",
                 2,
                 30
-            ).forEach(person->
+            ).peek(person->
                 assertEquals(janeDoe, person)
             )
         );
@@ -42,7 +43,7 @@ public class RepositoryMagicTest {
             RepositoryMagic.queryAs(
                 Person.class,
                 "SELECT id, name, age FROM person"
-            ).forEach(persons ->
+            ).peek(persons ->
                 assertEquals(
                     expectedPersons,
                     persons
@@ -58,15 +59,15 @@ public class RepositoryMagicTest {
                 Person.class,
                 "SELECT id, name FROM person"
             ).flatMap(person ->
-                connection ->Left.of(GeneralFailure.of("Wrong result!"))
-            ).recover(failure -> {
+                IO.fail((Failure) GeneralFailure.of("Wrong result!"))
+            ).foldM(failure -> {
                 assertEquals(
                     "ExceptionFailure(java.lang.IllegalArgumentException: " +
                         "wrong number of arguments)",
                     failure.toString()
                 );
-                return 1;
-            })
+                return IO.pure(1);
+            }, success -> IO.pure(success))
         );
     }
 
@@ -77,7 +78,7 @@ public class RepositoryMagicTest {
                 Person.class,
                 "SELECT id, name, age FROM person WHERE age < ?",
                 ps -> ps.setInt(1, 40)
-            ).forEach(persons ->
+            ).peek(persons ->
                 assertEquals(
                     expectedPersons,
                     persons
@@ -89,26 +90,26 @@ public class RepositoryMagicTest {
     @Test
     public void testInsertPerson() {
         checkDbCommand(
-            RepositoryMagic.insert(jaredDoe).then(
+            RepositoryMagic.insert(jaredDoe).flatMap(v ->
                 selectSingleAsPerson(3)
-            ).forEach(person ->
+            ).peek(person ->
                 assertEquals(jaredDoeInserted, person)
             )
         );
     }
 
-    private static DbCommand<Failure, Person> selectSingleAsPerson( Integer id) {
-        return RepositoryMagic.querySingleAs(
+    private static IO<Connection, Failure, Person> selectSingleAsPerson( Integer id) {
+        return RepositoryMagic.querySingleAsIO(
             Person.class,
             "SELECT id, name, age FROM person p WHERE id = ?",
             id
         );
     }
 
-    private static <T> void checkDbCommand(DbCommand<Failure, T> testDbCommand) {
+    private static <T> void checkDbCommand(IO<Connection, Failure, T> testDbCommand) {
         final Either<Failure, T> repositoryOrFailure = createRepository()
             .flatMap(repository ->
-                repository.use(
+                repository.useIO(
                     RepositoryMagicTest.fill()
                         .flatMap(i -> testDbCommand)
                 )
@@ -128,8 +129,8 @@ public class RepositoryMagicTest {
         );
     }
 
-    private static DbCommand<Failure, Integer> fill() {
-        return Repository.batchUpdate(
+    private static IO<Connection, Failure, Integer> fill() {
+        return Repository.batchUpdateIO(
             "CREATE TABLE person(" +
                 "id INT auto_increment, " +
                 "name VARCHAR(30) NOT NULL, " +

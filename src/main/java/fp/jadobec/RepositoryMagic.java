@@ -66,7 +66,7 @@ public class RepositoryMagic {
             .flatten();
     }
 
-    public static <T> DbCommand<Failure, List<T>> queryAs(
+    public static <T> IO<Connection, Failure, List<T>> queryAs(
         Class<T> type,
         String sql,
         Object... params
@@ -81,12 +81,12 @@ public class RepositoryMagic {
     }
 
     @SuppressWarnings("unchecked")
-	public static <T> DbCommand<Failure, List<T>> queryPreparedAs(
+	public static <T> IO<Connection, Failure, List<T>> queryPreparedAs(
         Class<T> type,
         String sql,
         ThrowingConsumer<PreparedStatement, SQLException> prepare
     ) {
-        return connection -> {
+        return IO.absolve(IO.access(connection -> {
             PreparedStatement stmt = null;
 
             try {
@@ -120,11 +120,11 @@ public class RepositoryMagic {
                 } catch (SQLException e) {
                 }
             }
-        };
+        }));
     }
 
-    public static DbCommand<Failure, Integer> insert(Object object) {
-        return connection ->
+    public static IO<Connection, Failure, Integer> insert(Object object) {
+        return IO.absolve(IO.access(connection ->
             Record.from(object).flatMap(record -> {
                 final String fields = record
                     .fields()
@@ -153,6 +153,7 @@ public class RepositoryMagic {
                 };
 
                 return Repository.updatePrepared(sql, prepare).apply(connection);
-            });
+            })
+        ));
     }
 }
