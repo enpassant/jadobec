@@ -26,7 +26,7 @@ public class RepositoryTest {
     @Test
     public void testQuerySinglePersonIO() {
         checkDbCommandIO(
-            Repository.querySingleIO(
+            Repository.querySingle(
                 "SELECT id, name, age FROM person WHERE id = 2",
                 rs -> Person.of(
                     rs.getInt("id"),
@@ -42,7 +42,7 @@ public class RepositoryTest {
     @Test
     public void testQueryPersonIO() {
         checkDbCommandIO(
-            Repository.queryIO(
+            Repository.query(
                 "SELECT id, name, age FROM person",
                 rs -> Person.of(
                     rs.getInt("id"),
@@ -61,7 +61,7 @@ public class RepositoryTest {
     @Test
     public void testQueryPreparedPersonIO() {
         checkDbCommandIO(
-            Repository.queryPreparedIO(
+            Repository.queryPrepared(
                 "SELECT id, name, age FROM person WHERE age < ?",
                 ps -> ps.setInt(1, 40),
                 rs -> Person.of(
@@ -103,7 +103,7 @@ public class RepositoryTest {
     @Test
     public void testGoodTransaction() {
         checkDbCommandIO(
-            Repository.transactionIO(
+            Repository.transaction(
                 updatePersonNameIO(2, "Jake Doe").flatMap(v ->
                     updatePersonNameIO(2, "Jare Doe")
             )).flatMap(v ->
@@ -117,7 +117,7 @@ public class RepositoryTest {
     @Test
     public void testBadTransaction() {
         checkDbCommandIO(
-            Repository.transactionIO(
+            Repository.transaction(
                 updatePersonNameIO(2, "Jake Doe").flatMap(v ->
                     updatePersonNameIO(2, null)
             )).foldM(failure -> IO.pure(1), success -> IO.pure(success))
@@ -130,7 +130,7 @@ public class RepositoryTest {
     }
 
     private static IO<Connection, Failure, Integer> updatePersonNameIO(int id, String name) {
-        return Repository.updatePreparedIO(
+        return Repository.updatePrepared(
             "UPDATE person SET name=? WHERE id = ?",
             ps -> {
                 ps.setString(1, name);
@@ -150,7 +150,7 @@ public class RepositoryTest {
     private static <T> void checkDbCommandIO(IO<Connection, Failure, T> testDbCommand) {
         final Either<Failure, T> repositoryOrFailure = createRepository()
             .flatMap(repository ->
-                repository.useIO(
+                repository.use(
                     RepositoryTest.fillIO()
                         .flatMap(i -> testDbCommand)
                 )
@@ -171,7 +171,7 @@ public class RepositoryTest {
     }
 
     private static IO<Connection, Failure, Integer> fillIO() {
-        return Repository.batchUpdateIO(
+        return Repository.batchUpdate(
             "CREATE TABLE person(" +
                 "id INT auto_increment, " +
                 "name VARCHAR(30) NOT NULL, " +

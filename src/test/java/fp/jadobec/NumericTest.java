@@ -97,7 +97,7 @@ public class NumericTest {
     }
 
     private static IO<Connection, Failure, Stream<Record>> queryNumericData() {
-        return Repository.queryIO(
+        return Repository.query(
             "SELECT l.title, d.x, d.y " +
                 "FROM data d JOIN label l ON d.id_label=l.id_label " +
                 "ORDER BY x",
@@ -143,7 +143,7 @@ public class NumericTest {
     }
 
     private static IO<Connection, Failure, Integer> createNumericDb() {
-        return Repository.batchUpdateIO(
+        return Repository.batchUpdate(
             "CREATE TABLE label(" +
                 "id_label INT auto_increment, " +
                 "title VARCHAR(30) NOT NULL " +
@@ -158,7 +158,7 @@ public class NumericTest {
     }
 
     private static IO<Connection, Failure, Integer> insertLabel(final String label) {
-        return Repository.updatePreparedIO(
+        return Repository.updatePrepared(
             "INSERT INTO label(title) values(?)",
             ps -> ps.setString(1, label)
         );
@@ -169,7 +169,7 @@ public class NumericTest {
         final double x,
         final double y
     ) {
-        return Repository.updatePreparedIO(
+        return Repository.updatePrepared(
             "INSERT INTO data(id_label, x, y) values(?, ?, ?)",
             ps -> {
                 ps.setInt(1, idLabel);
@@ -182,7 +182,7 @@ public class NumericTest {
     private static <T> void checkDbCommand(IO<Connection, Failure, T> testDbCommand) {
         final Either<Failure, T> repositoryOrFailure = createRepository()
             .flatMap(repository ->
-                repository.useIO(
+                repository.use(
                     createAndFill
                         .flatMap(i -> testDbCommand)
                 )

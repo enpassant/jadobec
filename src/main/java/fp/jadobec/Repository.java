@@ -34,7 +34,7 @@ public class Repository {
         this.connectionFactory = () -> dataSource.getConnection();
     }
 
-    public <T> Either<Failure, T> useIO(IO<Connection, Failure, T> command) {
+    public <T> Either<Failure, T> use(IO<Connection, Failure, T> command) {
         try {
             final Connection connection = connectionFactory.get();
             final Either<Failure, T> result = IO.evaluate(connection, command);
@@ -101,7 +101,7 @@ public class Repository {
         }
     }
 
-    public static <T> IO<Connection, Failure, T> querySingleIO(
+    public static <T> IO<Connection, Failure, T> querySingle(
         String sql,
         Extractor<T> createObject,
         Object... params
@@ -112,15 +112,15 @@ public class Repository {
             }
         };
 
-        return querySinglePreparedIO(sql, prepare, createObject);
+        return querySinglePrepared(sql, prepare, createObject);
     }
 
-    public static <T> IO<Connection, Failure, T> querySinglePreparedIO(
+    public static <T> IO<Connection, Failure, T> querySinglePrepared(
         String sql,
         ThrowingConsumer<PreparedStatement, SQLException> prepare,
         Extractor<T> createObject
     ) {
-        return queryPreparedIO(sql, prepare, createObject)
+        return queryPrepared(sql, prepare, createObject)
             .flatMap(items -> {
             	final Optional<T> firstValue = items.findFirst();
             	items.close();
@@ -131,7 +131,7 @@ public class Repository {
             });
     }
 
-    public static <T> IO<Connection, Failure, Stream<T>> queryIO(
+    public static <T> IO<Connection, Failure, Stream<T>> query(
         String sql,
         Extractor<T> createObject,
         Object... params
@@ -142,10 +142,10 @@ public class Repository {
             }
         };
 
-        return queryPreparedIO(sql, prepare, createObject);
+        return queryPrepared(sql, prepare, createObject);
     }
 
-    public static <T> IO<Connection, Failure, Stream<T>> queryPreparedIO(
+    public static <T> IO<Connection, Failure, Stream<T>> queryPrepared(
         String sql,
         ThrowingConsumer<PreparedStatement, SQLException> prepare,
         Extractor<T> createObject
@@ -168,11 +168,11 @@ public class Repository {
         }));
     }
 
-    public static IO<Connection, Failure, Integer> updateIO(final String sql) {
-        return updatePreparedIO(sql, ps -> {});
+    public static IO<Connection, Failure, Integer> update(final String sql) {
+        return updatePrepared(sql, ps -> {});
     }
 
-    public static IO<Connection, Failure, Integer> updatePreparedIO(
+    public static IO<Connection, Failure, Integer> updatePrepared(
         final String sql,
         final ThrowingConsumer<PreparedStatement, SQLException> prepare
     ) {
@@ -211,12 +211,12 @@ public class Repository {
         }));
     }
 
-    public static IO<Connection, Failure, Integer> batchUpdateIO(String... sqls) {
+    public static IO<Connection, Failure, Integer> batchUpdate(String... sqls) {
         return IO.absolve(IO.access(connection -> {
             return Stream.of(sqls)
                 .collect(Collectors.reducing(
                     Right.of(0),
-                    sql -> IO.evaluate(connection, Repository.updateIO(sql)),
+                    sql -> IO.evaluate(connection, Repository.update(sql)),
                     (s, v) -> s.flatMap(i -> v)
                 ));
         }));
@@ -234,7 +234,7 @@ public class Repository {
         ));
     }
 
-    public static <T> IO<Connection, Failure, T> transactionIO(
+    public static <T> IO<Connection, Failure, T> transaction(
     	IO<Connection, Failure, T> dbCommand
     ) {
         return IO.access((Connection conn) -> conn).flatMap(

@@ -144,7 +144,7 @@ public class ContactTest {
     }
 
     private static final IO<Connection, Failure, Integer> createAndFill =
-        Repository.transactionIO(
+        Repository.transaction(
             createDb().flatMap(v ->
                 insertData()
             )
@@ -159,7 +159,7 @@ public class ContactTest {
     }
 
     private static IO<Connection, Failure, Integer> createDb() {
-        return Repository.batchUpdateIO(
+        return Repository.batchUpdate(
             "CREATE TABLE user(" +
                 "id_user INT auto_increment, " +
                 "name VARCHAR(50) NOT NULL " +
@@ -177,7 +177,7 @@ public class ContactTest {
     }
 
     private static IO<Connection, Failure, Integer> insertData() {
-        return Repository.batchUpdateIO(
+        return Repository.batchUpdate(
             "INSERT INTO user(id_user, name) VALUES(1, 'John Doe')",
             "INSERT INTO email(id_user, email, validated) " +
             "  VALUES(1, 'john.doe@doe.com', '0')",
@@ -195,7 +195,7 @@ public class ContactTest {
     }
 
     private static IO<Connection, Failure, Stream<Either<Failure, User>>> queryUsers() {
-        return Repository.queryIO(
+        return Repository.query(
             "SELECT id_user, name FROM user ORDER BY name",
             rs -> User.of(rs.getInt(1), rs.getString(2))
         );
@@ -214,7 +214,7 @@ public class ContactTest {
     }
 
     private static IO<Connection, Failure, Email> querySingleEmail(User user) {
-        return Repository.querySingleIO(
+        return Repository.querySingle(
             "SELECT email, validated " +
                 "FROM email " +
                 "WHERE id_user=? " +
@@ -225,7 +225,7 @@ public class ContactTest {
     }
 
     private static IO<Connection, Failure, Stream<Email>> queryEmails(User user) {
-        return Repository.queryIO(
+        return Repository.query(
             "SELECT email, validated " +
                 "FROM email " +
                 "WHERE id_user=? " +
@@ -236,7 +236,7 @@ public class ContactTest {
     }
 
     private static IO<Connection, Failure, Stream<Integer>> queryUserIds() {
-        return Repository.queryIO(
+        return Repository.query(
             "SELECT id_user FROM user ORDER BY name",
             rs -> rs.getInt(1)
         );
@@ -250,7 +250,7 @@ public class ContactTest {
         querySingleUser(Optional<Integer> idOpt)
     {
         if (idOpt.isPresent()) {
-            return Repository.querySingleIO(
+            return Repository.querySingle(
                 "SELECT id_user, name FROM user where id_user = ?",
                 rs -> User.of(rs.getInt(1), rs.getString(2)),
                 idOpt.get()
@@ -263,7 +263,7 @@ public class ContactTest {
     private static <T> void checkDbCommand(IO<Connection, Failure, T> testDbCommand) {
         final Either<Failure, T> repositoryOrFailure = createRepository()
             .flatMap(repository ->
-                repository.useIO(
+                repository.use(
                     testDbCommand
                 )
             );

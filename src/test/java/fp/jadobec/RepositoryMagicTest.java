@@ -109,7 +109,7 @@ public class RepositoryMagicTest {
     private static <T> void checkDbCommand(IO<Connection, Failure, T> testDbCommand) {
         final Either<Failure, T> repositoryOrFailure = createRepository()
             .flatMap(repository ->
-                repository.useIO(
+                repository.use(
                     RepositoryMagicTest.fill()
                         .flatMap(i -> testDbCommand)
                 )
@@ -130,7 +130,7 @@ public class RepositoryMagicTest {
     }
 
     private static IO<Connection, Failure, Integer> fill() {
-        return Repository.batchUpdateIO(
+        return Repository.batchUpdate(
             "CREATE TABLE person(" +
                 "id INT auto_increment, " +
                 "name VARCHAR(30) NOT NULL, " +

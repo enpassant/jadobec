@@ -29,7 +29,7 @@ public class RepositoryMagic {
                 }
             };
 
-            return IO.evaluate(connection, Repository.querySinglePreparedIO(
+            return IO.evaluate(connection, Repository.querySinglePrepared(
                 sql,
                 prepare,
                 Record.expandAs(type)
@@ -125,7 +125,7 @@ public class RepositoryMagic {
 
                 return IO.evaluate(
                 	connection,
-                	Repository.updatePreparedIO(sql, prepare)
+                	Repository.updatePrepared(sql, prepare)
                 );
             })
         ));
