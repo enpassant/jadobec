@@ -26,10 +26,6 @@ public abstract class IO<C, F, R> {
         return new Access<C, F, R>(fn);
     }
 
-    public static <C> IO<C, Void, Void> provide(C c) {
-        return new Provide<C>(c);
-    }
-
     public static <C, F, R> IO<C, F, R> pure(R r) {
         return new Pure<C, F, R>(r);
     }
@@ -196,7 +192,7 @@ public abstract class IO<C, F, R> {
     	return (Either<F, R>) Right.of(value);
     }
 
-    @SuppressWarnings("unused")
+    @SuppressWarnings({ "unused", "unchecked", "rawtypes" })
 	private static <C> void unwindStack(Deque<Function<?, IO<C, ?, ?>>> stack) {
     	boolean unwinding = true;
 
@@ -213,7 +209,6 @@ public abstract class IO<C, F, R> {
         Absolve,
         Access,
         Bracket,
-        Provide,
         Pure,
         Fail,
         Fold,
@@ -240,14 +235,6 @@ public abstract class IO<C, F, R> {
     	public Access(Function<C, R> fn) {
             tag = Tag.Access;
             this.fn = fn;
-        }
-    }
-
-    private static class Provide<C> extends IO<C, Void, Void> {
-    	final C c;
-    	public Provide(C c) {
-            tag = Tag.Provide;
-            this.c = c;
         }
     }
 
