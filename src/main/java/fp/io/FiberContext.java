@@ -1,8 +1,12 @@
 package fp.io;
 
 import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.Deque;
+import java.util.List;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Future;
+import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 import fp.util.Either;
@@ -11,12 +15,14 @@ import fp.util.GeneralFailure;
 import fp.util.Left;
 import fp.util.Right;
 
-public class FiberContext {
+public class FiberContext<F, R> {
 	private Object context;
 	private IO<Object, ?, ?> curIo;
 	private Object value = null;
 	private Object valueLast = null;
-
+	private AtomicReference<FiberState<F, R>> state =
+		new AtomicReference<>(new Executing<F, R>(FiberStatus.Running, new ArrayList<>()));
+			
 	Deque<Function<?, IO<Object, ?, ?>>> stack =
 		new ArrayDeque<Function<?, IO<Object, ?, ?>>>();
 
@@ -26,8 +32,18 @@ public class FiberContext {
 		this.context = context;
 	}
 
+    public <F2, R2> Either<F, R> evaluate(IO<Object, F, R> io) {
+    	evaluateNow(io);
+    	final FiberState<F, R> oldState = state.get();
+    	if (oldState instanceof Done) {
+			Done done = (Done) oldState;
+			return done.value;
+		}
+    	return (Either<F, R>) Left.of(GeneralFailure.of("Executing error"));
+    }
+
 	@SuppressWarnings("unchecked")
-	public <F, F2, R, R2> Either<F, R> evaluate(IO<Object, F, R> io) {
+	public <F2, R2> void evaluateNow(IO<Object, F, R> io) {
 		curIo = io;
 		
     	while (curIo != null) {
@@ -49,7 +65,8 @@ public class FiberContext {
                 case Fail:
                     unwindStack(stack);
                     if (stack.isEmpty()) {
-                        return (Either<F, R>) Left.of(((IO.Fail<Object, ?, R>) curIo).f);
+                        done(Left.of(((IO.Fail<Object, F, R>) curIo).f));
+                        return;
                     }
                     value = ((IO.Fail<Object, F, R>) curIo).f;
                     break;
@@ -72,9 +89,9 @@ public class FiberContext {
                 }
                 case Bracket: {
                     final IO.Bracket<Object, F, R2, R> bracketIO = (IO.Bracket<Object, F, R2, R>) curIo;
-                    Either<F, R2> resource = new FiberContext(context).evaluate(bracketIO.acquire);
+                    Either<F, R2> resource = new FiberContext<F, R2>(context).evaluate(bracketIO.acquire);
                     Either<F, R> valueBracket = (Either<F, R>) resource.flatMap(a -> {
-                        final Either<F, R> result = new FiberContext(context).evaluate(bracketIO.use.apply(a));
+                        final Either<F, R> result = new FiberContext<F, R>(context).evaluate(bracketIO.use.apply(a));
                         new FiberContext(context).evaluate(bracketIO.release.apply(a));
                         return result;
                     });
@@ -93,7 +110,7 @@ public class FiberContext {
                     break;
                 case Lock:
                     final IO.Lock<Object, F, R> lockIo = (IO.Lock<Object, F, R>) curIo;
-                    value = lockIo.executor.submit(() -> evaluate(lockIo.io));
+                    value = lockIo.executor.submit(() -> new FiberContext(context).evaluate(lockIo.io));
                     break;
                 case Peek:
                     final IO.Peek<Object, F, R> peekIO = (IO.Peek<Object, F, R>) curIo;
@@ -105,7 +122,8 @@ public class FiberContext {
                     value = valueLast;
                     break;
                 default:
-                    return (Either<F, R>) Left.of(GeneralFailure.of("Interrupt"));
+                	done((Either<F, R>) Left.of(GeneralFailure.of("Interrupt")));
+                    return;
             }
 
             if (stack.isEmpty()) {
@@ -127,7 +145,7 @@ public class FiberContext {
             Future<Either<?, ?>> futureValue = (Future<Either<?, ?>>) value;
             value = Failure.tryCatchOptional(() -> futureValue.get()).get().get();
         }
-    	return (Either<F, R>) Right.of(value);
+    	done((Either<F, R>) Right.of(value));
     }
 
     @SuppressWarnings({ "unchecked", "rawtypes" })
@@ -142,5 +160,45 @@ public class FiberContext {
             }
     	}
     }
+    
+    private void done(Either<F, R> value) {
+    	final FiberState<F, R> oldState = state.get();
+    	if (oldState instanceof Executing) {
+			Executing executing = (Executing) oldState;
+			if (!state.compareAndSet(oldState, new Done(value))) {
+				done(value);
+			} else {
+				executing.notifyObservers(value);
+			}
+		}
+    }
+    
+    enum FiberStatus {
+    	Running,
+    	Suspended
+    }
 
+    private static interface FiberState<F, R> { };
+
+    private static class Executing<F, R> implements FiberState<F, R> {
+    	final FiberStatus status;
+    	final List<CompletableFuture<Either<F, R>>> observers;
+    	
+		public Executing(FiberStatus status, List<CompletableFuture<Either<F, R>>> observers) {
+			this.status = status;
+			this.observers = observers;
+		}
+	    
+		public void notifyObservers(Either<F, R> value) {
+			observers.forEach(future -> future.complete(value));
+		}
+    }
+    
+    private static class Done<F, R> implements FiberState<F, R> {
+    	final Either<F, R> value;
+
+		public Done(Either<F, R> value) {
+			this.value = value;
+		}
+    }    
 }
