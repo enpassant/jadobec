@@ -20,6 +20,7 @@ public interface Either<L, R> {
     boolean isRight();
     Either<R, L> swap();
     R get();
+    <B> B fold(Function<L, B> fnLeft, Function<R, B> fnRight);
 
     static <L, R> Either<L, R> ofOptional(L left, Optional<R> optional) {
         if (optional.isPresent()) {

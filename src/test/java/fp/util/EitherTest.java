@@ -94,6 +94,20 @@ public class EitherTest {
         Assert.assertEquals(Right.of(6), either);
     }
 
+    @Test
+    public void testFoldLeft() {
+        Integer result = divideHundredBy(0)
+            .fold(String::length, Integer::intValue);
+        Assert.assertEquals((Integer) 16, result);
+    }
+
+    @Test
+    public void testFoldRight() {
+        Integer result = divideHundredBy(10)
+            .fold(String::length, Integer::intValue);
+        Assert.assertEquals((Integer) 10, result);
+    }
+
     private static Either<String, Integer> divideHundredBy(int divisor) {
         return divisor == 0 ?
             Left.of(DIVISION_BY_ZERO) :

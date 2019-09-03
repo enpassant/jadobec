@@ -96,6 +96,11 @@ public final class Left<L, R> implements Either<L, R> {
     }
 
     @Override
+    public <B> B fold(Function<L, B> fnLeft, Function<R, B> fnRight) {
+    	return fnLeft.apply(value);
+    }
+
+    @Override
     public String toString() {
         return "Left(" + value + ")";
     }
