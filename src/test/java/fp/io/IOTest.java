@@ -14,19 +14,19 @@ import fp.util.Right;
 public class IOTest {
     @Test
     public void testAbsolveSuccess() {
-        IO<Void, Void, Integer> io = IO.absolve(IO.pure(Right.of(4)));
+        IO<Void, Void, Integer> io = IO.absolve(IO.succeed(Right.of(4)));
         Assert.assertEquals(Right.of(4), IO.evaluate(null, io));
     }
 
     @Test
     public void testAbsolveFailure() {
-        IO<Void, Integer, Integer> io = IO.absolve(IO.pure(Left.of(4)));
+        IO<Void, Integer, Integer> io = IO.absolve(IO.succeed(Left.of(4)));
         Assert.assertEquals(Left.of(4), IO.evaluate(null, io));
     }
 
     @Test
     public void testPureIO() {
-        IO<Void, Void, Integer> io = IO.pure(4);
+        IO<Void, Void, Integer> io = IO.succeed(4);
         Assert.assertEquals(Right.of(4), IO.evaluate(null, io));
     }
 
@@ -38,11 +38,11 @@ public class IOTest {
 
     @Test
     public void testFoldSuccess() {
-    	IO<Void, String, Integer> ioValue = IO.pure(4);
+    	IO<Void, String, Integer> ioValue = IO.succeed(4);
         IO<Void, String, Integer> io = ioValue
             .foldM(
-                v -> IO.pure(8),
-                v -> IO.pure(v * v)
+                v -> IO.succeed(8),
+                v -> IO.succeed(v * v)
             );
         Assert.assertEquals(Right.of(16), IO.evaluate(null, io));
     }
@@ -52,15 +52,15 @@ public class IOTest {
         IO<Void, String, Integer> ioValue = IO.fail("Error");
         IO<Void, String, Integer> io = ioValue
             .foldM(
-                v -> IO.pure(8),
-                v -> IO.pure(v * v)
+                v -> IO.succeed(8),
+                v -> IO.succeed(v * v)
             );
         Assert.assertEquals(Right.of(8), IO.evaluate(null, io));
     }
 
     @Test
     public void testFlatMapIO() {
-        IO<Object, Void, Integer> io = IO.pure(4).flatMap(
+        IO<Object, Void, Integer> io = IO.succeed(4).flatMap(
             n -> IO.effectTotal(() -> n * n)
         );
         Assert.assertEquals(Right.of(16), IO.evaluate(null, io));
@@ -68,7 +68,7 @@ public class IOTest {
 
     @Test
     public void testEffectPartial() {
-        IO<Object, Void, Integer> io = IO.effectPartial(() -> 8 / 2).flatMap(
+        IO<Object, Void, Integer> io = IO.effect(() -> 8 / 2).flatMap(
             (Integer n) -> IO.effectTotal(() -> n * n)
         );
         Assert.assertEquals(
@@ -79,7 +79,7 @@ public class IOTest {
 
     @Test
     public void testEffectPartialWithFailure() {
-        IO<Object, Void, Integer> io = IO.effectPartial(() -> 8 / 0).flatMap(
+        IO<Object, Void, Integer> io = IO.effect(() -> 8 / 0).flatMap(
             (Integer n) -> IO.effectTotal(() -> n * n)
         );
         Assert.assertEquals(
@@ -115,7 +115,7 @@ public class IOTest {
     public void testRelease() {
         final Resource res = new Resource();
             final IO<Void, Void, Integer> io = IO.bracket(
-            IO.pure(res),
+            IO.succeed(res),
             resource -> IO.effectTotal(() -> { resource.close(); return 1; }),
             resource -> IO.effectTotal(() -> resource.use(10))
         );
@@ -151,12 +151,12 @@ public class IOTest {
 
     private IO<Object, Void, Boolean> odd(int n) {
     	return IO.effectTotal(() -> n == 0)
-            .flatMap(b -> b ? IO.pure(false) : even(n - 1) );
+            .flatMap(b -> b ? IO.succeed(false) : even(n - 1) );
     }
 
     private IO<Object, Void, Boolean> even(int n) {
     	return IO.effectTotal(() -> n == 0)
-            .flatMap(b -> b ? IO.pure(true) : odd(n - 1) );
+            .flatMap(b -> b ? IO.succeed(true) : odd(n - 1) );
     }
 
     @Test
@@ -175,7 +175,7 @@ public class IOTest {
 //        	System.out.println(n + ": " + Thread.currentThread().getName());
         	return n + 1;
         });
-        IO<Object, Void, Integer> lockIo = IO.pure(1).flatMap(n ->
+        IO<Object, Void, Integer> lockIo = IO.succeed(1).flatMap(n ->
             fnIo.apply(n).on(asyncExecutor).flatMap(n1 ->
                 fnIo.apply(n1).on(blockingExecutor).flatMap(n2 ->
                     fnIo.apply(n2).flatMap(n3 ->
@@ -193,7 +193,7 @@ public class IOTest {
     @Test
     public void testPeek() {
         final Resource res = new Resource();
-        IO<Object, Object, Resource> io = IO.pure(res)
+        IO<Object, Object, Resource> io = IO.succeed(res)
             .peek(r1 -> r1.use(4))
             .peek(r2 -> r2.close());
         Assert.assertEquals(Right.of(res), IO.evaluate(null, io));

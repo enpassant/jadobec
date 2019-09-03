@@ -135,7 +135,7 @@ public class NumericTest {
                     ))
                 .collect(
                     Collectors.reducing(
-                        IO.pure(1),
+                        IO.succeed(1),
                         (c1, c2) -> c1.flatMap(c -> c2)
                     )
                 )

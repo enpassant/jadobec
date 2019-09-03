@@ -125,7 +125,7 @@ public class Repository {
             	final Optional<T> firstValue = items.findFirst();
             	items.close();
                 return firstValue.isPresent() ?
-                    IO.pure(firstValue.get()) :
+                    IO.succeed(firstValue.get()) :
                     IO.fail((Failure) GeneralFailure.of("Missing result"))
                 ;
             });
@@ -252,7 +252,7 @@ public class Repository {
                         try {
                             connection3.commit();
                         } catch(SQLException e) {};
-                        return IO.pure(success);
+                        return IO.succeed(success);
                     }
                 )
             )

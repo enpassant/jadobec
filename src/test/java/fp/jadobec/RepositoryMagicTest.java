@@ -66,8 +66,8 @@ public class RepositoryMagicTest {
                         "wrong number of arguments)",
                     failure.toString()
                 );
-                return IO.pure(1);
-            }, success -> IO.pure(success))
+                return IO.succeed(1);
+            }, success -> IO.succeed(success))
         );
     }
 

@@ -26,8 +26,8 @@ public abstract class IO<C, F, R> {
         return new Access<C, F, R>(fn);
     }
 
-    public static <C, F, R> IO<C, F, R> pure(R r) {
-        return new Pure<C, F, R>(r);
+    public static <C, F, R> IO<C, F, R> succeed(R r) {
+        return new Succeed<C, F, R>(r);
     }
 
     public static <C, F, R> IO<C, F, R> fail(F f) {
@@ -53,7 +53,7 @@ public abstract class IO<C, F, R> {
         return new EffectTotal<C, F, R>(supplier);
     }
 
-    public static <C, F extends Throwable, R> IO<C, F, R> effectPartial(
+    public static <C, F extends Throwable, R> IO<C, F, R> effect(
         ThrowingSupplier<R, F> supplier
     ) {
         return new EffectPartial<C, F, R>(supplier);
@@ -64,7 +64,7 @@ public abstract class IO<C, F, R> {
     }
 
     public <R2> IO<C, F, R2> map(Function<R, R2> fn) {
-        return new FlatMap<C, F, F, R, R2>(this, r -> IO.pure(fn.apply(r)));
+        return new FlatMap<C, F, F, R, R2>(this, r -> IO.succeed(fn.apply(r)));
     }
 
     public IO<C, F, R> on(ExecutorService executor) {
@@ -98,7 +98,7 @@ public abstract class IO<C, F, R> {
                     final Absolve<C, F, R> absolveIO = (Absolve<C, F, R>) curIo;
                     stack.push((Either<F, R> v) -> v.isLeft() ?
                         IO.fail(v.left().get()) :
-                        IO.pure(v.right().get())
+                        IO.succeed(v.right().get())
                     );
                     stack.push(v -> absolveIO.io);
                     break;
@@ -106,7 +106,7 @@ public abstract class IO<C, F, R> {
                     value = ((Access<C, F, R>) curIo).fn.apply(context);
                     break;
                 case Pure:
-                    value = ((Pure<C, F, R>) curIo).r;
+                    value = ((Succeed<C, F, R>) curIo).r;
                     break;
                 case Fail:
                     unwindStack(stack);
@@ -161,7 +161,7 @@ public abstract class IO<C, F, R> {
                     final Peek<C, F, R> peekIO = (Peek<C, F, R>) curIo;
                     stack.push((R r) -> {
                         peekIO.consumer.accept(r);
-                        return IO.pure(r);
+                        return IO.succeed(r);
                     });
                     stack.push(v -> peekIO.io);
                     value = valueLast;
@@ -238,9 +238,9 @@ public abstract class IO<C, F, R> {
         }
     }
 
-    private static class Pure<C, F, R> extends IO<C, F, R> {
+    private static class Succeed<C, F, R> extends IO<C, F, R> {
     	final R r;
-    	public Pure(R r) {
+    	public Succeed(R r) {
             tag = Tag.Pure;
             this.r = r;
         }
