@@ -64,12 +64,12 @@ public abstract class IO<C, F, R> {
         return new Lock<C, F, R>(this, executor);
     }
 
-    public static <C, F, A, R> IO<C, F, R> bracket(
+    public static <C, F, A, R, R2> IO<C, F, R> bracket(
         IO<C, F, A> acquire,
-        Function<A, IO<C, F, ?>> release,
+        Function<A, IO<C, F, R2>> release,
         Function<A, IO<C, F, R>> use
     ) {
-        return new Bracket<C, F, A, R>(
+        return new Bracket<C, F, A, R, R2>(
             acquire,
             release,
             use
@@ -143,14 +143,14 @@ public abstract class IO<C, F, R> {
         }
     }
 
-    static class Bracket<C, F, A, R> extends IO<C, F, R> {
+    static class Bracket<C, F, A, R, R2> extends IO<C, F, R> {
         IO<C, F, A> acquire;
-        Function<A, IO<C, F, ?>> release;
+        Function<A, IO<C, F, R2>> release;
         Function<A, IO<C, F, R>> use;
 
     	public Bracket(
             IO<C, F, A> acquire,
-            Function<A, IO<C, F, ?>> release,
+            Function<A, IO<C, F, R2>> release,
             Function<A, IO<C, F, R>> use
     	) {
             tag = Tag.Bracket;

@@ -1,6 +1,10 @@
 package fp.io;
 
+import java.util.concurrent.Future;
+
 import fp.util.Either;
+import fp.util.ExceptionFailure;
+import fp.util.Failure;
 
 public class Runtime<C> {
 	C context;
@@ -9,15 +13,15 @@ public class Runtime<C> {
 		this.context = context;
 	}
 
-	@SuppressWarnings("unchecked")
 	public <F, R> Either<F, R> unsafeRun(IO<C, F, R> io) {
-		FiberContext<F, R> fiberContext = new FiberContext<F, R>(context);
-		return fiberContext.evaluate((IO<Object, F, R>) io);
+		final Either<Failure, Either<F, R>> eitherValue =
+			ExceptionFailure.tryCatch(() -> unsafeRunAsync(io).get());
+		return eitherValue.get();
 	}
 
 	@SuppressWarnings("unchecked")
-	public <F, R> Either<F, R> unsafeRunAsync(IO<C, F, R> io) {
+	public <F, R> Future<Either<F, R>> unsafeRunAsync(IO<C, F, R> io) {
 		FiberContext<F, R> fiberContext = new FiberContext<F, R>(context);
-		return fiberContext.evaluate((IO<Object, F, R>) io);
+		return fiberContext.runAsync((IO<Object, F, R>) io);
 	}
 }

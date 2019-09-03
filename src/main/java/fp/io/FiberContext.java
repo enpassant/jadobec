@@ -10,6 +10,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 import fp.util.Either;
+import fp.util.ExceptionFailure;
 import fp.util.Failure;
 import fp.util.GeneralFailure;
 import fp.util.Left;
@@ -32,14 +33,19 @@ public class FiberContext<F, R> {
 		this.context = context;
 	}
 
-    public <F2, R2> Either<F, R> evaluate(IO<Object, F, R> io) {
+    @SuppressWarnings("unchecked")
+	public <F2, R2> Either<F, R> evaluate(IO<Object, F, R> io) {
+    	CompletableFuture<Either<F, R>> future = new CompletableFuture<Either<F, R>>();
+    	register(future);
     	evaluateNow(io);
-    	final FiberState<F, R> oldState = state.get();
-    	if (oldState instanceof Done) {
-			Done done = (Done) oldState;
-			return done.value;
-		}
-    	return (Either<F, R>) Left.of(GeneralFailure.of("Executing error"));
+    	return (Either<F, R>) ExceptionFailure.tryCatch(() -> future.get()).flatten();
+    }
+
+    public <F2, R2> Future<Either<F, R>> runAsync(IO<Object, F, R> io) {
+    	CompletableFuture<Either<F, R>> future = new CompletableFuture<Either<F, R>>();
+    	register(future);
+    	evaluateNow(io);
+    	return future;
     }
 
 	@SuppressWarnings("unchecked")
@@ -88,11 +94,11 @@ public class FiberContext<F, R> {
                     break;
                 }
                 case Bracket: {
-                    final IO.Bracket<Object, F, R2, R> bracketIO = (IO.Bracket<Object, F, R2, R>) curIo;
+                    final IO.Bracket<Object, F, R2, R, Object> bracketIO = (IO.Bracket<Object, F, R2, R, Object>) curIo;
                     Either<F, R2> resource = new FiberContext<F, R2>(context).evaluate(bracketIO.acquire);
                     Either<F, R> valueBracket = (Either<F, R>) resource.flatMap(a -> {
                         final Either<F, R> result = new FiberContext<F, R>(context).evaluate(bracketIO.use.apply(a));
-                        new FiberContext(context).evaluate(bracketIO.release.apply(a));
+                        new FiberContext<F, Object>(context).evaluate(bracketIO.release.apply(a));
                         return result;
                     });
                     if (valueBracket.isLeft()) {
@@ -110,7 +116,7 @@ public class FiberContext<F, R> {
                     break;
                 case Lock:
                     final IO.Lock<Object, F, R> lockIo = (IO.Lock<Object, F, R>) curIo;
-                    value = lockIo.executor.submit(() -> new FiberContext(context).evaluate(lockIo.io));
+                    value = lockIo.executor.submit(() -> new FiberContext<F, R>(context).evaluate(lockIo.io));
                     break;
                 case Peek:
                     final IO.Peek<Object, F, R> peekIO = (IO.Peek<Object, F, R>) curIo;
@@ -164,11 +170,22 @@ public class FiberContext<F, R> {
     private void done(Either<F, R> value) {
     	final FiberState<F, R> oldState = state.get();
     	if (oldState instanceof Executing) {
-			Executing executing = (Executing) oldState;
-			if (!state.compareAndSet(oldState, new Done(value))) {
+			final Executing<F, R> executing = (Executing<F, R>) oldState;
+			final Done<F, R> doneValue = new Done<F, R>(value);
+			if (!state.compareAndSet(oldState, doneValue)) {
 				done(value);
 			} else {
-				executing.notifyObservers(value);
+				executing.notifyObservers(doneValue.value);
+			}
+		}
+    }
+    
+    private void register(CompletableFuture<Either<F, R>> observer) {
+    	final FiberState<F, R> oldState = state.get();
+    	if (oldState instanceof Executing) {
+			Executing<F, R> executing = (Executing<F, R>) oldState;
+			if (!state.compareAndSet(oldState, executing.addObserver(observer))) {
+				register(observer);
 			}
 		}
     }
@@ -182,11 +199,16 @@ public class FiberContext<F, R> {
 
     private static class Executing<F, R> implements FiberState<F, R> {
     	final FiberStatus status;
-    	final List<CompletableFuture<Either<F, R>>> observers;
+    	private final List<CompletableFuture<Either<F, R>>> observers;
     	
 		public Executing(FiberStatus status, List<CompletableFuture<Either<F, R>>> observers) {
 			this.status = status;
 			this.observers = observers;
+		}
+	    
+		public Executing<F, R> addObserver(CompletableFuture<Either<F, R>> observer) {
+			this.observers.add(observer);
+			return new Executing<F, R>(this.status, this.observers);
 		}
 	    
 		public void notifyObservers(Either<F, R> value) {

@@ -242,7 +242,7 @@ public class Repository {
         return IO.access((Connection conn) -> conn).flatMap(
             connection -> IO.bracket(
                 setAutoCommit(connection, false),
-                connection2 -> setAutoCommit(connection2, true),
+                connection2 -> setAutoCommit(connection, true),
                 connection3 -> dbCommand.foldM(
                     failure -> {
                         try {
