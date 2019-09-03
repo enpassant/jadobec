@@ -12,28 +12,31 @@ import fp.util.Left;
 import fp.util.Right;
 
 public class IOTest {
+	final Runtime<Void> defaultVoidRuntime = new Runtime<Void>(null);
+	final Runtime<Object> defaultRuntime = new Runtime<Object>(null);
+	
     @Test
     public void testAbsolveSuccess() {
         IO<Void, Void, Integer> io = IO.absolve(IO.succeed(Right.of(4)));
-        Assert.assertEquals(Right.of(4), IO.evaluate(null, io));
+        Assert.assertEquals(Right.of(4), defaultVoidRuntime.unsafeRun(io));
     }
 
     @Test
     public void testAbsolveFailure() {
         IO<Void, Integer, Integer> io = IO.absolve(IO.succeed(Left.of(4)));
-        Assert.assertEquals(Left.of(4), IO.evaluate(null, io));
+        Assert.assertEquals(Left.of(4), defaultVoidRuntime.unsafeRun(io));
     }
 
     @Test
     public void testPureIO() {
         IO<Void, Void, Integer> io = IO.succeed(4);
-        Assert.assertEquals(Right.of(4), IO.evaluate(null, io));
+        Assert.assertEquals(Right.of(4), defaultVoidRuntime.unsafeRun(io));
     }
 
     @Test
     public void testFail() {
         IO<Void, String, ?> io = IO.fail("Syntax error");
-        Assert.assertEquals(Left.of("Syntax error"), IO.evaluate(null, io));
+        Assert.assertEquals(Left.of("Syntax error"), defaultVoidRuntime.unsafeRun(io));
     }
 
     @Test
@@ -44,7 +47,7 @@ public class IOTest {
                 v -> IO.succeed(8),
                 v -> IO.succeed(v * v)
             );
-        Assert.assertEquals(Right.of(16), IO.evaluate(null, io));
+        Assert.assertEquals(Right.of(16), defaultVoidRuntime.unsafeRun(io));
     }
 
     @Test
@@ -55,7 +58,7 @@ public class IOTest {
                 v -> IO.succeed(8),
                 v -> IO.succeed(v * v)
             );
-        Assert.assertEquals(Right.of(8), IO.evaluate(null, io));
+        Assert.assertEquals(Right.of(8), defaultVoidRuntime.unsafeRun(io));
     }
 
     @Test
@@ -63,7 +66,7 @@ public class IOTest {
         IO<Object, Void, Integer> io = IO.succeed(4).flatMap(
             n -> IO.effectTotal(() -> n * n)
         );
-        Assert.assertEquals(Right.of(16), IO.evaluate(null, io));
+        Assert.assertEquals(Right.of(16), defaultRuntime.unsafeRun(io));
     }
 
     @Test
@@ -73,7 +76,7 @@ public class IOTest {
         );
         Assert.assertEquals(
             Right.of(16),
-            IO.evaluate(null, io)
+            defaultRuntime.unsafeRun(io)
         );
     }
 
@@ -84,7 +87,7 @@ public class IOTest {
         );
         Assert.assertEquals(
             Left.of(new ArithmeticException("/ by zero")).toString(),
-            IO.evaluate(null, io).toString()
+            defaultRuntime.unsafeRun(io).toString()
         );
     }
 
@@ -93,7 +96,7 @@ public class IOTest {
         IO<Integer, Void, String> io = IO.access(
             (Integer n) -> Integer.toString(n * n)
         );
-        Assert.assertEquals(Right.of("16"), IO.evaluate(4, io));
+        Assert.assertEquals(Right.of("16"), new Runtime<Integer>(4).unsafeRun(io));
     }
 
     private static class Resource {
@@ -119,7 +122,7 @@ public class IOTest {
             resource -> IO.effectTotal(() -> { resource.close(); return 1; }),
             resource -> IO.effectTotal(() -> resource.use(10))
         );
-        Assert.assertEquals(Right.of(10), IO.evaluate(null, io));
+        Assert.assertEquals(Right.of(10), defaultVoidRuntime.unsafeRun(io));
         Assert.assertFalse(res.acquired);
     }
 
@@ -144,7 +147,7 @@ public class IOTest {
                 )
             )
         );
-        Assert.assertEquals(Right.of(16), IO.evaluate(null, io));
+        Assert.assertEquals(Right.of(16), defaultRuntime.unsafeRun(io));
         Assert.assertFalse(res1.acquired);
         Assert.assertFalse(res2.acquired);
     }
@@ -162,7 +165,7 @@ public class IOTest {
     @Test
     public void testMutuallyTailRecursive() {
         IO<Object, Void, Boolean> io = even(100000);
-        Assert.assertEquals(Right.of(true), IO.evaluate(null, io));
+        Assert.assertEquals(Right.of(true), defaultRuntime.unsafeRun(io));
     }
 
     @Test
@@ -183,7 +186,7 @@ public class IOTest {
                             fnIo.apply(n4).flatMap(n5 ->
                                 fnIo.apply(n5).on(calcExecutor).flatMap(fnIo)
         ))))));
-        Assert.assertEquals(Right.of(8), IO.evaluate(null, lockIo));
+        Assert.assertEquals(Right.of(8), defaultRuntime.unsafeRun(lockIo));
 
         asyncExecutor.shutdown();
         blockingExecutor.shutdown();
@@ -196,7 +199,7 @@ public class IOTest {
         IO<Object, Object, Resource> io = IO.succeed(res)
             .peek(r1 -> r1.use(4))
             .peek(r2 -> r2.close());
-        Assert.assertEquals(Right.of(res), IO.evaluate(null, io));
+        Assert.assertEquals(Right.of(res), defaultRuntime.unsafeRun(io));
         Assert.assertEquals(4, res.usage);
         Assert.assertEquals(false, res.acquired);
     }

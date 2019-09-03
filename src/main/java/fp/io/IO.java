@@ -1,18 +1,11 @@
 package fp.io;
 
-import java.util.ArrayDeque;
-import java.util.Deque;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Future;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
 
 import fp.util.Either;
-import fp.util.Failure;
-import fp.util.GeneralFailure;
-import fp.util.Left;
-import fp.util.Right;
 import fp.util.ThrowingSupplier;
 
 public abstract class IO<C, F, R> {
@@ -83,128 +76,6 @@ public abstract class IO<C, F, R> {
         );
     }
 
-    @SuppressWarnings("unchecked")
-	public static <C, F, F2, R, R2> Either<F, R> evaluate(C context, IO<C, F, R> io) {
-    	IO<C, ?, ?> curIo = io;
-    	Object value = null;
-    	Object valueLast = null;
-
-    	Deque<Function<?, IO<C, ?, ?>>> stack =
-            new ArrayDeque<Function<?, IO<C, ?, ?>>>();
-
-    	while (curIo != null) {
-            switch (curIo.tag) {
-                case Absolve:
-                    final Absolve<C, F, R> absolveIO = (Absolve<C, F, R>) curIo;
-                    stack.push((Either<F, R> v) -> v.isLeft() ?
-                        IO.fail(v.left().get()) :
-                        IO.succeed(v.right().get())
-                    );
-                    stack.push(v -> absolveIO.io);
-                    break;
-                case Access:
-                    value = ((Access<C, F, R>) curIo).fn.apply(context);
-                    break;
-                case Pure:
-                    value = ((Succeed<C, F, R>) curIo).r;
-                    break;
-                case Fail:
-                    unwindStack(stack);
-                    if (stack.isEmpty()) {
-                        return (Either<F, R>) Left.of(((Fail<C, ?, R>) curIo).f);
-                    }
-                    value = ((Fail<C, F, R>) curIo).f;
-                    break;
-                case Fold: {
-                    final Fold<C, F, F2, R2, R> foldIO = (Fold<C, F, F2, R2, R>) curIo;
-                    stack.push((Function<?, IO<C, ?, ?>>) curIo);
-                    stack.push(v -> foldIO.io);
-                    break;
-                }
-                case EffectTotal:
-                    value = ((EffectTotal<C, F, R>) curIo).supplier.get();
-                    break;
-                case EffectPartial: {
-                    try {
-                        value = ((EffectPartial<C, Throwable, R>) curIo).supplier.get();
-                    } catch (Throwable e) {
-                        stack.push(v -> IO.fail(e));
-                    }
-                    break;
-                }
-                case Bracket: {
-                    final Bracket<C, F, R2, R> bracketIO = (Bracket<C, F, R2, R>) curIo;
-                    Either<F, R2> resource = evaluate(context, bracketIO.acquire);
-                    Either<F, R> valueBracket = (Either<F, R>) resource.flatMap(a -> {
-                        final Either<F, R> result = evaluate(context, bracketIO.use.apply(a));
-                        evaluate(context, bracketIO.release.apply(a));
-                        return result;
-                    });
-                    if (valueBracket.isLeft()) {
-                        stack.push(v -> IO.fail(valueBracket.left().get()));
-                    } else {
-                        value = valueBracket.right().get();
-                    }
-                    break;
-                }
-                case FlatMap:
-                    final FlatMap<C, F2, F, R2, R> flatmapIO =
-                        (FlatMap<C, F2, F, R2, R>) curIo;
-                    stack.push((R2 v) -> flatmapIO.fn.apply(v));
-                    stack.push(v -> flatmapIO.io);
-                    break;
-                case Lock:
-                    final Lock<C, F, R> lockIo = (Lock<C, F, R>) curIo;
-                    value = lockIo.executor.submit(() -> evaluate(context, lockIo.io));
-                    break;
-                case Peek:
-                    final Peek<C, F, R> peekIO = (Peek<C, F, R>) curIo;
-                    stack.push((R r) -> {
-                        peekIO.consumer.accept(r);
-                        return IO.succeed(r);
-                    });
-                    stack.push(v -> peekIO.io);
-                    value = valueLast;
-                    break;
-                default:
-                    return (Either<F, R>) Left.of(GeneralFailure.of("Interrupt"));
-            }
-
-            if (stack.isEmpty()) {
-                curIo = null;
-            } else {
-                final Function<Object, IO<C, ?, ?>> fn =
-                    (Function<Object, IO<C, ?, ?>>) stack.pop();
-                if (value instanceof Future) {
-                    Future<Either<?, ?>> futureValue = (Future<Either<?, ?>>) value;
-                    value = Failure.tryCatchOptional(() -> futureValue.get()).get().get();
-                }
-                curIo = (IO<C, ?, ?>) fn.apply(value);
-                valueLast = value;
-                value = null;
-            }
-    	}
-
-        if (value instanceof Future) {
-            Future<Either<?, ?>> futureValue = (Future<Either<?, ?>>) value;
-            value = Failure.tryCatchOptional(() -> futureValue.get()).get().get();
-        }
-    	return (Either<F, R>) Right.of(value);
-    }
-
-    @SuppressWarnings({ "unused", "unchecked", "rawtypes" })
-	private static <C> void unwindStack(Deque<Function<?, IO<C, ?, ?>>> stack) {
-    	boolean unwinding = true;
-
-    	while(unwinding && !stack.isEmpty()) {
-            final Function<?, IO<C, ?, ?>> fn = stack.pop();
-            if (fn instanceof Fold) {
-                stack.push(((Fold) fn).failure);
-                unwinding = false;
-            }
-    	}
-    }
-
     enum Tag {
         Absolve,
         Access,
@@ -219,7 +90,7 @@ public abstract class IO<C, F, R> {
         Peek
     }
 
-    private static class Absolve<C, F, R> extends IO<C, F, R> {
+    static class Absolve<C, F, R> extends IO<C, F, R> {
         final IO<C, ?, Either<F, R>> io;
 
         public Absolve(
@@ -230,7 +101,7 @@ public abstract class IO<C, F, R> {
         }
     }
 
-    private static class Access<C, F, R> extends IO<C, F, R> {
+    static class Access<C, F, R> extends IO<C, F, R> {
     	final Function<C, R> fn;
     	public Access(Function<C, R> fn) {
             tag = Tag.Access;
@@ -238,7 +109,7 @@ public abstract class IO<C, F, R> {
         }
     }
 
-    private static class Succeed<C, F, R> extends IO<C, F, R> {
+    static class Succeed<C, F, R> extends IO<C, F, R> {
     	final R r;
     	public Succeed(R r) {
             tag = Tag.Pure;
@@ -246,7 +117,7 @@ public abstract class IO<C, F, R> {
         }
     }
 
-    private static class Fail<C, F, R> extends IO<C, F, R> {
+    static class Fail<C, F, R> extends IO<C, F, R> {
     	final F f;
     	public Fail(F f) {
             tag = Tag.Fail;
@@ -254,7 +125,7 @@ public abstract class IO<C, F, R> {
         }
     }
 
-    private static class EffectTotal<C, F, R> extends IO<C, F, R> {
+    static class EffectTotal<C, F, R> extends IO<C, F, R> {
     	final Supplier<R> supplier;
 
     	public EffectTotal(Supplier<R> supplier) {
@@ -263,7 +134,7 @@ public abstract class IO<C, F, R> {
         }
     }
 
-    private static class EffectPartial<C, F extends Throwable, R> extends IO<C, F, R> {
+    static class EffectPartial<C, F extends Throwable, R> extends IO<C, F, R> {
     	final ThrowingSupplier<R, F> supplier;
 
     	public EffectPartial(ThrowingSupplier<R, F> supplier) {
@@ -272,7 +143,7 @@ public abstract class IO<C, F, R> {
         }
     }
 
-    private static class Bracket<C, F, A, R> extends IO<C, F, R> {
+    static class Bracket<C, F, A, R> extends IO<C, F, R> {
         IO<C, F, A> acquire;
         Function<A, IO<C, F, ?>> release;
         Function<A, IO<C, F, R>> use;
@@ -289,7 +160,7 @@ public abstract class IO<C, F, R> {
         }
     }
 
-    private static class Fold<C, F, F2, A, R>
+    static class Fold<C, F, F2, A, R>
     	extends IO<C, F2, R>
     	implements Function<A, IO<C, F2, R>>
     {
@@ -314,7 +185,7 @@ public abstract class IO<C, F, R> {
         }
     }
 
-    private static class FlatMap<C, F, F2, R, R2> extends IO<C, F2, R2> {
+    static class FlatMap<C, F, F2, R, R2> extends IO<C, F2, R2> {
     	final IO<C, F, R> io;
     	final Function<R, IO<C, F2, R2>> fn;
 
@@ -325,7 +196,7 @@ public abstract class IO<C, F, R> {
         }
     }
 
-    private static class Lock<C, F, R> extends IO<C, F, R> {
+    static class Lock<C, F, R> extends IO<C, F, R> {
     	final IO<C, F, R> io;
     	final ExecutorService executor;
     	public Lock(IO<C, F, R> io, ExecutorService executor) {
@@ -335,7 +206,7 @@ public abstract class IO<C, F, R> {
         }
     }
 
-    private static class Peek<C, F, R> extends IO<C, F, R> {
+    static class Peek<C, F, R> extends IO<C, F, R> {
     	final IO<C, F, R> io;
     	final Consumer<R> consumer;
 

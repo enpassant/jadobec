@@ -22,19 +22,17 @@ public class RepositoryMagic {
         String sql,
         Object... params
     ) {
-        return IO.absolve(IO.access(connection -> {
-            ThrowingConsumer<PreparedStatement, SQLException> prepare = ps -> {
-                for (int i=0; i<params.length; i++) {
-                    ps.setObject(i + 1, params[i]);
-                }
-            };
+		ThrowingConsumer<PreparedStatement, SQLException> prepare = ps -> {
+			for (int i=0; i<params.length; i++) {
+				ps.setObject(i + 1, params[i]);
+			}
+		};
 
-            return IO.evaluate(connection, Repository.querySinglePrepared(
-                sql,
-                prepare,
-                Record.expandAs(type)
-            )).flatten();
-        }));
+		return Repository.querySinglePrepared(
+			sql,
+			prepare,
+			Record.expandAs(type)
+		).flatMap(either -> IO.absolve(IO.succeed(either)));
     }
 
     public static <T> IO<Connection, Failure, List<T>> queryAs(
@@ -95,39 +93,37 @@ public class RepositoryMagic {
     }
 
     public static IO<Connection, Failure, Integer> insert(Object object) {
-        return IO.absolve(IO.access(connection ->
-            Record.from(object).flatMap(record -> {
-                final String fields = record
-                    .fields()
-                    .stream()
-                    .collect(Collectors.joining(", "));
-                final String values = record
-                    .fields()
-                    .stream()
-                    .map(f -> "?")
-                    .collect(Collectors.joining(", "));
-                final Object[] params = record.values().toArray();
-                final String sql =
-                    "insert into " +
-                    object.getClass().getSimpleName() +
-                    "(" +
-                    fields +
-                    ") values(" +
-                    values +
-                    ")"
-                ;
-                final ThrowingConsumer<PreparedStatement, SQLException> prepare =
-                ps -> {
-                    for (int i=0; i<params.length; i++) {
-                        ps.setObject(i + 1, params[i]);
-                    }
-                };
-
-                return IO.evaluate(
-                	connection,
-                	Repository.updatePrepared(sql, prepare)
-                );
-            })
-        ));
+        return Record.from(object).fold(
+        	failure -> IO.fail(failure),
+        	record -> {
+	            final String fields = record
+	                .fields()
+	                .stream()
+	                .collect(Collectors.joining(", "));
+	            final String values = record
+	                .fields()
+	                .stream()
+	                .map(f -> "?")
+	                .collect(Collectors.joining(", "));
+	            final Object[] params = record.values().toArray();
+	            final String sql =
+	                "insert into " +
+	                object.getClass().getSimpleName() +
+	                "(" +
+	                fields +
+	                ") values(" +
+	                values +
+	                ")"
+	            ;
+	            final ThrowingConsumer<PreparedStatement, SQLException> prepare =
+		            ps -> {
+		                for (int i=0; i<params.length; i++) {
+		                    ps.setObject(i + 1, params[i]);
+		                }
+		            };
+	
+	            return Repository.updatePrepared(sql, prepare);
+        	}
+        );
     }
 }

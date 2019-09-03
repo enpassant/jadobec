@@ -17,6 +17,7 @@ import java.util.stream.Stream;
 import org.junit.Test;
 
 import fp.io.IO;
+import fp.io.Runtime;
 import fp.util.Either;
 import fp.util.Failure;
 import fp.util.GeneralFailure;
@@ -112,10 +113,10 @@ public class ContactTest {
     ) {
     	return IO.absolve(IO.access((Connection connection) -> connection)
     		.map(connection ->
-    			IO.evaluate(connection, io)
+    			new Runtime<Connection>(connection).unsafeRun(io)
 					.map((Stream<Either<F, U>> items) -> items.map(
 						(Either<F, U> item) -> item.flatMap(
-							v -> IO.evaluate(connection, mapper.apply(v))
+							v -> new Runtime<Connection>(connection).unsafeRun(mapper.apply(v))
 						)
 					))
 			)
