@@ -17,20 +17,21 @@ import fp.util.Left;
 import fp.util.Right;
 
 public class FiberContext<F, R> {
-	private Object context;
 	private IO<Object, ?, ?> curIo;
 	private Object value = null;
 	private Object valueLast = null;
 	private AtomicReference<FiberState<F, R>> state =
 		new AtomicReference<>(new Executing<F, R>(FiberStatus.Running, new ArrayList<>()));
 			
-	Deque<Function<?, IO<Object, ?, ?>>> stack =
+	private Deque<Object> environments = new ArrayDeque<Object>();
+	private Deque<Function<?, IO<Object, ?, ?>>> stack =
 		new ArrayDeque<Function<?, IO<Object, ?, ?>>>();
-
 
     public FiberContext(Object context) {
 		super();
-		this.context = context;
+		if (context != null) {
+			environments.push(context);
+		}
 	}
 
     @SuppressWarnings("unchecked")
@@ -63,7 +64,7 @@ public class FiberContext<F, R> {
                     stack.push(v -> absolveIO.io);
                     break;
                 case Access:
-                    value = ((IO.Access<Object, F, R>) curIo).fn.apply(context);
+                    value = ((IO.Access<Object, F, R>) curIo).fn.apply(environments.peek());
                     break;
                 case Pure:
                     value = ((IO.Succeed<Object, F, R>) curIo).r;
@@ -95,10 +96,10 @@ public class FiberContext<F, R> {
                 }
                 case Bracket: {
                     final IO.Bracket<Object, F, R2, R, Object> bracketIO = (IO.Bracket<Object, F, R2, R, Object>) curIo;
-                    Either<F, R2> resource = new FiberContext<F, R2>(context).evaluate(bracketIO.acquire);
+                    Either<F, R2> resource = new FiberContext<F, R2>(environments.peek()).evaluate(bracketIO.acquire);
                     Either<F, R> valueBracket = (Either<F, R>) resource.flatMap(a -> {
-                        final Either<F, R> result = new FiberContext<F, R>(context).evaluate(bracketIO.use.apply(a));
-                        new FiberContext<F, Object>(context).evaluate(bracketIO.release.apply(a));
+                        final Either<F, R> result = new FiberContext<F, R>(environments.peek()).evaluate(bracketIO.use.apply(a));
+                        new FiberContext<F, Object>(environments.peek()).evaluate(bracketIO.release.apply(a));
                         return result;
                     });
                     if (valueBracket.isLeft()) {
@@ -116,7 +117,7 @@ public class FiberContext<F, R> {
                     break;
                 case Lock:
                     final IO.Lock<Object, F, R> lockIo = (IO.Lock<Object, F, R>) curIo;
-                    value = lockIo.executor.submit(() -> new FiberContext<F, R>(context).evaluate(lockIo.io));
+                    value = lockIo.executor.submit(() -> new FiberContext<F, R>(environments.peek()).evaluate(lockIo.io));
                     break;
                 case Peek:
                     final IO.Peek<Object, F, R> peekIO = (IO.Peek<Object, F, R>) curIo;
@@ -125,6 +126,16 @@ public class FiberContext<F, R> {
                         return IO.succeed(r);
                     });
                     stack.push(v -> peekIO.io);
+                    value = valueLast;
+                    break;
+                case Provide:
+                    final IO.Provide<Object, Object, F, Object> provideIO = (IO.Provide<Object, Object, F, Object>) curIo;
+                    environments.push(provideIO.context);
+                    stack.push((R r) -> IO.effectTotal(() -> {
+                        environments.pop();
+                        return r;
+                    }));
+                    stack.push(v -> provideIO.next);
                     value = valueLast;
                     break;
                 default:

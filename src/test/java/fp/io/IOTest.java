@@ -93,10 +93,10 @@ public class IOTest {
 
     @Test
     public void testContext() {
-        IO<Integer, Void, String> io = IO.access(
+        IO<Void, Object, String> io = IO.access(
             (Integer n) -> Integer.toString(n * n)
-        );
-        Assert.assertEquals(Right.of("16"), new Runtime<Integer>(4).unsafeRun(io));
+        ).provide(4);
+        Assert.assertEquals(Right.of("16"), defaultVoidRuntime.unsafeRun(io));
     }
 
     private static class Resource {

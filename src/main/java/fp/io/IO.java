@@ -76,6 +76,10 @@ public abstract class IO<C, F, R> {
         );
     }
 
+    public <C2> IO<C2, F, R> provide(C context) {
+        return new Provide<C, C2, F, R>(context, this);
+    }
+
     enum Tag {
         Absolve,
         Access,
@@ -87,7 +91,8 @@ public abstract class IO<C, F, R> {
         EffectPartial,
         FlatMap,
         Lock,
-        Peek
+        Peek,
+        Provide
     }
 
     static class Absolve<C, F, R> extends IO<C, F, R> {
@@ -214,6 +219,17 @@ public abstract class IO<C, F, R> {
             tag = Tag.Peek;
             this.io = io;
             this.consumer = consumer;
+        }
+    }
+
+    static class Provide<C, C2, F, R> extends IO<C2, F, R> {
+    	final C context;
+    	final IO<C, F, R> next;
+    	
+    	public Provide(C context, IO<C, F, R> next) {
+            tag = Tag.Provide;
+            this.context = context;
+            this.next = next;
         }
     }
 }
