@@ -16,6 +16,8 @@ import java.util.stream.StreamSupport;
 
 import javax.sql.DataSource;
 
+import fp.io.DefaultPlatform;
+import fp.io.DefaultRuntime;
 import fp.io.IO;
 import fp.io.Runtime;
 import fp.util.Either;
@@ -35,11 +37,13 @@ public class Repository {
         this.connectionFactory = () -> dataSource.getConnection();
     }
 
-    public <T> Either<Failure, T> use(IO<Connection, Failure, T> command) {
+    public <T> Either<Failure, T> use(
+    	Runtime<Void> runtime,
+    	IO<Connection, Failure, T> command
+    ) {
         try {
             final Connection connection = connectionFactory.get();
-            final Runtime<Connection> runtime = new Runtime<Connection>(connection);
-            final Either<Failure, T> result = runtime.unsafeRun(command);
+            final Either<Failure, T> result = runtime.unsafeRun(command.provide(connection));
             connection.close();
             return result;
         } catch (SQLException e) {
@@ -218,7 +222,7 @@ public class Repository {
             return Stream.of(sqls)
                 .collect(Collectors.reducing(
                     Right.of(0),
-                    sql -> new Runtime<Connection>(connection).unsafeRun(Repository.update(sql)),
+                    sql -> new DefaultRuntime<Connection>(connection, new DefaultPlatform()).unsafeRun(Repository.update(sql)),
                     (s, v) -> s.flatMap(i -> v)
                 ));
         }));

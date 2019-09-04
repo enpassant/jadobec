@@ -5,6 +5,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.function.Function;
 
+import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Test;
 
@@ -12,8 +13,15 @@ import fp.util.Left;
 import fp.util.Right;
 
 public class IOTest {
-	final Runtime<Void> defaultVoidRuntime = new Runtime<Void>(null);
-	final Runtime<Object> defaultRuntime = new Runtime<Object>(null);
+	final static DefaultPlatform platform = new DefaultPlatform();
+	
+	final Runtime<Void> defaultVoidRuntime = new DefaultRuntime<Void>(null, platform);
+	final Runtime<Object> defaultRuntime = new DefaultRuntime<Object>(null, platform);
+	
+	@AfterClass
+    public static void setUp() {
+		platform.shutdown();
+    }
 	
     @Test
     public void testAbsolveSuccess() {

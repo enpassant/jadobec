@@ -76,8 +76,8 @@ public abstract class IO<C, F, R> {
         );
     }
 
-    public <C2> IO<C2, F, R> provide(C context) {
-        return new Provide<C, C2, F, R>(context, this);
+    public <C2> IO<Void, F, R> provide(C context) {
+        return new Provide<C, Void, F, R>(context, this);
     }
 
     enum Tag {

@@ -14,8 +14,11 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.junit.AfterClass;
 import org.junit.Test;
 
+import fp.io.DefaultPlatform;
+import fp.io.DefaultRuntime;
 import fp.io.IO;
 import fp.io.Runtime;
 import fp.util.Either;
@@ -27,6 +30,15 @@ import fp.util.StreamUtil;
 import fp.util.Tuple2;
 
 public class ContactTest {
+	final static DefaultPlatform platform = new DefaultPlatform();
+	
+	final static Runtime<Void> defaultRuntime = new DefaultRuntime<Void>(null, platform);
+	
+	@AfterClass
+    public static void setUp() {
+		platform.shutdown();
+    }
+	
     @Test
     public void testTempUsers() {
         final List<Either<Failure, User>> expectedUsers = Arrays.asList(
@@ -113,10 +125,10 @@ public class ContactTest {
     ) {
     	return IO.absolve(IO.access((Connection connection) -> connection)
     		.map(connection ->
-    			new Runtime<Connection>(connection).unsafeRun(io)
+    			defaultRuntime.unsafeRun(io.provide(connection))
 					.map((Stream<Either<F, U>> items) -> items.map(
 						(Either<F, U> item) -> item.flatMap(
-							v -> new Runtime<Connection>(connection).unsafeRun(mapper.apply(v))
+							v -> defaultRuntime.unsafeRun(mapper.apply(v).provide(connection))
 						)
 					))
 			)
@@ -264,7 +276,7 @@ public class ContactTest {
     private static <T> void checkDbCommand(IO<Connection, Failure, T> testDbCommand) {
         final Either<Failure, T> repositoryOrFailure = createRepository()
             .flatMap(repository ->
-                repository.use(
+                repository.use(defaultRuntime,
                     testDbCommand
                 )
             );

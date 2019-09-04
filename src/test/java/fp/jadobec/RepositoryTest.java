@@ -8,14 +8,27 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.junit.AfterClass;
 import org.junit.Test;
 
+import fp.io.DefaultPlatform;
+import fp.io.DefaultRuntime;
 import fp.io.IO;
+import fp.io.Runtime;
 import fp.util.Either;
 import fp.util.Failure;
 import fp.util.Tuple2;
 
 public class RepositoryTest {
+	final static DefaultPlatform platform = new DefaultPlatform();
+	
+	final static Runtime<Void> defaultRuntime = new DefaultRuntime<Void>(null, platform);
+	
+	@AfterClass
+    public static void setUp() {
+		platform.shutdown();
+    }
+	
     private final Person johnDoe = Person.of(1, "John Doe", 32);
     private final Person janeDoe = Person.of(2, "Jane Doe", 28);
     private final Person jakeDoe = Person.of(2, "Jake Doe", 28);
@@ -151,6 +164,7 @@ public class RepositoryTest {
         final Either<Failure, T> repositoryOrFailure = createRepository()
             .flatMap(repository ->
                 repository.use(
+                	defaultRuntime,
                     RepositoryTest.fillIO()
                         .flatMap(i -> testDbCommand)
                 )

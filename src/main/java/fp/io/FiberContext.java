@@ -17,6 +17,7 @@ import fp.util.Left;
 import fp.util.Right;
 
 public class FiberContext<F, R> {
+	private final Platform platform;
 	private IO<Object, ?, ?> curIo;
 	private Object value = null;
 	private Object valueLast = null;
@@ -27,11 +28,12 @@ public class FiberContext<F, R> {
 	private Deque<Function<?, IO<Object, ?, ?>>> stack =
 		new ArrayDeque<Function<?, IO<Object, ?, ?>>>();
 
-    public FiberContext(Object context) {
+    public FiberContext(Object context, Platform platform) {
 		super();
 		if (context != null) {
 			environments.push(context);
 		}
+		this.platform = platform;
 	}
 
     @SuppressWarnings("unchecked")
@@ -96,10 +98,10 @@ public class FiberContext<F, R> {
                 }
                 case Bracket: {
                     final IO.Bracket<Object, F, R2, R, Object> bracketIO = (IO.Bracket<Object, F, R2, R, Object>) curIo;
-                    Either<F, R2> resource = new FiberContext<F, R2>(environments.peek()).evaluate(bracketIO.acquire);
+                    Either<F, R2> resource = new FiberContext<F, R2>(environments.peek(), platform).evaluate(bracketIO.acquire);
                     Either<F, R> valueBracket = (Either<F, R>) resource.flatMap(a -> {
-                        final Either<F, R> result = new FiberContext<F, R>(environments.peek()).evaluate(bracketIO.use.apply(a));
-                        new FiberContext<F, Object>(environments.peek()).evaluate(bracketIO.release.apply(a));
+                        final Either<F, R> result = new FiberContext<F, R>(environments.peek(), platform).evaluate(bracketIO.use.apply(a));
+                        new FiberContext<F, Object>(environments.peek(), platform).evaluate(bracketIO.release.apply(a));
                         return result;
                     });
                     if (valueBracket.isLeft()) {
@@ -117,7 +119,7 @@ public class FiberContext<F, R> {
                     break;
                 case Lock:
                     final IO.Lock<Object, F, R> lockIo = (IO.Lock<Object, F, R>) curIo;
-                    value = lockIo.executor.submit(() -> new FiberContext<F, R>(environments.peek()).evaluate(lockIo.io));
+                    value = lockIo.executor.submit(() -> new FiberContext<F, R>(environments.peek(), platform).evaluate(lockIo.io));
                     break;
                 case Peek:
                     final IO.Peek<Object, F, R> peekIO = (IO.Peek<Object, F, R>) curIo;

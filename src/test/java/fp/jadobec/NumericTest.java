@@ -14,9 +14,13 @@ import java.util.logging.Logger;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
+import org.junit.AfterClass;
 import org.junit.Test;
 
+import fp.io.DefaultPlatform;
+import fp.io.DefaultRuntime;
 import fp.io.IO;
+import fp.io.Runtime;
 import fp.util.Either;
 import fp.util.Failure;
 import fp.util.GeneralFailure;
@@ -24,6 +28,15 @@ import fp.util.Left;
 import fp.util.Tuple2;
 
 public class NumericTest {
+	final static DefaultPlatform platform = new DefaultPlatform();
+	
+	final static Runtime<Void> defaultRuntime = new DefaultRuntime<Void>(null, platform);
+	
+	@AfterClass
+    public static void setUp() {
+		platform.shutdown();
+    }
+	
     private static Logger logger = Logger.getLogger(NumericTest.class.getSimpleName());
     private static Consumer<Object> log(Level level, String message) {
         return object -> logger.log(level, message, object);
@@ -183,6 +196,7 @@ public class NumericTest {
         final Either<Failure, T> repositoryOrFailure = createRepository()
             .flatMap(repository ->
                 repository.use(
+                	defaultRuntime,
                     createAndFill
                         .flatMap(i -> testDbCommand)
                 )
