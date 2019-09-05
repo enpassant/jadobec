@@ -165,10 +165,10 @@ public class Repository {
                 return Right.of(stream(rs, createObject));
             } catch (Exception e) {
                 return Left.of(
-                	ExceptionFailure.of(e)
+                	(Failure) ExceptionFailure.of(e)
                 );
             }
-        }));
+        })).blocking();
     }
 
     public static IO<Connection, Failure, Integer> update(final String sql) {
@@ -179,7 +179,7 @@ public class Repository {
         final String sql,
         final ThrowingConsumer<PreparedStatement, SQLException> prepare
     ) {
-        return IO.absolve(IO.access(connection -> {
+        return IO.absolve(IO.access((Connection connection) -> {
             PreparedStatement stmt = null;
 
             try {
@@ -202,7 +202,7 @@ public class Repository {
                 return result;
             } catch (Exception e) {
                 return Left.of(
-                	ExceptionFailure.of(e)
+                	(Failure) ExceptionFailure.of(e)
                 );
             } finally {
                 try {
@@ -211,7 +211,7 @@ public class Repository {
                     //logger.error("Update prepared close error", e);
                 }
             }
-        }));
+        })).blocking();
     }
 
     public static IO<Connection, Failure, Integer> batchUpdate(String... sqls) {
@@ -260,7 +260,7 @@ public class Repository {
                     }
                 )
             )
-        );
+        ).blocking();
     }
 
     private static <T> Stream<T> stream(
