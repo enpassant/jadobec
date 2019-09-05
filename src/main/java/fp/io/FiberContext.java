@@ -191,12 +191,16 @@ public class FiberContext<F, R> implements Fiber<F, R> {
         if (stack.isEmpty()) {
             return null;
         } else {
-			final Function<Object, IO<Object, ?, ?>> fn =
-                (Function<Object, IO<Object, ?, ?>>) stack.pop();
             if (value instanceof Future) {
 				Future<Either<?, ?>> futureValue = (Future<Either<?, ?>>) value;
-                value = Failure.tryCatchOptional(() -> futureValue.get()).get().get();
+                Either<?, ?> either = ExceptionFailure.tryCatch(() -> futureValue.get()).get();
+                if (either.isLeft()) {
+                	return IO.fail((F) either.left().get());
+                }
+				value = either.get();
             }
+			final Function<Object, IO<Object, ?, ?>> fn =
+                (Function<Object, IO<Object, ?, ?>>) stack.pop();
             valueLast = value;
             return (IO<Object, F, R>) fn.apply(value);
         }
