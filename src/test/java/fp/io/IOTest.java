@@ -36,6 +36,19 @@ public class IOTest {
     }
 
     @Test
+    public void testBlocking() {
+        IO<Object, Object, String> io = IO.effectTotal(
+        	() -> Thread.currentThread().getName()
+        ).blocking();
+        Assert.assertTrue(
+        	"It is not a blocking thread's name",
+        	defaultRuntime.unsafeRun(io)
+        		.orElse("")
+        		.matches("io-blocking-\\d+-thread-\\d+")
+        );
+    }
+
+    @Test
     public void testPureIO() {
         IO<Void, Void, Integer> io = IO.succeed(4);
         Assert.assertEquals(Right.of(4), defaultVoidRuntime.unsafeRun(io));

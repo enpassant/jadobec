@@ -68,6 +68,10 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                 case Access:
                     value = ((IO.Access<Object, F, R>) curIo).fn.apply(environments.peek());
                     break;
+                case Blocking:
+                    final IO.Blocking<Object, F, R> blockIo = (IO.Blocking<Object, F, R>) curIo;
+                    value = platform.getBlocking().submit(() -> new FiberContext<F, R>(environments.peek(), platform).evaluate(blockIo.io));
+                    break;
                 case Pure:
                     value = ((IO.Succeed<Object, F, R>) curIo).r;
                     break;

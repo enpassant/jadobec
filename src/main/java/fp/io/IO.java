@@ -19,6 +19,10 @@ public abstract class IO<C, F, R> {
         return new Access<C, F, R>(fn);
     }
 
+    public IO<C, F, R> blocking() {
+        return new Blocking<C, F, R>(this);
+    }
+
     public static <C, F, R> IO<C, F, R> succeed(R r) {
         return new Succeed<C, F, R>(r);
     }
@@ -87,6 +91,7 @@ public abstract class IO<C, F, R> {
     enum Tag {
         Absolve,
         Access,
+        Blocking,
         Bracket,
         Pure,
         Fail,
@@ -150,6 +155,19 @@ public abstract class IO<C, F, R> {
     	public EffectPartial(ThrowingSupplier<R, F> supplier) {
             tag = Tag.EffectPartial;
             this.supplier = supplier;
+        }
+    }
+
+    static class Blocking<C, F, R>
+    	extends IO<C, F, R>
+    {
+        IO<C, F, R> io;
+
+    	public Blocking(
+            IO<C, F, R> io
+    	) {
+            tag = Tag.Blocking;
+            this.io = io;
         }
     }
 
