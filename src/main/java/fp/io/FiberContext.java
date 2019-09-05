@@ -16,7 +16,7 @@ import fp.util.GeneralFailure;
 import fp.util.Left;
 import fp.util.Right;
 
-public class FiberContext<F, R> {
+public class FiberContext<F, R> implements Fiber<F, R> {
 	private final Platform platform;
 	private IO<Object, ?, ?> curIo;
 	private Object value = null;
@@ -112,10 +112,19 @@ public class FiberContext<F, R> {
                     break;
                 }
                 case FlatMap:
-                    final IO.FlatMap<Object, F2, F, R2, R> flatmapIO =
-                        (IO.FlatMap<Object, F2, F, R2, R>) curIo;
+                    final IO.FlatMap<Object, Object, F2, F, R2, R> flatmapIO =
+                        (IO.FlatMap<Object, Object, F2, F, R2, R>) curIo;
                     stack.push((R2 v) -> flatmapIO.fn.apply(v));
                     stack.push(v -> flatmapIO.io);
+                    break;
+                case Fork:
+                    final IO.Fork<Object, F, R> forkIo = (IO.Fork<Object, F, R>) curIo;
+					final FiberContext<F, R> fiberContext =
+						new FiberContext<F, R>(environments.peek(), platform);
+                    platform.getExecutor().submit(() -> {
+						return fiberContext.evaluate(forkIo.io);
+					});
+                    value = fiberContext;
                     break;
                 case Lock:
                     final IO.Lock<Object, F, R> lockIo = (IO.Lock<Object, F, R>) curIo;
@@ -203,6 +212,20 @@ public class FiberContext<F, R> {
 		}
     }
     
+    @SuppressWarnings("unchecked")
+	private Either<F, R> getValue() {
+    	final FiberState<F, R> oldState = state.get();
+    	if (oldState instanceof Executing) {
+			final Executing<F, R> executing = (Executing<F, R>) oldState;
+			return (Either<F, R>) ExceptionFailure.tryCatch(
+				() -> executing.firstObserver().get()
+			);
+		} else {
+			final Done<F, R> done = (Done<F, R>) oldState;
+			return done.value;
+		}
+    }
+    
     enum FiberStatus {
     	Running,
     	Suspended
@@ -227,6 +250,10 @@ public class FiberContext<F, R> {
 		public void notifyObservers(Either<F, R> value) {
 			observers.forEach(future -> future.complete(value));
 		}
+	    
+		public CompletableFuture<Either<F, R>> firstObserver() {
+			return observers.get(0);
+		}
     }
     
     private static class Done<F, R> implements FiberState<F, R> {
@@ -235,5 +262,14 @@ public class FiberContext<F, R> {
 		public Done(Either<F, R> value) {
 			this.value = value;
 		}
-    }    
+    }
+
+	@Override
+	public IO<Object, F, R> join() {
+    	return getValue()
+    		.fold(
+    			failure -> IO.fail(failure),
+    			success -> IO.succeed(success) 
+    		);
+	}    
 }

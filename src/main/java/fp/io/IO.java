@@ -52,12 +52,16 @@ public abstract class IO<C, F, R> {
         return new EffectPartial<C, F, R>(supplier);
     }
 
-    public <F2, R2> IO<C, F2, R2> flatMap(Function<R, IO<C, F2, R2>> fn) {
-        return new FlatMap<C, F, F2, R, R2>(this, fn);
+    public <C2, F2, R2> IO<C2, F2, R2> flatMap(Function<R, IO<C2, F2, R2>> fn) {
+        return new FlatMap<C, C2, F, F2, R, R2>(this, fn);
+    }
+
+    public IO<C, F, Fiber<F, R>> fork() {
+        return new Fork<C, F, R>(this);
     }
 
     public <R2> IO<C, F, R2> map(Function<R, R2> fn) {
-        return new FlatMap<C, F, F, R, R2>(this, r -> IO.succeed(fn.apply(r)));
+        return new FlatMap<C, C, F, F, R, R2>(this, r -> IO.succeed(fn.apply(r)));
     }
 
     public IO<C, F, R> on(ExecutorService executor) {
@@ -87,6 +91,7 @@ public abstract class IO<C, F, R> {
         Pure,
         Fail,
         Fold,
+        Fork,
         EffectTotal,
         EffectPartial,
         FlatMap,
@@ -190,11 +195,24 @@ public abstract class IO<C, F, R> {
         }
     }
 
-    static class FlatMap<C, F, F2, R, R2> extends IO<C, F2, R2> {
-    	final IO<C, F, R> io;
-    	final Function<R, IO<C, F2, R2>> fn;
+    static class Fork<C, F, R>
+    	extends IO<C, F, Fiber<F, R>>
+    {
+        IO<C, F, R> io;
 
-    	public FlatMap(IO<C, F, R> io, Function<R, IO<C, F2, R2>> fn) {
+    	public Fork(
+            IO<C, F, R> io
+    	) {
+            tag = Tag.Fork;
+            this.io = io;
+        }
+    }
+
+    static class FlatMap<C, C2, F, F2, R, R2> extends IO<C2, F2, R2> {
+    	final IO<C, F, R> io;
+    	final Function<R, IO<C2, F2, R2>> fn;
+
+    	public FlatMap(IO<C, F, R> io, Function<R, IO<C2, F2, R2>> fn) {
             tag = Tag.FlatMap;
             this.io = io;
             this.fn = fn;

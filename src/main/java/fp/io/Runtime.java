@@ -10,6 +10,9 @@ public interface Runtime<C> {
 	default <F, R> Either<F, R> unsafeRun(IO<C, F, R> io) {
 		final Either<Failure, Either<F, R>> eitherValue =
 			ExceptionFailure.tryCatch(() -> unsafeRunAsync(io).get());
+		eitherValue.forEachLeft(failure ->
+			System.out.println("Failure: " + failure)
+		);
 		return eitherValue.get();
 	}
 

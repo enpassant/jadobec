@@ -71,8 +71,6 @@ public class RepositoryMagicTest {
             RepositoryMagic.queryAs(
                 Person.class,
                 "SELECT id, name FROM person"
-            ).flatMap(person ->
-                IO.fail((Failure) GeneralFailure.of("Wrong result!"))
             ).foldM(failure -> {
                 assertEquals(
                     "ExceptionFailure(java.lang.IllegalArgumentException: " +

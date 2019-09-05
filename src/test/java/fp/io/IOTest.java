@@ -70,6 +70,19 @@ public class IOTest {
     }
 
     @Test
+    public void testFork() {
+        IO<Object, Object, Integer> io = IO.effectTotal(() -> 6).fork()
+        	.flatMap(fiber1 -> IO.effectTotal(() -> 7).fork()
+        		.flatMap(fiber2 ->
+        			fiber1.join().flatMap(value1 ->
+        				fiber2.join().map(value2 -> value1 * value2)
+        			)
+        		)
+        );
+        Assert.assertEquals(Right.of(42), defaultRuntime.unsafeRun(io));
+    }
+
+    @Test
     public void testFlatMapIO() {
         IO<Object, Void, Integer> io = IO.succeed(4).flatMap(
             n -> IO.effectTotal(() -> n * n)

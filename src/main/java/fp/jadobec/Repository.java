@@ -10,14 +10,11 @@ import java.sql.Statement;
 import java.util.Iterator;
 import java.util.Optional;
 import java.util.Spliterators;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.StreamSupport;
 
 import javax.sql.DataSource;
 
-import fp.io.DefaultPlatform;
-import fp.io.DefaultRuntime;
 import fp.io.IO;
 import fp.io.Runtime;
 import fp.util.Either;
@@ -218,14 +215,15 @@ public class Repository {
     }
 
     public static IO<Connection, Failure, Integer> batchUpdate(String... sqls) {
-        return IO.absolve(IO.access(connection -> {
-            return Stream.of(sqls)
-                .collect(Collectors.reducing(
-                    Right.of(0),
-                    sql -> new DefaultRuntime<Connection>(connection, new DefaultPlatform()).unsafeRun(Repository.update(sql)),
-                    (s, v) -> s.flatMap(i -> v)
-                ));
-        }));
+    	return batchUpdateLoop(sqls, 0);
+    }
+
+    private static IO<Connection, Failure, Integer> batchUpdateLoop(String[] sqls, int index) {
+    	return IO.succeed(sqls.length <= index).flatMap(b -> b ?
+			IO.succeed((Integer) 0) :
+			Repository.update(sqls[index])
+				.flatMap(v -> batchUpdateLoop(sqls, index + 1))
+		);
     }
 
     private static IO<Connection, Failure, Connection> setAutoCommit(
