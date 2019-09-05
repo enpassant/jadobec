@@ -7,6 +7,7 @@ import fp.util.ExceptionFailure;
 import fp.util.Failure;
 
 public interface Runtime<C> {
+	@SuppressWarnings("unchecked")
 	default <F, R> Either<F, R> unsafeRun(IO<C, F, R> io) {
 		final Either<Failure, Either<F, R>> eitherValue =
 			ExceptionFailure.tryCatch(() -> unsafeRunAsync(io).get());
