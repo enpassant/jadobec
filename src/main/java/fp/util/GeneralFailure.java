@@ -6,61 +6,32 @@ import java.util.Map;
 import java.util.Optional;
 import java.util.Set;
 
-public class GeneralFailure implements Failure {
+public class GeneralFailure<F> implements Failure {
     public static final String EXCEPTION = "EXCEPTION";
-    protected final String code;
+    protected final F code;
     protected final Map<String, Object> params;
 
-    private GeneralFailure(String code, Map<String, Object> params) {
+    private GeneralFailure(F code, Map<String, Object> params) {
         this.code = code;
         this.params = params;
     }
 
-    public static GeneralFailure of(String code) {
-        return new GeneralFailure(code, new HashMap<>());
+    public static <F> GeneralFailure<F> of(F code) {
+        return new GeneralFailure<>(code, new HashMap<>());
     }
 
-    public static GeneralFailure of(String code, String key, Object value) {
+    public static <F> GeneralFailure<F> of(F code, String key, Object value) {
         Map<String, Object> params = new HashMap<>();
         params.put(key, value);
-        return new GeneralFailure(code, params);
-    }
-
-    public static GeneralFailure of(Exception e) {
-        return GeneralFailure.of(e.getClass().getSimpleName(), EXCEPTION, e);
+        return new GeneralFailure<>(code, params);
     }
 
     @SafeVarargs
-    public static GeneralFailure of(String code, Tuple2<String, Object>... tuples) {
-        return new GeneralFailure(code, Tuple2.toMap(tuples));
+    public static <F> GeneralFailure<F> of(F code, Tuple2<String, Object>... tuples) {
+        return new GeneralFailure<>(code, Tuple2.toMap(tuples));
     }
     
-    public static <E extends Exception, R> Either<Failure, R> tryCatch(
-        ThrowingSupplier<R, E> process
-    ) {
-        try {
-            return Right.of(process.get());
-        } catch(Exception e) {
-            return Left.of(
-                GeneralFailure.of(e)
-            );
-        }
-    }
-
-    public static <E extends Exception, R> Either<Failure, R> tryCatch(
-        String code,
-        ThrowingSupplier<R, E> process
-    ) {
-        try {
-            return Right.of(process.get());
-        } catch(Exception e) {
-            return Left.of(
-                GeneralFailure.of(code, EXCEPTION, e)
-            );
-        }
-    }
-
-    public String getCode() {
+    public F getCode() {
         return code;
     }
 
@@ -94,7 +65,8 @@ public class GeneralFailure implements Failure {
     @Override
     public boolean equals(Object other) {
         if (other instanceof GeneralFailure) {
-            GeneralFailure failure = (GeneralFailure) other;
+            @SuppressWarnings("unchecked")
+			GeneralFailure<F> failure = (GeneralFailure<F>) other;
             return failure.toString().equals(this.toString());
         } else {
             return false;

@@ -13,7 +13,7 @@ public class FailureTest {
 
     @Test
     public void testCreationWithOnlyCode() {
-        GeneralFailure failure = GeneralFailure.of(ERROR_001);
+        GeneralFailure<String> failure = GeneralFailure.of(ERROR_001);
         Assert.assertEquals(ERROR_001, failure.getCode());
     }
 
@@ -22,7 +22,7 @@ public class FailureTest {
         String keyOrderId = "OrderId";
         Integer orderId = 124;
 
-        GeneralFailure failure = GeneralFailure.of(ERROR_001, keyOrderId, orderId);
+        GeneralFailure<String> failure = GeneralFailure.of(ERROR_001, keyOrderId, orderId);
         Assert.assertEquals(ERROR_001, failure.getCode());
         Assert.assertEquals(1, failure.getParamNames().size());
         Assert.assertTrue(failure.getParamNames().contains(keyOrderId));
@@ -43,7 +43,7 @@ public class FailureTest {
         keys.add(keyName);
         keys.add(keyPrice);
 
-        GeneralFailure failure = GeneralFailure.of(ERROR_001,
+        GeneralFailure<String> failure = GeneralFailure.of(ERROR_001,
             Tuple2.of(keyOrderId, orderId),
             Tuple2.of(keyName, name),
             Tuple2.of(keyPrice, price)
@@ -65,7 +65,7 @@ public class FailureTest {
         String keyPrice = "Price";
         Double price = 124.5;
 
-        GeneralFailure failure = GeneralFailure.of(ERROR_001,
+        GeneralFailure<String> failure = GeneralFailure.of(ERROR_001,
             Tuple2.of(keyOrderId, orderId),
             Tuple2.of(keyName, name),
             Tuple2.of(keyPrice, price)
@@ -96,7 +96,7 @@ public class FailureTest {
         String keyPrice = "Price";
         Double price = 124.5;
 
-        GeneralFailure failure = GeneralFailure.of(ERROR_001,
+        GeneralFailure<String> failure = GeneralFailure.of(ERROR_001,
             Tuple2.of(keyOrderId, orderId),
             Tuple2.of(keyName, name),
             Tuple2.of(keyPrice, price)
@@ -114,7 +114,7 @@ public class FailureTest {
 
     @Test
     public void testTryCatchSuccess() {
-        Either<Failure, Integer> valueResult = GeneralFailure.tryCatch(ERROR_001, () ->
+        Either<Failure, Integer> valueResult = ExceptionFailure.tryCatch(() ->
             100 / 4
         );
 
@@ -123,35 +123,14 @@ public class FailureTest {
 
     @Test
     public void testTryCatchFailed() {
-        Either<Failure, Integer> valueResult = GeneralFailure.tryCatch(() ->
+        Either<Failure, Integer> valueResult = ExceptionFailure.tryCatch(() ->
             100 / 0
         );
 
         Assert.assertTrue(valueResult.left().isPresent());
 
-        GeneralFailure failure = (GeneralFailure) valueResult.left().get();
-        Assert.assertEquals("ArithmeticException", failure.getCode());
-        Assert.assertEquals(1, failure.getParamNames().size());
-        Assert.assertTrue(failure.getParamNames().contains(GeneralFailure.EXCEPTION));
-        Assert.assertTrue(
-            failure.getParamValue(GeneralFailure.EXCEPTION) instanceof ArithmeticException
-        );
-    }
-
-    @Test
-    public void testTryCatchFailedWithCode() {
-        Either<Failure, Integer> valueResult = GeneralFailure.tryCatch(ERROR_001, () ->
-            100 / 0
-        );
-
-        Assert.assertTrue(valueResult.left().isPresent());
-
-        GeneralFailure failure = (GeneralFailure) valueResult.left().get();
-        Assert.assertEquals(ERROR_001, failure.getCode());
-        Assert.assertEquals(1, failure.getParamNames().size());
-        Assert.assertTrue(failure.getParamNames().contains(GeneralFailure.EXCEPTION));
-        Assert.assertTrue(
-            failure.getParamValue(GeneralFailure.EXCEPTION) instanceof ArithmeticException
-        );
+        ExceptionFailure failure = (ExceptionFailure) valueResult.left().get();
+        Assert.assertEquals("ArithmeticException", failure.throwable.getClass().getSimpleName());
+        Assert.assertTrue(failure.throwable instanceof ArithmeticException);
     }
 }

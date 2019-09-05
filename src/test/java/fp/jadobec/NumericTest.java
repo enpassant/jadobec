@@ -22,6 +22,7 @@ import fp.io.DefaultRuntime;
 import fp.io.IO;
 import fp.io.Runtime;
 import fp.util.Either;
+import fp.util.ExceptionFailure;
 import fp.util.Failure;
 import fp.util.GeneralFailure;
 import fp.util.Left;
@@ -103,7 +104,7 @@ public class NumericTest {
     private static Record calcReciprocal(Record record) {
         return record.copy(builder -> builder
             .modify("title", (String title) -> "1/" + title)
-            .modify("y", (BigDecimal y) -> GeneralFailure.tryCatch(
+            .modify("y", (BigDecimal y) -> ExceptionFailure.tryCatch(
                 () -> BigDecimal.ONE.divide(y, RoundingMode.HALF_UP))
             )
         );
