@@ -96,6 +96,38 @@ public class IOTest {
     }
 
     @Test
+    public void testBlockingFork() {
+        IO<Object, Object, Integer> io = IO.effectTotal(() -> 6).blocking().fork()
+        	.flatMap(fiber1 -> IO.effectTotal(() -> 7).blocking().fork()
+        		.flatMap(fiber2 ->
+        			fiber1.join().flatMap(value1 ->
+        				fiber2.join().map(value2 -> value1 * value2)
+        			)
+        		)
+        );
+        Assert.assertEquals(Right.of(42), defaultRuntime.unsafeRun(io));
+    }
+
+    @Test
+    public void testBlockingAndNoBlockingForks() {
+        IO<Object, Object, String> io =
+        	IO.effectTotal(() -> Thread.currentThread().getName()).fork()
+		    	.flatMap(fiber1 -> IO.effectTotal(() -> Thread.currentThread().getName()).blocking().fork()
+		    		.flatMap(fiber2 ->
+		    			fiber1.join().flatMap(value1 ->
+		    				fiber2.join().map(value2 -> value1 + "," + value2)
+		    			)
+		    		)
+        );
+        Assert.assertTrue(
+        	"One of the thread's name is not good",
+        	defaultRuntime.unsafeRun(io)
+        		.orElse("")
+        		.matches("io-executor-\\d+-thread-\\d+,io-blocking-\\d+-thread-\\d+")
+        );
+    }
+
+    @Test
     public void testFlatMapIO() {
         IO<Object, Void, Integer> io = IO.succeed(4).flatMap(
             n -> IO.effectTotal(() -> n * n)

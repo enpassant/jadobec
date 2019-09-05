@@ -224,6 +224,11 @@ public abstract class IO<C, F, R> {
             tag = Tag.Fork;
             this.io = io;
         }
+    	
+    	@Override
+    	public String toString() {
+    		return "Fork(" + io + ")";
+    	}
     }
 
     static class FlatMap<C, C2, F, F2, R, R2> extends IO<C2, F2, R2> {
@@ -235,6 +240,11 @@ public abstract class IO<C, F, R> {
             this.io = io;
             this.fn = fn;
         }
+    	
+    	@Override
+    	public String toString() {
+    		return "FlatMap(" + io + ", " + fn + ")";
+    	}
     }
 
     static class Lock<C, F, R> extends IO<C, F, R> {

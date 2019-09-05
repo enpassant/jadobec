@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.Deque;
 import java.util.List;
 import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
@@ -68,10 +69,11 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                 case Access:
                     value = ((IO.Access<Object, F, R>) curIo).fn.apply(environments.peek());
                     break;
-                case Blocking:
+                case Blocking: {
                     final IO.Blocking<Object, F, R> blockIo = (IO.Blocking<Object, F, R>) curIo;
                     value = platform.getBlocking().submit(() -> new FiberContext<F, R>(environments.peek(), platform).evaluate(blockIo.io));
                     break;
+                }
                 case Pure:
                     value = ((IO.Succeed<Object, F, R>) curIo).r;
                     break;
@@ -121,15 +123,25 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                     stack.push((R2 v) -> flatmapIO.fn.apply(v));
                     stack.push(v -> flatmapIO.io);
                     break;
-                case Fork:
+                case Fork: {
                     final IO.Fork<Object, F, R> forkIo = (IO.Fork<Object, F, R>) curIo;
+                    final IO<Object, F, R> ioValue;
+                    final ExecutorService executor;
+                    if (forkIo.io.tag == IO.Tag.Blocking) {
+                        ioValue = ((IO.Blocking<Object, F, R>) forkIo.io).io;
+                        executor = platform.getBlocking();
+					} else {
+						ioValue = forkIo.io;
+                        executor = platform.getExecutor();
+					}
 					final FiberContext<F, R> fiberContext =
 						new FiberContext<F, R>(environments.peek(), platform);
-                    platform.getExecutor().submit(() -> {
-						return fiberContext.evaluate(forkIo.io);
+                    executor.submit(() -> {
+						return fiberContext.evaluate(ioValue);
 					});
                     value = fiberContext;
                     break;
+                }
                 case Lock:
                     final IO.Lock<Object, F, R> lockIo = (IO.Lock<Object, F, R>) curIo;
                     value = lockIo.executor.submit(() -> new FiberContext<F, R>(environments.peek(), platform).evaluate(lockIo.io));

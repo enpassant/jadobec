@@ -1,7 +1,7 @@
 package fp.util;
 
 public class ExceptionFailure implements Failure {
-    private final Throwable throwable;
+    public final Throwable throwable;
 
     private ExceptionFailure(Throwable throwable) {
         this.throwable = throwable;
