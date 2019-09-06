@@ -7,6 +7,8 @@ import java.util.function.Supplier;
 
 import fp.util.Either;
 import fp.util.Failure;
+import fp.util.Statement;
+import fp.util.ThrowingStatement;
 import fp.util.ThrowingSupplier;
 
 public abstract class IO<C, F, R> {
@@ -45,6 +47,16 @@ public abstract class IO<C, F, R> {
 
     public IO<C, F, R> peek(Consumer<R> consumer) {
         return new Peek<C, F, R>(this, consumer);
+    }
+
+    public static <C, F> IO<C, F, Void> effectTotal(Statement statement) {
+        return new EffectTotal<C, F, Void>(() -> { statement.call(); return null; });
+    }
+
+    public static <C, F extends Failure> IO<C, F, Void> effect(
+        ThrowingStatement<Throwable> statement
+    ) {
+        return new EffectPartial<C, F, Void>(() -> { statement.call(); return null; });
     }
 
     public static <C, F, R> IO<C, F, R> effectTotal(Supplier<R> supplier) {

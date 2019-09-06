@@ -172,7 +172,7 @@ public class Repository {
                 );
             }
         })),
-        	iterator -> IO.effect(() -> { ((AutoCloseable) iterator).close(); return 1; }),
+        	iterator -> IO.effect(() -> ((AutoCloseable) iterator).close()),
         	fn
         ).blocking();
     }

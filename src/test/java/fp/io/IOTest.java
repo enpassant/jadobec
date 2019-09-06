@@ -186,7 +186,7 @@ public class IOTest {
         final Resource res = new Resource();
             final IO<Void, Void, Integer> io = IO.bracket(
             IO.succeed(res),
-            resource -> IO.effectTotal(() -> { resource.close(); return 1; }),
+            resource -> IO.effectTotal(() -> resource.close()),
             resource -> IO.effectTotal(() -> resource.use(10))
         );
         Assert.assertEquals(Right.of(10), defaultVoidRuntime.unsafeRun(io));
@@ -199,17 +199,11 @@ public class IOTest {
         final Resource res2 = new Resource();
         final IO<Object, Void, Integer> io = IO.bracket(
             IO.effectTotal(() -> res1),
-            resource -> IO.effectTotal(() -> {
-                resource.close();
-                return 1;
-            }),
+            resource -> IO.effectTotal(() -> resource.close()),
             resource -> IO.effectTotal(() -> resource.use(10)).flatMap(n ->
                 IO.bracket(
                     IO.effectTotal(() -> res2),
-                    resource2 -> IO.effectTotal(() -> {
-                        resource2.close();
-                        return 1;
-                    }),
+                    resource2 -> IO.effectTotal(() -> resource2.close()),
                     resource2 -> IO.effectTotal(() -> n + resource2.use(6))
                 )
             )
