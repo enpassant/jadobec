@@ -206,7 +206,7 @@ public class NumericTest {
 
         assertTrue(
             repositoryOrFailure.toString(),
-            repositoryOrFailure.right().isPresent()
+            repositoryOrFailure.isRight()
         );
     }
 }

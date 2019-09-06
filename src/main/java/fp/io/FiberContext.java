@@ -60,8 +60,8 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                 case Absolve:
                     final IO.Absolve<Object, F, R> absolveIO = (IO.Absolve<Object, F, R>) curIo;
                     stack.push((Either<F, R> v) -> v.isLeft() ?
-                        IO.fail(v.left().get()) :
-                        IO.succeed(v.right().get())
+                        IO.fail(v.left()) :
+                        IO.succeed(v.right())
                     );
                     curIo = absolveIO.io;
                     break;
@@ -103,10 +103,10 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                     	((IO.EffectPartial<Object, Failure, R>) curIo).supplier.get()
                     );
                     if (either.isRight()) {
-                        value = either.right().get();
+                        value = either.right();
                         curIo = nextInstr(value);
                     } else {
-                    	curIo = IO.fail(either.left().get());
+                    	curIo = IO.fail(either.left());
                     }
                     break;
                 }
@@ -119,9 +119,9 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                         return result;
                     });
                     if (valueBracket.isLeft()) {
-                        curIo = IO.fail(valueBracket.left().get());
+                        curIo = IO.fail(valueBracket.left());
                     } else {
-                        value = valueBracket.right().get();
+                        value = valueBracket.right();
                         curIo = nextInstr(value);
                     }
                     break;
@@ -196,9 +196,14 @@ public class FiberContext<F, R> implements Fiber<F, R> {
         } else {
             if (value instanceof Future) {
 				Future<Either<?, ?>> futureValue = (Future<Either<?, ?>>) value;
-                Either<?, ?> either = ExceptionFailure.tryCatch(() -> futureValue.get()).get();
+                Either<Failure, Either<?, ?>> valueTry = ExceptionFailure.tryCatch(() -> futureValue.get());
+                if (valueTry.isLeft()) {
+                	((ExceptionFailure) valueTry.left()).throwable.printStackTrace();
+                	return IO.fail((F) valueTry.left());
+                }
+				Either<?, ?> either = valueTry.get();
                 if (either.isLeft()) {
-                	return IO.fail((F) either.left().get());
+                	return IO.fail((F) either.left());
                 }
 				value = either.get();
             }

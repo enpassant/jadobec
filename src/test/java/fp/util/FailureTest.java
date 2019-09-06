@@ -127,9 +127,9 @@ public class FailureTest {
             100 / 0
         );
 
-        Assert.assertTrue(valueResult.left().isPresent());
+        Assert.assertTrue(valueResult.isLeft());
 
-        ExceptionFailure failure = (ExceptionFailure) valueResult.left().get();
+        ExceptionFailure failure = (ExceptionFailure) valueResult.left();
         Assert.assertEquals("ArithmeticException", failure.throwable.getClass().getSimpleName());
         Assert.assertTrue(failure.throwable instanceof ArithmeticException);
     }

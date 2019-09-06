@@ -5,10 +5,6 @@ import java.util.Optional;
 import org.junit.Assert;
 import org.junit.Test;
 
-import fp.util.Either;
-import fp.util.Left;
-import fp.util.Right;
-
 public class EitherTest {
     private static final String DIVISION_BY_ZERO = "Division by zero";
 
@@ -21,7 +17,7 @@ public class EitherTest {
     @Test
     public void testCreationLeft() {
         Either<String, Integer> either = divideHundredBy(0);
-        Assert.assertEquals(DIVISION_BY_ZERO, either.left().get());
+        Assert.assertEquals(DIVISION_BY_ZERO, either.left());
     }
 
     @Test
@@ -39,7 +35,7 @@ public class EitherTest {
             DIVISION_BY_ZERO,
             Optional.empty()
         );
-        Assert.assertEquals(DIVISION_BY_ZERO, either.left().get());
+        Assert.assertEquals(DIVISION_BY_ZERO, either.left());
     }
 
     @Test
@@ -55,7 +51,7 @@ public class EitherTest {
         Either<String, String> either = divideHundredBy(0)
             .map(i -> i + 3)
             .map(Integer::toHexString);
-        Assert.assertEquals(DIVISION_BY_ZERO, either.left().get());
+        Assert.assertEquals(DIVISION_BY_ZERO, either.left());
     }
 
     @Test
@@ -83,7 +79,7 @@ public class EitherTest {
     public void testFlatMapError() {
         Either<String, Integer> either = divideHundredBy(200)
             .flatMap(EitherTest::divideHundredBy);
-        Assert.assertEquals(DIVISION_BY_ZERO, either.left().get());
+        Assert.assertEquals(DIVISION_BY_ZERO, either.left());
     }
 
     @Test

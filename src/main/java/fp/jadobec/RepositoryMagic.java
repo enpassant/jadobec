@@ -69,11 +69,11 @@ public class RepositoryMagic {
                 while(rs.next()) {
                     Either<Failure, T> createdObjectOrFailure =
                         Record.expandAs(type).extract(rs);
-                    if (createdObjectOrFailure.left().isPresent()) {
+                    if (createdObjectOrFailure.isLeft()) {
                         rs.close();
                         return (Either<Failure, List<T>>) createdObjectOrFailure;
                     }
-                    list.add(createdObjectOrFailure.right().get());
+                    list.add(createdObjectOrFailure.right());
                 }
                 rs.close();
 

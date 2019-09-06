@@ -286,7 +286,7 @@ public class ContactTest {
 
         assertTrue(
             repositoryOrFailure.toString(),
-            repositoryOrFailure.right().isPresent()
+            repositoryOrFailure.isRight()
         );
     }
 

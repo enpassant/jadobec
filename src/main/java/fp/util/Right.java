@@ -1,6 +1,6 @@
 package fp.util;
 
-import java.util.Optional;
+import java.util.NoSuchElementException;
 import java.util.function.Consumer;
 import java.util.function.Function;
 
@@ -66,13 +66,13 @@ public final class Right<L, R> implements Either<L, R> {
     }
 
     @Override
-    public Optional<L> left() {
-        return Optional.empty();
+    public L left() {
+		throw new NoSuchElementException("No value present");
     }
 
     @Override
-    public Optional<R> right() {
-        return Optional.of(value);
+    public R right() {
+        return value;
     }
 
     @Override
@@ -113,7 +113,7 @@ public final class Right<L, R> implements Either<L, R> {
         if (value instanceof Right) {
             @SuppressWarnings("unchecked")
             Right<L, R> valueRight = (Right<L, R>) value;
-            return this.value.equals(valueRight.right().get());
+            return this.value.equals(valueRight.right());
         }
         return false;
     }

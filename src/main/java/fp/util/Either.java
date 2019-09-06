@@ -14,8 +14,8 @@ public interface Either<L, R> {
     Either<L, R> forEach(Consumer<R> f);
     Either<L, R> forEachLeft(Consumer<L> f);
     R orElse(R value);
-    Optional<L> left();
-    Optional<R> right();
+    L left();
+    R right();
     boolean isLeft();
     boolean isRight();
     Either<R, L> swap();

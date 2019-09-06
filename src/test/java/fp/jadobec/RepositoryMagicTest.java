@@ -16,7 +16,6 @@ import fp.io.IO;
 import fp.io.Runtime;
 import fp.util.Either;
 import fp.util.Failure;
-import fp.util.GeneralFailure;
 import fp.util.Tuple2;
 
 public class RepositoryMagicTest {
@@ -129,7 +128,7 @@ public class RepositoryMagicTest {
 
         assertTrue(
             repositoryOrFailure.toString(),
-            repositoryOrFailure.right().isPresent()
+            repositoryOrFailure.isRight()
         );
     }
 

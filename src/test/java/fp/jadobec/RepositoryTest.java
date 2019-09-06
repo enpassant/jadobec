@@ -167,7 +167,7 @@ public class RepositoryTest {
 
         assertTrue(
             repositoryOrFailure.toString(),
-            repositoryOrFailure.right().isPresent()
+            repositoryOrFailure.isRight()
         );
     }
 
