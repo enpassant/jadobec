@@ -227,8 +227,8 @@ public class Repository {
     }
 
     private static IO<Connection, Failure, Integer> batchUpdateLoop(String[] sqls, int index) {
-    	return IO.succeed(sqls.length <= index).flatMap(b -> b ?
-			IO.succeed((Integer) 0) :
+    	return IO.succeed(sqls.length <= index).flatMap((Boolean b) -> b ?
+			IO.<Connection, Failure, Integer>succeed((Integer) 0) :
 			Repository.update(sqls[index])
 				.flatMap(v -> batchUpdateLoop(sqls, index + 1))
 		);
