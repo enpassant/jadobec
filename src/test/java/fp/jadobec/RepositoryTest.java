@@ -61,7 +61,8 @@ public class RepositoryTest {
                     rs.getInt("id"),
                     rs.getString("name"),
                     rs.getInt("age")
-                )
+                ),
+                Repository::iterateToStream
             ).peek(persons ->
                 assertEquals(
                     expectedPersons,
@@ -81,7 +82,8 @@ public class RepositoryTest {
                     rs.getInt("id"),
                     rs.getString("name"),
                     rs.getInt("age")
-                )
+                ),
+                Repository::iterateToStream
             ).peek(persons ->
                 assertEquals(
                     expectedPersons,

@@ -115,7 +115,8 @@ public class NumericTest {
             "SELECT l.title, d.x, d.y " +
                 "FROM data d JOIN label l ON d.id_label=l.id_label " +
                 "ORDER BY x",
-            rs -> Record.of(rs).get()
+            rs -> Record.of(rs).get(),
+            Repository::iterateToStream
         );
     }
 

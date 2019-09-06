@@ -8,10 +8,9 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
 import java.util.Iterator;
-import java.util.Optional;
-import java.util.Spliterators;
+import java.util.function.Function;
 import java.util.stream.Stream;
-import java.util.stream.StreamSupport;
+import java.util.stream.Stream.Builder;
 
 import javax.sql.DataSource;
 
@@ -123,20 +122,23 @@ public class Repository {
         ThrowingConsumer<PreparedStatement, SQLException> prepare,
         Extractor<T> createObject
     ) {
-        return queryPrepared(sql, prepare, createObject)
-            .flatMap(items -> {
-            	final Optional<T> firstValue = items.findFirst();
-            	items.close();
-                return firstValue.isPresent() ?
-                    IO.succeed(firstValue.get()) :
-                    IO.fail((Failure) GeneralFailure.of("Missing result"))
-                ;
-            });
+        return queryPrepared(sql, prepare, createObject, Repository::getFirstFromIterator);
+    }
+    
+    private static <T> IO<Connection, Failure, T> getFirstFromIterator(
+    	Iterator<T> iterator
+    ) {
+    	if (iterator.hasNext()) {
+    		return IO.succeed(iterator.next());
+    	} else {
+    		return IO.fail(GeneralFailure.of("Missing result")); 
+    	}
     }
 
-    public static <T> IO<Connection, Failure, Stream<T>> query(
+    public static <R, T> IO<Connection, Failure, R> query(
         String sql,
         Extractor<T> createObject,
+        Function<Iterator<T>, IO<Connection, Failure, R>> fn,
         Object... params
     ) {
         ThrowingConsumer<PreparedStatement, SQLException> prepare = ps -> {
@@ -145,15 +147,16 @@ public class Repository {
             }
         };
 
-        return queryPrepared(sql, prepare, createObject);
+        return queryPrepared(sql, prepare, createObject, fn);
     }
 
-    public static <T> IO<Connection, Failure, Stream<T>> queryPrepared(
+    public static <R, T> IO<Connection, Failure, R> queryPrepared(
         String sql,
         ThrowingConsumer<PreparedStatement, SQLException> prepare,
-        Extractor<T> createObject
+        Extractor<T> createObject,
+        Function<Iterator<T>, IO<Connection, Failure, R>> fn
     ) {
-        return IO.absolve(IO.access((Connection connection) -> {
+        return IO.bracket(IO.absolve(IO.access((Connection connection) -> {
             PreparedStatement stmt = null;
 
             try {
@@ -162,13 +165,16 @@ public class Repository {
                 prepare.accept(stmt);
 
                 ResultSet rs = stmt.executeQuery();
-                return Right.of(stream(rs, createObject));
+                return Right.of((Iterator<T>) new ResultSetIterator<T>(rs, createObject));
             } catch (Exception e) {
                 return Left.of(
                 	(Failure) ExceptionFailure.of(e)
                 );
             }
-        })).blocking();
+        })),
+        	iterator -> IO.effect(() -> { ((AutoCloseable) iterator).close(); return 1; }),
+        	fn
+        ).blocking();
     }
 
     public static IO<Connection, Failure, Integer> update(final String sql) {
@@ -262,21 +268,27 @@ public class Repository {
             )
         ).blocking();
     }
-
-    private static <T> Stream<T> stream(
-        final ResultSet resultSet,
-        final Extractor<T> extractor
+    
+    public static <T> IO<Connection, Failure, Stream<T>> iterateToStream(
+    	Iterator<T> iterator
     ) {
-        ResultSetIterator<T> iterator = new ResultSetIterator<T>(resultSet, extractor);
-        return (Stream<T>) StreamSupport.stream(
-            Spliterators.spliteratorUnknownSize(iterator, 0),
-            false
-        ).onClose(() -> {
-            try {
-                iterator.close();
-            } catch (Exception e) {
-            }
-        });
+		Builder<T> builder = Stream.builder();
+		return iterateToStreamLoop(builder, iterator);
+    }
+    
+    private static <T> IO<Connection, Failure, Stream<T>> iterateToStreamLoop(
+    	Builder<T> builder,
+    	Iterator<T> iterator
+    ) {
+    	return IO.succeed(iterator.hasNext()).flatMap(hasNext -> {
+    		if (hasNext) {
+				T value = iterator.next();
+				builder.accept(value);
+				return iterateToStreamLoop(builder, iterator);
+    		} else {
+				return IO.succeed(builder.build());
+    		}
+    	});
     }
 
     private static class ResultSetIterator<T>

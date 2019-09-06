@@ -6,6 +6,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import fp.util.Either;
+import fp.util.Failure;
 import fp.util.ThrowingSupplier;
 
 public abstract class IO<C, F, R> {
@@ -50,8 +51,8 @@ public abstract class IO<C, F, R> {
         return new EffectTotal<C, F, R>(supplier);
     }
 
-    public static <C, F extends Throwable, R> IO<C, F, R> effect(
-        ThrowingSupplier<R, F> supplier
+    public static <C, F extends Failure, R> IO<C, F, R> effect(
+        ThrowingSupplier<R, Throwable> supplier
     ) {
         return new EffectPartial<C, F, R>(supplier);
     }
@@ -149,10 +150,10 @@ public abstract class IO<C, F, R> {
         }
     }
 
-    static class EffectPartial<C, F extends Throwable, R> extends IO<C, F, R> {
-    	final ThrowingSupplier<R, F> supplier;
+    static class EffectPartial<C, F extends Failure, R> extends IO<C, F, R> {
+    	final ThrowingSupplier<R, Throwable> supplier;
 
-    	public EffectPartial(ThrowingSupplier<R, F> supplier) {
+    	public EffectPartial(ThrowingSupplier<R, Throwable> supplier) {
             tag = Tag.EffectPartial;
             this.supplier = supplier;
         }

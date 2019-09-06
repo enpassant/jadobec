@@ -99,11 +99,14 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                     curIo = nextInstr(value);
                     break;
                 case EffectPartial: {
-                    try {
-                        value = ((IO.EffectPartial<Object, Throwable, R>) curIo).supplier.get();
+                    Either<Failure, R> either = ExceptionFailure.tryCatch(() -> 
+                    	((IO.EffectPartial<Object, Failure, R>) curIo).supplier.get()
+                    );
+                    if (either.isRight()) {
+                        value = either.right().get();
                         curIo = nextInstr(value);
-                    } catch (Throwable e) {
-                        curIo = IO.fail(e);
+                    } else {
+                    	curIo = IO.fail(either.left().get());
                     }
                     break;
                 }

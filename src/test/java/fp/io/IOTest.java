@@ -9,6 +9,7 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Test;
 
+import fp.util.ExceptionFailure;
 import fp.util.Left;
 import fp.util.Right;
 
@@ -152,7 +153,7 @@ public class IOTest {
             (Integer n) -> IO.effectTotal(() -> n * n)
         );
         Assert.assertEquals(
-            Left.of(new ArithmeticException("/ by zero")).toString(),
+            Left.of(ExceptionFailure.of(new ArithmeticException("/ by zero"))).toString(),
             defaultRuntime.unsafeRun(io).toString()
         );
     }

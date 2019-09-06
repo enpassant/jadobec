@@ -210,7 +210,8 @@ public class ContactTest {
     private static IO<Connection, Failure, Stream<Either<Failure, User>>> queryUsers() {
         return Repository.query(
             "SELECT id_user, name FROM user ORDER BY name",
-            rs -> User.of(rs.getInt(1), rs.getString(2))
+            rs -> User.of(rs.getInt(1), rs.getString(2)),
+            Repository::iterateToStream
         );
     }
 
@@ -244,6 +245,7 @@ public class ContactTest {
                 "WHERE id_user=? " +
                 "ORDER BY importance desc, validated desc",
             rs -> Email.of(rs.getString(1), rs.getBoolean(2)),
+            Repository::iterateToStream,
             user.getId()
         );
     }
@@ -251,7 +253,8 @@ public class ContactTest {
     private static IO<Connection, Failure, Stream<Integer>> queryUserIds() {
         return Repository.query(
             "SELECT id_user FROM user ORDER BY name",
-            rs -> rs.getInt(1)
+            rs -> rs.getInt(1),
+            Repository::iterateToStream
         );
     }
 
