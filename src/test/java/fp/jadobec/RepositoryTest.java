@@ -6,7 +6,6 @@ import static org.junit.Assert.assertTrue;
 import java.sql.Connection;
 import java.util.Arrays;
 import java.util.List;
-import java.util.stream.Collectors;
 
 import org.junit.AfterClass;
 import org.junit.Test;
@@ -62,12 +61,9 @@ public class RepositoryTest {
                     rs.getString("name"),
                     rs.getInt("age")
                 ),
-                Repository::iterateToStream
+                Repository::iterateToList
             ).peek(persons ->
-                assertEquals(
-                    expectedPersons,
-                    persons.collect(Collectors.toList())
-                )
+                assertEquals(expectedPersons, persons)
             )
         );
     }
@@ -83,12 +79,9 @@ public class RepositoryTest {
                     rs.getString("name"),
                     rs.getInt("age")
                 ),
-                Repository::iterateToStream
+                Repository::iterateToList
             ).peek(persons ->
-                assertEquals(
-                    expectedPersons,
-                    persons.collect(Collectors.toList())
-                )
+                assertEquals(expectedPersons, persons)
             )
         );
     }

@@ -7,7 +7,9 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
+import java.util.ArrayList;
 import java.util.Iterator;
+import java.util.List;
 import java.util.function.Function;
 import java.util.stream.Stream;
 import java.util.stream.Stream.Builder;
@@ -287,6 +289,28 @@ public class Repository {
 				return iterateToStreamLoop(builder, iterator);
     		} else {
 				return IO.succeed(builder.build());
+    		}
+    	});
+    }
+    
+    public static <T> IO<Connection, Failure, List<T>> iterateToList(
+    	Iterator<T> iterator
+    ) {
+		List<T> list = new ArrayList<>();
+		return iterateToListLoop(list, iterator);
+    }
+    
+    private static <T> IO<Connection, Failure, List<T>> iterateToListLoop(
+    	List<T> list,
+    	Iterator<T> iterator
+    ) {
+    	return IO.succeed(iterator.hasNext()).flatMap(hasNext -> {
+    		if (hasNext) {
+				T value = iterator.next();
+				list.add(value);
+				return iterateToListLoop(list, iterator);
+    		} else {
+				return IO.succeed(list);
     		}
     	});
     }
