@@ -10,6 +10,7 @@ import org.junit.Assert;
 import org.junit.Test;
 
 import fp.util.ExceptionFailure;
+import fp.util.Failure;
 import fp.util.Left;
 import fp.util.Right;
 
@@ -138,7 +139,7 @@ public class IOTest {
 
     @Test
     public void testEffectPartial() {
-        IO<Object, Void, Integer> io = IO.effect(() -> 8 / 2).flatMap(
+        IO<Object, Failure, Integer> io = IO.effect(() -> 8 / 2).flatMap(
             (Integer n) -> IO.effectTotal(() -> n * n)
         );
         Assert.assertEquals(
@@ -149,7 +150,7 @@ public class IOTest {
 
     @Test
     public void testEffectPartialWithFailure() {
-        IO<Object, Void, Integer> io = IO.effect(() -> 8 / 0).flatMap(
+        IO<Object, Failure, Integer> io = IO.effect(() -> 8 / 0).flatMap(
             (Integer n) -> IO.effectTotal(() -> n * n)
         );
         Assert.assertEquals(
