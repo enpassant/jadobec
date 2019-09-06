@@ -34,16 +34,6 @@ public final class StreamUtil {
         };
     }
 
-    public static <T, R> Function<Stream<T>, R> use(
-        Function<Stream<T>, R> fn
-    ) {
-        return items -> {
-        	R result = fn.apply(items);
-        	items.close();
-        	return result;
-        };
-    }
-
     public static <T> void consumeToOutputStream(
     	OutputStream os,
     	Stream<T> stream,
