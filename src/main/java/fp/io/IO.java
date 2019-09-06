@@ -18,7 +18,7 @@ public abstract class IO<C, F, R> {
         return new Absolve<C, F, R>(io);
     }
 
-    public static <C, F, R> IO<C, F, R> accessM(Function<C, IO<C, F, R>> fn) {
+    public static <C, F, R> IO<C, F, R> accessM(Function<C, IO<Object, F, R>> fn) {
         return new Access<C, F, R>(fn);
     }
 
@@ -134,8 +134,8 @@ public abstract class IO<C, F, R> {
     }
 
     static class Access<C, F, R> extends IO<C, F, R> {
-        final Function<C, IO<C, F, R>> fn;
-    	public Access(Function<C, IO<C, F, R>> fn) {
+        final Function<C, IO<Object, F, R>> fn;
+    	public Access(Function<C, IO<Object, F, R>> fn) {
             tag = Tag.Access;
             this.fn = fn;
         }
