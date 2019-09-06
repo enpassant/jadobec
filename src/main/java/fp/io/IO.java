@@ -18,8 +18,12 @@ public abstract class IO<C, F, R> {
         return new Absolve<C, F, R>(io);
     }
 
-    public static <C, F, R> IO<C, F, R> access(Function<C, R> fn) {
+    public static <C, F, R> IO<C, F, R> accessM(Function<C, IO<C, F, R>> fn) {
         return new Access<C, F, R>(fn);
+    }
+
+    public static <C, F, R> IO<C, F, R> access(Function<C, R> fn) {
+        return new Access<C, F, R>(r -> IO.succeed(fn.apply(r)));
     }
 
     public IO<C, F, R> blocking() {
@@ -130,8 +134,8 @@ public abstract class IO<C, F, R> {
     }
 
     static class Access<C, F, R> extends IO<C, F, R> {
-    	final Function<C, R> fn;
-    	public Access(Function<C, R> fn) {
+        final Function<C, IO<C, F, R>> fn;
+    	public Access(Function<C, IO<C, F, R>> fn) {
             tag = Tag.Access;
             this.fn = fn;
         }
