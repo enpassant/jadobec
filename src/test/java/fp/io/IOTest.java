@@ -87,49 +87,45 @@ public class IOTest {
 
     @Test
     public void testFork() {
-        IO<Object, Object, Integer> io = IO.effectTotal(() -> 6).fork()
-            .flatMap(fiber1 -> IO.effectTotal(() -> 7).fork()
-                .flatMap(fiber2 ->
-                    fiber1.join().flatMap(value1 ->
-                        fiber2.join().map(value2 -> value1 * value2)
-                    )
-                )
-        );
+        IO<Object, Object, Integer> io =
+            IO.effectTotal(() -> 6).fork().flatMap(fiber1 ->
+            IO.effectTotal(() -> 7).fork().flatMap(fiber2 ->
+            fiber1.join().flatMap(value1 ->
+            fiber2.join().map(value2 -> value1 * value2)
+        )));
         Assert.assertEquals(Right.of(42), defaultRuntime.unsafeRun(io));
     }
 
     @Test
     public void testBlockingFork() {
-        IO<Object, Object, Integer> io = IO.effectTotal(() -> 6).blocking().fork()
-            .flatMap(fiber1 -> IO.effectTotal(() -> 7).blocking().fork()
-                .flatMap(fiber2 ->
-                    fiber1.join().flatMap(value1 ->
-                        fiber2.join().map(value2 -> value1 * value2)
-                    )
-                )
-        );
+        IO<Object, Object, Integer> io =
+            IO.effectTotal(() -> 6).blocking().fork().flatMap(fiber1 ->
+            IO.effectTotal(() -> 7).blocking().fork().flatMap(fiber2 ->
+            fiber1.join().flatMap(value1 ->
+            fiber2.join().map(value2 ->
+            value1 * value2
+        ))));
         Assert.assertEquals(Right.of(42), defaultRuntime.unsafeRun(io));
     }
 
     @Test
     public void testBlockingAndNoBlockingForks() {
-        IO<Object, Object, String> io =
-            IO.effectTotal(() -> Thread.currentThread().getName()).fork()
-                .flatMap(fiber1 ->
-                    IO.effectTotal(() -> Thread.currentThread().getName()
-                ).blocking().fork()
-                    .flatMap(fiber2 ->
-                        fiber1.join().flatMap(value1 ->
-                            fiber2.join().map(value2 -> value1 + "," + value2)
-                        )
-                    )
+        IO<Object, Object, String> ioThreadName = IO.effectTotal(() ->
+            Thread.currentThread().getName()
         );
+        IO<Object, Object, String> io =
+            ioThreadName.fork().flatMap(fiber1 ->
+            ioThreadName.blocking().fork().flatMap(fiber2 ->
+            fiber1.join().flatMap(value1 ->
+            fiber2.join().map(value2 ->
+            value1 + "," + value2
+        ))));
         Either<Object, String> result = defaultRuntime.unsafeRun(io);
         Assert.assertTrue(
             "One of the thread's name is not good: " + result,
-                result.orElse("").matches(
-                    "io-executor-\\d+-thread-\\d+,io-blocking-\\d+-thread-\\d+"
-                )
+            result.orElse("").matches(
+                "io-executor-\\d+-thread-\\d+,io-blocking-\\d+-thread-\\d+"
+            )
         );
     }
 
@@ -246,14 +242,16 @@ public class IOTest {
 //          System.out.println(n + ": " + Thread.currentThread().getName());
             return n + 1;
         });
-        IO<Object, Void, Integer> lockIo = IO.succeed(1).flatMap(n ->
+        IO<Object, Void, Integer> lockIo =
+            IO.succeed(1).flatMap(n ->
             fnIo.apply(n).on(asyncExecutor).flatMap(n1 ->
-                fnIo.apply(n1).on(blockingExecutor).flatMap(n2 ->
-                    fnIo.apply(n2).flatMap(n3 ->
-                        fnIo.apply(n3).flatMap(n4 ->
-                            fnIo.apply(n4).flatMap(n5 ->
-                                fnIo.apply(n5).on(calcExecutor).flatMap(fnIo)
-        ))))));
+            fnIo.apply(n1).on(blockingExecutor).flatMap(n2 ->
+            fnIo.apply(n2).flatMap(n3 ->
+            fnIo.apply(n3).flatMap(n4 ->
+            fnIo.apply(n4).flatMap(n5 ->
+            fnIo.apply(n5).on(calcExecutor).flatMap(
+            fnIo
+        )))))));
         Assert.assertEquals(Right.of(8), defaultRuntime.unsafeRun(lockIo));
 
         asyncExecutor.shutdown();

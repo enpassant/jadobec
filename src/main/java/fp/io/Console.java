@@ -16,7 +16,7 @@ public class Console {
 
     public static interface Live extends Service {
         default IO<Object, Object, Void> println(String line) {
-            return IO.effectTotal(() -> System.out.println(line));
+            return IO.effectTotal(() -> System.out.println(line)).blocking();
         }
         default IO<Object, Failure, String> readLine() {
             return IO.effect(() -> {
@@ -24,7 +24,7 @@ public class Console {
                     new InputStreamReader(System.in)
                 );
                 return reader.readLine();
-            });
+            }).blocking();
         }
     }
 

@@ -4,6 +4,7 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Test;
 
+import fp.util.Either;
 import fp.util.Failure;
 import fp.util.Right;
 
@@ -41,17 +42,17 @@ public class ModuleTest {
     @Test
     public void testConsole() {
         IO<Console.Service, Object, String> io =
-            Console.println("Good morning, what is your name?").flatMap(
-            v -> Console.readLine().flatMap(
-            name -> Console.println("Good to meet you, " + name + "!").map(
-            v2 -> name)
-        ));
+            Console.println("Good morning, what is your name?").flatMap(v ->
+            Console.readLine().flatMap(name ->
+            Console.println("Good to meet you, " + name + "!").fork().map(v2 ->
+            name
+        )));
 
         final TestConsole testConsole = new TestConsole("John");
-        Assert.assertEquals(
-            Right.of("John"),
-            defaultVoidRuntime.unsafeRun(io.provide(testConsole))
-        );
+        final Either<Object, String> name =
+            //defaultVoidRuntime.unsafeRun(io.provide(Console.live()));
+            defaultVoidRuntime.unsafeRun(io.provide(testConsole));
+        Assert.assertEquals(Right.of("John"), name);
         Assert.assertEquals(
             "Good morning, what is your name?\n" + "Good to meet you, John!\n",
             testConsole.getOutputs()
