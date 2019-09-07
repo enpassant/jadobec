@@ -22,9 +22,10 @@ public class FiberContext<F, R> implements Fiber<F, R> {
 	private IO<Object, ?, ?> curIo;
 	private Object value = null;
 	private Object valueLast = null;
-	private AtomicReference<FiberState<F, R>> state =
-		new AtomicReference<>(new Executing<F, R>(FiberStatus.Running, new ArrayList<>()));
-			
+    	private final CompletableFuture<Either<F, R>> observer =
+            new CompletableFuture<Either<F, R>>();
+	private final AtomicReference<FiberState<F, R>> state;
+
 	private Deque<Object> environments = new ArrayDeque<Object>();
 	private Deque<Function<?, IO<Object, ?, ?>>> stack =
 		new ArrayDeque<Function<?, IO<Object, ?, ?>>>();
@@ -35,20 +36,26 @@ public class FiberContext<F, R> implements Fiber<F, R> {
 			environments.push(context);
 		}
 		this.platform = platform;
+
+    	final List<CompletableFuture<Either<F, R>>> observers =
+            new ArrayList<>();
+        observers.add(observer);
+
+	state =
+	    new AtomicReference<>(
+                new Executing<F, R>(
+                    FiberStatus.Running, observers)
+            );
 	}
 
-	public <F2, R2> Either<F, R> evaluate(IO<Object, F, R> io) {
-    	CompletableFuture<Either<F, R>> future = new CompletableFuture<Either<F, R>>();
-    	register(future);
+    public <F2, R2> Either<F, R> evaluate(IO<Object, F, R> io) {
     	evaluateNow(io);
     	return getValue();
     }
 
     public <F2, R2> Future<Either<F, R>> runAsync(IO<Object, F, R> io) {
-    	CompletableFuture<Either<F, R>> future = new CompletableFuture<Either<F, R>>();
-    	register(future);
     	evaluateNow(io);
-    	return future;
+    	return observer;
     }
 
 	@SuppressWarnings("unchecked")
