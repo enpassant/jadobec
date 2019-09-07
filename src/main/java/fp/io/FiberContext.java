@@ -145,7 +145,7 @@ public class FiberContext<F, R> implements Fiber<F, R> {
 					final FiberContext<F, R> fiberContext =
 						new FiberContext<F, R>(environments.peek(), platform);
                     executor.submit(() -> {
-						return fiberContext.evaluate(ioValue);
+						return fiberContext.runAsync(ioValue);
 					});
                     value = fiberContext;
                     curIo = nextInstr(value);

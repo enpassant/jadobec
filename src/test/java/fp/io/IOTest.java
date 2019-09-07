@@ -11,6 +11,7 @@ import org.junit.Test;
 
 import fp.util.ExceptionFailure;
 import fp.util.Failure;
+import fp.util.Either;
 import fp.util.Left;
 import fp.util.Right;
 
@@ -121,11 +122,12 @@ public class IOTest {
 		    			)
 		    		)
         );
+        Either<Object, String> result = defaultRuntime.unsafeRun(io);
         Assert.assertTrue(
-        	"One of the thread's name is not good",
-        	defaultRuntime.unsafeRun(io)
-        		.orElse("")
-        		.matches("io-executor-\\d+-thread-\\d+,io-blocking-\\d+-thread-\\d+")
+        	"One of the thread's name is not good: " + result,
+                result.orElse("").matches(
+                    "io-executor-\\d+-thread-\\d+,io-blocking-\\d+-thread-\\d+"
+                )
         );
     }
 

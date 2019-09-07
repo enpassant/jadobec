@@ -15,7 +15,7 @@ public interface Runtime<C> {
 			System.out.println("Failure: " + failure);
 			if (failure instanceof ExceptionFailure) {
 				ExceptionFailure exceptionFailure = (ExceptionFailure) failure;
-				exceptionFailure.throwable.printStackTrace();
+				exceptionFailure.throwable.printStackTrace(System.err);
 			} 
 		});
 		return (Either<F, R>) eitherValue.flatten();
