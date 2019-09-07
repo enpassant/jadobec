@@ -29,15 +29,15 @@ import fp.util.Left;
 import fp.util.Tuple2;
 
 public class NumericTest {
-	final static DefaultPlatform platform = new DefaultPlatform();
-	
-	final static Runtime<Void> defaultRuntime = new DefaultRuntime<Void>(null, platform);
-	
-	@AfterClass
+    final static DefaultPlatform platform = new DefaultPlatform();
+
+    final static Runtime<Void> defaultRuntime = new DefaultRuntime<Void>(null, platform);
+
+    @AfterClass
     public static void setUp() {
-		platform.shutdown();
+        platform.shutdown();
     }
-	
+
     private static Logger logger = Logger.getLogger(NumericTest.class.getSimpleName());
     private static Consumer<Object> log(Level level, String message) {
         return object -> logger.log(level, message, object);
@@ -198,7 +198,7 @@ public class NumericTest {
         final Either<Failure, T> repositoryOrFailure = createRepository()
             .flatMap(repository ->
                 repository.use(
-                	defaultRuntime,
+                    defaultRuntime,
                     createAndFill
                         .flatMap(i -> testDbCommand)
                 )

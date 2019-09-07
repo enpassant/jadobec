@@ -19,15 +19,15 @@ import fp.util.Failure;
 import fp.util.Tuple2;
 
 public class RepositoryMagicTest {
-	final static DefaultPlatform platform = new DefaultPlatform();
-	
-	final static Runtime<Void> defaultRuntime = new DefaultRuntime<Void>(null, platform);
-	
-	@AfterClass
+    final static DefaultPlatform platform = new DefaultPlatform();
+
+    final static Runtime<Void> defaultRuntime = new DefaultRuntime<Void>(null, platform);
+
+    @AfterClass
     public static void setUp() {
-		platform.shutdown();
+        platform.shutdown();
     }
-	
+
     private final Person johnDoe = Person.of(1, "John Doe", 32);
     private final Person janeDoe = Person.of(2, "Jane Doe", 28);
     private final Person jaredDoe = Person.of(null, "Jared Doe", 12);
@@ -120,7 +120,7 @@ public class RepositoryMagicTest {
         final Either<Failure, T> repositoryOrFailure = createRepository()
             .flatMap(repository ->
                 repository.use(
-                	defaultRuntime,
+                    defaultRuntime,
                     RepositoryMagicTest.fill()
                         .flatMap(i -> testDbCommand)
                 )

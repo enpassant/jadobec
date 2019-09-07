@@ -36,8 +36,8 @@ public class Repository {
     }
 
     public <T> Either<Failure, T> use(
-    	Runtime<Void> runtime,
-    	IO<Connection, Failure, T> command
+        Runtime<Void> runtime,
+        IO<Connection, Failure, T> command
     ) {
         try {
             final Connection connection = connectionFactory.get();
@@ -65,7 +65,7 @@ public class Repository {
     }
 
     @SafeVarargs
-	public static Either<Failure, Repository> create(
+    public static Either<Failure, Repository> create(
         String driver,
         String testSql,
         Tuple2<String, String>... properties
@@ -93,7 +93,7 @@ public class Repository {
             return Right.of(new Repository(dataSource));
         } catch (Exception e) {
             return Left.of(
-            	ExceptionFailure.of(e)
+                ExceptionFailure.of(e)
             );
         } finally {
             try {
@@ -126,15 +126,15 @@ public class Repository {
     ) {
         return queryPrepared(sql, prepare, createObject, Repository::getFirstFromIterator);
     }
-    
+
     private static <T> IO<Connection, Failure, T> getFirstFromIterator(
-    	Iterator<T> iterator
+        Iterator<T> iterator
     ) {
-    	if (iterator.hasNext()) {
-    		return IO.succeed(iterator.next());
-    	} else {
-    		return IO.fail(GeneralFailure.of("Missing result")); 
-    	}
+        if (iterator.hasNext()) {
+            return IO.succeed(iterator.next());
+        } else {
+            return IO.fail(GeneralFailure.of("Missing result"));
+        }
     }
 
     public static <R, T> IO<Connection, Failure, R> query(
@@ -170,12 +170,12 @@ public class Repository {
                 return Right.of((Iterator<T>) new ResultSetIterator<T>(rs, createObject));
             } catch (Exception e) {
                 return Left.of(
-                	(Failure) ExceptionFailure.of(e)
+                    (Failure) ExceptionFailure.of(e)
                 );
             }
         })),
-        	iterator -> IO.effect(() -> ((AutoCloseable) iterator).close()),
-        	fn
+            iterator -> IO.effect(() -> ((AutoCloseable) iterator).close()),
+            fn
         ).blocking();
     }
 
@@ -210,7 +210,7 @@ public class Repository {
                 return result;
             } catch (Exception e) {
                 return Left.of(
-                	(Failure) ExceptionFailure.of(e)
+                    (Failure) ExceptionFailure.of(e)
                 );
             } finally {
                 try {
@@ -223,15 +223,20 @@ public class Repository {
     }
 
     public static IO<Connection, Failure, Integer> batchUpdate(String... sqls) {
-    	return batchUpdateLoop(sqls, 0);
+        return batchUpdateLoop(sqls, 0);
     }
 
-    private static IO<Connection, Failure, Integer> batchUpdateLoop(String[] sqls, int index) {
-    	return IO.<Connection, Failure, Boolean>succeed(sqls.length <= index).flatMap((Boolean b) -> b ?
-			IO.succeed((Integer) 0) :
-			Repository.update(sqls[index])
-				.flatMap(v -> batchUpdateLoop(sqls, index + 1))
-		);
+    private static IO<Connection, Failure, Integer> batchUpdateLoop(
+        String[] sqls,
+        int index
+    ) {
+        return IO.<Connection, Failure, Boolean>succeed(
+            sqls.length <= index
+        ).flatMap((Boolean b) -> b ?
+            IO.succeed((Integer) 0) :
+            Repository.update(sqls[index])
+                .flatMap(v -> batchUpdateLoop(sqls, index + 1))
+        );
     }
 
     private static IO<Connection, Failure, Connection> setAutoCommit(
@@ -247,7 +252,7 @@ public class Repository {
     }
 
     public static <T> IO<Connection, Failure, T> transaction(
-    	IO<Connection, Failure, T> dbCommand
+        IO<Connection, Failure, T> dbCommand
     ) {
         return IO.access((Connection conn) -> conn).flatMap(
             connection -> IO.bracket(
@@ -270,49 +275,53 @@ public class Repository {
             )
         ).blocking();
     }
-    
+
     public static <T> IO<Connection, Failure, Stream<T>> iterateToStream(
-    	Iterator<T> iterator
+        Iterator<T> iterator
     ) {
-		Builder<T> builder = Stream.builder();
-		return iterateToStreamLoop(builder, iterator);
+        Builder<T> builder = Stream.builder();
+        return iterateToStreamLoop(builder, iterator);
     }
-    
+
     private static <T> IO<Connection, Failure, Stream<T>> iterateToStreamLoop(
-    	Builder<T> builder,
-    	Iterator<T> iterator
+        Builder<T> builder,
+        Iterator<T> iterator
     ) {
-    	return IO.<Connection, Failure, Boolean>succeed(iterator.hasNext()).flatMap(hasNext -> {
-    		if (hasNext) {
-				T value = iterator.next();
-				builder.accept(value);
-				return iterateToStreamLoop(builder, iterator);
-    		} else {
-				return IO.succeed(builder.build());
-    		}
-    	});
+        return IO.<Connection, Failure, Boolean>succeed(
+            iterator.hasNext()
+        ).flatMap(hasNext -> {
+            if (hasNext) {
+                T value = iterator.next();
+                builder.accept(value);
+                return iterateToStreamLoop(builder, iterator);
+            } else {
+                return IO.succeed(builder.build());
+            }
+        });
     }
-    
+
     public static <T> IO<Connection, Failure, List<T>> iterateToList(
-    	Iterator<T> iterator
+        Iterator<T> iterator
     ) {
-		List<T> list = new ArrayList<>();
-		return iterateToListLoop(list, iterator);
+        List<T> list = new ArrayList<>();
+        return iterateToListLoop(list, iterator);
     }
-    
+
     private static <T> IO<Connection, Failure, List<T>> iterateToListLoop(
-    	List<T> list,
-    	Iterator<T> iterator
+        List<T> list,
+        Iterator<T> iterator
     ) {
-    	return IO.<Connection, Failure, Boolean>succeed(iterator.hasNext()).flatMap(hasNext -> {
-    		if (hasNext) {
-				T value = iterator.next();
-				list.add(value);
-				return iterateToListLoop(list, iterator);
-    		} else {
-				return IO.succeed(list);
-    		}
-    	});
+        return IO.<Connection, Failure, Boolean>succeed(
+            iterator.hasNext()
+        ).flatMap(hasNext -> {
+            if (hasNext) {
+                T value = iterator.next();
+                list.add(value);
+                return iterateToListLoop(list, iterator);
+            } else {
+                return IO.succeed(list);
+            }
+        });
     }
 
     private static class ResultSetIterator<T>

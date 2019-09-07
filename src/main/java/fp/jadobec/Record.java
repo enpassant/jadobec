@@ -27,7 +27,7 @@ public class Record {
     }
 
     @SuppressWarnings("unchecked")
-	public <T> T fieldOrElse(String name, T elseValue) {
+    public <T> T fieldOrElse(String name, T elseValue) {
         return Optional.ofNullable((T) values.get(name))
             .orElse(elseValue);
     }
@@ -45,7 +45,7 @@ public class Record {
     }
 
     @SuppressWarnings("unchecked")
-	public <T> Either<Failure, T> as(Class<T> type) {
+    public <T> Either<Failure, T> as(Class<T> type) {
         try {
             Constructor<?> constructors[] = type.getDeclaredConstructors();
             Constructor<?> ctRet = constructors[0];
@@ -54,7 +54,7 @@ public class Record {
             return Right.of((T) ctRet.newInstance(arglist));
         } catch(Exception e) {
             return Left.of(
-            	ExceptionFailure.of(e)
+                ExceptionFailure.of(e)
             );
         }
     }
@@ -169,7 +169,7 @@ public class Record {
             try {
                 if (values.containsKey(name)) {
                     @SuppressWarnings("unchecked")
-					final T value = (T) values.get(name);
+                    final T value = (T) values.get(name);
                     final R result = mapper.apply(value);
                     values.put(name, result);
                 }

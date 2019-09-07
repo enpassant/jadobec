@@ -127,7 +127,7 @@ public abstract class IO<C, F, R> {
 
         public Absolve(
             IO<C, ?, Either<F, R>> io
-    	) {
+        ) {
             tag = Tag.Absolve;
             this.io = io;
         }
@@ -135,54 +135,54 @@ public abstract class IO<C, F, R> {
 
     static class Access<C, F, R> extends IO<C, F, R> {
         final Function<C, IO<Object, F, R>> fn;
-    	public Access(Function<C, IO<Object, F, R>> fn) {
+        public Access(Function<C, IO<Object, F, R>> fn) {
             tag = Tag.Access;
             this.fn = fn;
         }
     }
 
     static class Succeed<C, F, R> extends IO<C, F, R> {
-    	final R r;
-    	public Succeed(R r) {
+        final R r;
+        public Succeed(R r) {
             tag = Tag.Pure;
             this.r = r;
         }
     }
 
     static class Fail<C, F, R> extends IO<C, F, R> {
-    	final F f;
-    	public Fail(F f) {
+        final F f;
+        public Fail(F f) {
             tag = Tag.Fail;
             this.f = f;
         }
     }
 
     static class EffectTotal<C, F, R> extends IO<C, F, R> {
-    	final Supplier<R> supplier;
+        final Supplier<R> supplier;
 
-    	public EffectTotal(Supplier<R> supplier) {
+        public EffectTotal(Supplier<R> supplier) {
             tag = Tag.EffectTotal;
             this.supplier = supplier;
         }
     }
 
     static class EffectPartial<C, F extends Failure, R> extends IO<C, F, R> {
-    	final ThrowingSupplier<R, Throwable> supplier;
+        final ThrowingSupplier<R, Throwable> supplier;
 
-    	public EffectPartial(ThrowingSupplier<R, Throwable> supplier) {
+        public EffectPartial(ThrowingSupplier<R, Throwable> supplier) {
             tag = Tag.EffectPartial;
             this.supplier = supplier;
         }
     }
 
     static class Blocking<C, F, R>
-    	extends IO<C, F, R>
+        extends IO<C, F, R>
     {
         IO<C, F, R> io;
 
-    	public Blocking(
+        public Blocking(
             IO<C, F, R> io
-    	) {
+        ) {
             tag = Tag.Blocking;
             this.io = io;
         }
@@ -193,11 +193,11 @@ public abstract class IO<C, F, R> {
         Function<A, IO<C, F, R2>> release;
         Function<A, IO<C, F, R>> use;
 
-    	public Bracket(
+        public Bracket(
             IO<C, F, A> acquire,
             Function<A, IO<C, F, R2>> release,
             Function<A, IO<C, F, R>> use
-    	) {
+        ) {
             tag = Tag.Bracket;
             this.acquire = acquire;
             this.release = release;
@@ -206,18 +206,18 @@ public abstract class IO<C, F, R> {
     }
 
     static class Fold<C, F, F2, A, R>
-    	extends IO<C, F2, R>
-    	implements Function<A, IO<C, F2, R>>
+        extends IO<C, F2, R>
+        implements Function<A, IO<C, F2, R>>
     {
         IO<C, F, A> io;
         Function<F, IO<C, F2, R>> failure;
         Function<A, IO<C, F2, R>> success;
 
-    	public Fold(
+        public Fold(
             IO<C, F, A> io,
             Function<F, IO<C, F2, R>> failure,
             Function<A, IO<C, F2, R>> success
-    	) {
+        ) {
             tag = Tag.Fold;
             this.io = io;
             this.failure = failure;
@@ -231,43 +231,43 @@ public abstract class IO<C, F, R> {
     }
 
     static class Fork<C, F, R>
-    	extends IO<C, F, Fiber<F, R>>
+        extends IO<C, F, Fiber<F, R>>
     {
         IO<C, F, R> io;
 
-    	public Fork(
+        public Fork(
             IO<C, F, R> io
-    	) {
+        ) {
             tag = Tag.Fork;
             this.io = io;
         }
-    	
-    	@Override
-    	public String toString() {
-    		return "Fork(" + io + ")";
-    	}
+
+        @Override
+        public String toString() {
+                return "Fork(" + io + ")";
+        }
     }
 
     static class FlatMap<C, F, F2, R, R2> extends IO<C, F2, R2> {
-    	final IO<C, F, R> io;
-    	final Function<R, IO<C, F2, R2>> fn;
+        final IO<C, F, R> io;
+        final Function<R, IO<C, F2, R2>> fn;
 
-    	public FlatMap(IO<C, F, R> io, Function<R, IO<C, F2, R2>> fn) {
+        public FlatMap(IO<C, F, R> io, Function<R, IO<C, F2, R2>> fn) {
             tag = Tag.FlatMap;
             this.io = io;
             this.fn = fn;
         }
-    	
-    	@Override
-    	public String toString() {
-    		return "FlatMap(" + io + ", " + fn + ")";
-    	}
+
+        @Override
+        public String toString() {
+                return "FlatMap(" + io + ", " + fn + ")";
+        }
     }
 
     static class Lock<C, F, R> extends IO<C, F, R> {
-    	final IO<C, F, R> io;
-    	final ExecutorService executor;
-    	public Lock(IO<C, F, R> io, ExecutorService executor) {
+        final IO<C, F, R> io;
+        final ExecutorService executor;
+        public Lock(IO<C, F, R> io, ExecutorService executor) {
             tag = Tag.Lock;
             this.io = io;
             this.executor = executor;
@@ -275,10 +275,10 @@ public abstract class IO<C, F, R> {
     }
 
     static class Peek<C, F, R> extends IO<C, F, R> {
-    	final IO<C, F, R> io;
-    	final Consumer<R> consumer;
+        final IO<C, F, R> io;
+        final Consumer<R> consumer;
 
-    	public Peek(IO<C, F, R> io, Consumer<R> consumer) {
+        public Peek(IO<C, F, R> io, Consumer<R> consumer) {
             tag = Tag.Peek;
             this.io = io;
             this.consumer = consumer;
@@ -286,10 +286,10 @@ public abstract class IO<C, F, R> {
     }
 
     static class Provide<C, C2, F, R> extends IO<C2, F, R> {
-    	final C context;
-    	final IO<C, F, R> next;
-    	
-    	public Provide(C context, IO<C, F, R> next) {
+        final C context;
+        final IO<C, F, R> next;
+
+        public Provide(C context, IO<C, F, R> next) {
             tag = Tag.Provide;
             this.context = context;
             this.next = next;

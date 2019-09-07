@@ -24,13 +24,13 @@ public class ExceptionFailure implements Failure {
     }
 
     public static <E extends Throwable, F, R>
-    	Either<Failure, R> tryCatchFinal
+        Either<Failure, R> tryCatchFinal
     (
-    	ThrowingSupplier<F, E> supplier,
+        ThrowingSupplier<F, E> supplier,
         ThrowingFunction<F, R, E> function,
         ThrowingConsumer<F, E> finalConsumer
     ) {
-    	F resource = null;
+        F resource = null;
         try {
             resource = supplier.get();
             return Right.of(function.apply(resource));
@@ -43,7 +43,7 @@ public class ExceptionFailure implements Failure {
                 if (resource != null) {
                     finalConsumer.accept(resource);
                 }
-        	} catch(Throwable e2) {
+            } catch(Throwable e2) {
             }
         }
     }

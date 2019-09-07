@@ -22,17 +22,17 @@ public class RepositoryMagic {
         String sql,
         Object... params
     ) {
-		ThrowingConsumer<PreparedStatement, SQLException> prepare = ps -> {
-			for (int i=0; i<params.length; i++) {
-				ps.setObject(i + 1, params[i]);
-			}
-		};
+        ThrowingConsumer<PreparedStatement, SQLException> prepare = ps -> {
+            for (int i=0; i<params.length; i++) {
+                ps.setObject(i + 1, params[i]);
+            }
+        };
 
-		return Repository.querySinglePrepared(
-			sql,
-			prepare,
-			Record.expandAs(type)
-		).flatMap(either -> IO.absolve(IO.succeed(either)));
+        return Repository.querySinglePrepared(
+            sql,
+            prepare,
+            Record.expandAs(type)
+        ).flatMap(either -> IO.absolve(IO.succeed(either)));
     }
 
     public static <T> IO<Connection, Failure, List<T>> queryAs(
@@ -50,7 +50,7 @@ public class RepositoryMagic {
     }
 
     @SuppressWarnings("unchecked")
-	public static <T> IO<Connection, Failure, List<T>> queryPreparedAs(
+    public static <T> IO<Connection, Failure, List<T>> queryPreparedAs(
         Class<T> type,
         String sql,
         ThrowingConsumer<PreparedStatement, SQLException> prepare
@@ -80,7 +80,7 @@ public class RepositoryMagic {
                 return Right.of(list);
             } catch (Exception e) {
                 return Left.of(
-                	ExceptionFailure.of(e)
+                    ExceptionFailure.of(e)
                 );
             } finally {
                 try {
@@ -94,36 +94,36 @@ public class RepositoryMagic {
 
     public static IO<Connection, Failure, Integer> insert(Object object) {
         return Record.from(object).fold(
-        	failure -> IO.fail(failure),
-        	record -> {
-	            final String fields = record
-	                .fields()
-	                .stream()
-	                .collect(Collectors.joining(", "));
-	            final String values = record
-	                .fields()
-	                .stream()
-	                .map(f -> "?")
-	                .collect(Collectors.joining(", "));
-	            final Object[] params = record.values().toArray();
-	            final String sql =
-	                "insert into " +
-	                object.getClass().getSimpleName() +
-	                "(" +
-	                fields +
-	                ") values(" +
-	                values +
-	                ")"
-	            ;
-	            final ThrowingConsumer<PreparedStatement, SQLException> prepare =
-		            ps -> {
-		                for (int i=0; i<params.length; i++) {
-		                    ps.setObject(i + 1, params[i]);
-		                }
-		            };
-	
-	            return Repository.updatePrepared(sql, prepare);
-        	}
+            failure -> IO.fail(failure),
+            record -> {
+                final String fields = record
+                    .fields()
+                    .stream()
+                    .collect(Collectors.joining(", "));
+                final String values = record
+                    .fields()
+                    .stream()
+                    .map(f -> "?")
+                    .collect(Collectors.joining(", "));
+                final Object[] params = record.values().toArray();
+                final String sql =
+                    "insert into " +
+                    object.getClass().getSimpleName() +
+                    "(" +
+                    fields +
+                    ") values(" +
+                    values +
+                    ")"
+                ;
+                final ThrowingConsumer<PreparedStatement, SQLException> prepare =
+                    ps -> {
+                        for (int i=0; i<params.length; i++) {
+                            ps.setObject(i + 1, params[i]);
+                        }
+                    };
+
+                return Repository.updatePrepared(sql, prepare);
+            }
         );
     }
 }

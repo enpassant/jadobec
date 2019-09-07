@@ -30,7 +30,7 @@ public class GeneralFailure<F> implements Failure {
     public static <F> GeneralFailure<F> of(F code, Tuple2<String, Object>... tuples) {
         return new GeneralFailure<>(code, Tuple2.toMap(tuples));
     }
-    
+
     public F getCode() {
         return code;
     }
@@ -66,7 +66,7 @@ public class GeneralFailure<F> implements Failure {
     public boolean equals(Object other) {
         if (other instanceof GeneralFailure) {
             @SuppressWarnings("unchecked")
-			GeneralFailure<F> failure = (GeneralFailure<F>) other;
+            GeneralFailure<F> failure = (GeneralFailure<F>) other;
             return failure.toString().equals(this.toString());
         } else {
             return false;

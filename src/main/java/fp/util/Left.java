@@ -71,7 +71,7 @@ public final class Left<L, R> implements Either<L, R> {
 
     @Override
     public R right() {
-		throw new NoSuchElementException("No value present");
+        throw new NoSuchElementException("No value present");
     }
 
     @Override
@@ -96,7 +96,7 @@ public final class Left<L, R> implements Either<L, R> {
 
     @Override
     public <B> B fold(Function<L, B> fnLeft, Function<R, B> fnRight) {
-    	return fnLeft.apply(value);
+        return fnLeft.apply(value);
     }
 
     @Override

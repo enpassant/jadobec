@@ -15,13 +15,13 @@ public final class StreamUtil {
         BiFunction<R, T, R> fn
     ) {
         return items -> {
-        	R result = items.reduce(
+            R result = items.reduce(
                 init,
                 fn,
                 (u1, u2) -> u1
             );
-        	items.close();
-        	return result;
+            items.close();
+            return result;
         };
     }
 
@@ -29,25 +29,25 @@ public final class StreamUtil {
         Consumer<Stream<T>> fn
     ) {
         return items -> {
-        	fn.accept(items);
-        	items.close();
+            fn.accept(items);
+            items.close();
         };
     }
 
     public static <T> void consumeToOutputStream(
-    	OutputStream os,
-    	Stream<T> stream,
-    	String prefix,
-    	String suffix,
+        OutputStream os,
+        Stream<T> stream,
+        String prefix,
+        String suffix,
         Consumer<Tuple2<PrintWriter, T>> fn
     ) {
         try ( PrintWriter writer = new PrintWriter(
-    		new BufferedWriter(
-    			new OutputStreamWriter( os ) 
-    	) ) ) { 
+            new BufferedWriter(
+                new OutputStreamWriter( os )
+        ) ) ) {
             writer.print(prefix);
-        	stream.forEach(item -> fn.accept(Tuple2.of(writer, item)));
-        	stream.close();
+            stream.forEach(item -> fn.accept(Tuple2.of(writer, item)));
+            stream.close();
             writer.print( suffix );
         }
     }

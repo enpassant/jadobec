@@ -30,15 +30,15 @@ import fp.util.StreamUtil;
 import fp.util.Tuple2;
 
 public class ContactTest {
-	final static DefaultPlatform platform = new DefaultPlatform();
-	
-	final static Runtime<Void> defaultRuntime = new DefaultRuntime<Void>(null, platform);
-	
-	@AfterClass
+    final static DefaultPlatform platform = new DefaultPlatform();
+
+    final static Runtime<Void> defaultRuntime = new DefaultRuntime<Void>(null, platform);
+
+    @AfterClass
     public static void setUp() {
-		platform.shutdown();
+        platform.shutdown();
     }
-	
+
     @Test
     public void testTempUsers() {
         final List<Either<Failure, User>> expectedUsers = Arrays.asList(
@@ -74,7 +74,7 @@ public class ContactTest {
         checkDbCommand(
             createAndFill.flatMap(v ->
                 mapStreamEither(
-                	queryUsers(),
+                    queryUsers(),
                     ContactTest::addOneEmail
                 )
             ).peek(users ->
@@ -88,7 +88,7 @@ public class ContactTest {
         checkDbCommand(
             createAndFill.flatMap(v ->
                 mapStreamEither(
-                	queryUsers(),
+                    queryUsers(),
                     ContactTest::addOneEmail
                 ).map(items -> items.noneMatch(Either::isRight))
             ).peek(isFailure -> assertFalse(isFailure))
@@ -110,7 +110,7 @@ public class ContactTest {
         checkDbCommand(
             createAndFill.flatMap(v ->
                 mapStreamEither(
-                	queryUsers(),
+                    queryUsers(),
                     ContactTest::addEmails
                 )
             ).peek(users ->
@@ -118,21 +118,23 @@ public class ContactTest {
             )
         );
     }
-    
+
     private static <F, R, T, U> IO<Connection, F, Stream<Either<F, R>>> mapStreamEither(
-    	IO<Connection, F, Stream<Either<F, U>>> io,
-    	Function<U, IO<Connection, F, R>> mapper
+        IO<Connection, F, Stream<Either<F, U>>> io,
+        Function<U, IO<Connection, F, R>> mapper
     ) {
-    	return IO.absolve(IO.access((Connection connection) -> connection)
-    		.map(connection ->
-    			defaultRuntime.unsafeRun(io.provide(connection))
-					.map((Stream<Either<F, U>> items) -> items.map(
-						(Either<F, U> item) -> item.flatMap(
-							v -> defaultRuntime.unsafeRun(mapper.apply(v).provide(connection))
-						)
-					))
-			)
-    	);
+        return IO.absolve(IO.access((Connection connection) -> connection)
+            .map(connection ->
+                defaultRuntime.unsafeRun(io.provide(connection))
+                    .map((Stream<Either<F, U>> items) -> items.map(
+                        (Either<F, U> item) -> item.flatMap(
+                            v -> defaultRuntime.unsafeRun(
+                                mapper.apply(v).provide(connection)
+                            )
+                        )
+                    ))
+            )
+        );
     }
 
     @Test
@@ -294,7 +296,7 @@ public class ContactTest {
         public static Either<Failure, User> of(int id, String name) {
             if (name.trim().isEmpty()) {
                 return Left.of(
-                	GeneralFailure.of("Wrong user name")
+                    GeneralFailure.of("Wrong user name")
                 );
             } else {
                 return Right.of(

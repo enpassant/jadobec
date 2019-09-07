@@ -16,16 +16,16 @@ import fp.util.Left;
 import fp.util.Right;
 
 public class IOTest {
-	final static DefaultPlatform platform = new DefaultPlatform();
-	
-	final Runtime<Void> defaultVoidRuntime = new DefaultRuntime<Void>(null, platform);
-	final Runtime<Object> defaultRuntime = new DefaultRuntime<Object>(null, platform);
-	
-	@AfterClass
+    final static DefaultPlatform platform = new DefaultPlatform();
+
+    final Runtime<Void> defaultVoidRuntime = new DefaultRuntime<Void>(null, platform);
+    final Runtime<Object> defaultRuntime = new DefaultRuntime<Object>(null, platform);
+
+    @AfterClass
     public static void setUp() {
-		platform.shutdown();
+        platform.shutdown();
     }
-	
+
     @Test
     public void testAbsolveSuccess() {
         IO<Void, Void, Integer> io = IO.absolve(IO.succeed(Right.of(4)));
@@ -41,13 +41,13 @@ public class IOTest {
     @Test
     public void testBlocking() {
         IO<Object, Object, String> io = IO.effectTotal(
-        	() -> Thread.currentThread().getName()
+            () -> Thread.currentThread().getName()
         ).blocking();
         Assert.assertTrue(
-        	"It is not a blocking thread's name",
-        	defaultRuntime.unsafeRun(io)
-        		.orElse("")
-        		.matches("io-blocking-\\d+-thread-\\d+")
+            "It is not a blocking thread's name",
+            defaultRuntime.unsafeRun(io)
+                .orElse("")
+                .matches("io-blocking-\\d+-thread-\\d+")
         );
     }
 
@@ -65,7 +65,7 @@ public class IOTest {
 
     @Test
     public void testFoldSuccess() {
-    	IO<Void, String, Integer> ioValue = IO.succeed(4);
+        IO<Void, String, Integer> ioValue = IO.succeed(4);
         IO<Void, String, Integer> io = ioValue
             .foldM(
                 v -> IO.succeed(8),
@@ -88,12 +88,12 @@ public class IOTest {
     @Test
     public void testFork() {
         IO<Object, Object, Integer> io = IO.effectTotal(() -> 6).fork()
-        	.flatMap(fiber1 -> IO.effectTotal(() -> 7).fork()
-        		.flatMap(fiber2 ->
-        			fiber1.join().flatMap(value1 ->
-        				fiber2.join().map(value2 -> value1 * value2)
-        			)
-        		)
+            .flatMap(fiber1 -> IO.effectTotal(() -> 7).fork()
+                .flatMap(fiber2 ->
+                    fiber1.join().flatMap(value1 ->
+                        fiber2.join().map(value2 -> value1 * value2)
+                    )
+                )
         );
         Assert.assertEquals(Right.of(42), defaultRuntime.unsafeRun(io));
     }
@@ -101,12 +101,12 @@ public class IOTest {
     @Test
     public void testBlockingFork() {
         IO<Object, Object, Integer> io = IO.effectTotal(() -> 6).blocking().fork()
-        	.flatMap(fiber1 -> IO.effectTotal(() -> 7).blocking().fork()
-        		.flatMap(fiber2 ->
-        			fiber1.join().flatMap(value1 ->
-        				fiber2.join().map(value2 -> value1 * value2)
-        			)
-        		)
+            .flatMap(fiber1 -> IO.effectTotal(() -> 7).blocking().fork()
+                .flatMap(fiber2 ->
+                    fiber1.join().flatMap(value1 ->
+                        fiber2.join().map(value2 -> value1 * value2)
+                    )
+                )
         );
         Assert.assertEquals(Right.of(42), defaultRuntime.unsafeRun(io));
     }
@@ -114,17 +114,19 @@ public class IOTest {
     @Test
     public void testBlockingAndNoBlockingForks() {
         IO<Object, Object, String> io =
-        	IO.effectTotal(() -> Thread.currentThread().getName()).fork()
-		    	.flatMap(fiber1 -> IO.effectTotal(() -> Thread.currentThread().getName()).blocking().fork()
-		    		.flatMap(fiber2 ->
-		    			fiber1.join().flatMap(value1 ->
-		    				fiber2.join().map(value2 -> value1 + "," + value2)
-		    			)
-		    		)
+            IO.effectTotal(() -> Thread.currentThread().getName()).fork()
+                .flatMap(fiber1 ->
+                    IO.effectTotal(() -> Thread.currentThread().getName()
+                ).blocking().fork()
+                    .flatMap(fiber2 ->
+                        fiber1.join().flatMap(value1 ->
+                            fiber2.join().map(value2 -> value1 + "," + value2)
+                        )
+                    )
         );
         Either<Object, String> result = defaultRuntime.unsafeRun(io);
         Assert.assertTrue(
-        	"One of the thread's name is not good: " + result,
+            "One of the thread's name is not good: " + result,
                 result.orElse("").matches(
                     "io-executor-\\d+-thread-\\d+,io-blocking-\\d+-thread-\\d+"
                 )
@@ -156,7 +158,9 @@ public class IOTest {
             (Integer n) -> IO.effectTotal(() -> n * n)
         );
         Assert.assertEquals(
-            Left.of(ExceptionFailure.of(new ArithmeticException("/ by zero"))).toString(),
+            Left.of(ExceptionFailure.of(
+                new ArithmeticException("/ by zero"))
+            ).toString(),
             defaultRuntime.unsafeRun(io).toString()
         );
     }
@@ -170,18 +174,18 @@ public class IOTest {
     }
 
     private static class Resource {
-    	private boolean acquired = true;
+        private boolean acquired = true;
 
-    	private int usage = 0;
+        private int usage = 0;
 
-    	public Integer use(int n) {
+        public Integer use(int n) {
             usage = usage + n;
             return usage;
-    	}
+        }
 
-    	public void close() {
+        public void close() {
             acquired = false;
-    	}
+        }
     }
 
     @Test
@@ -217,12 +221,12 @@ public class IOTest {
     }
 
     private IO<Object, Void, Boolean> odd(int n) {
-    	return IO.effectTotal(() -> n == 0)
+        return IO.effectTotal(() -> n == 0)
             .flatMap(b -> b ? IO.succeed(false) : even(n - 1) );
     }
 
     private IO<Object, Void, Boolean> even(int n) {
-    	return IO.effectTotal(() -> n == 0)
+        return IO.effectTotal(() -> n == 0)
             .flatMap(b -> b ? IO.succeed(true) : odd(n - 1) );
     }
 
@@ -239,8 +243,8 @@ public class IOTest {
         ExecutorService calcExecutor = new ForkJoinPool(2);
 
         Function<Integer, IO<Object, Void, Integer>> fnIo = n -> IO.effectTotal(() -> {
-//        	System.out.println(n + ": " + Thread.currentThread().getName());
-        	return n + 1;
+//          System.out.println(n + ": " + Thread.currentThread().getName());
+            return n + 1;
         });
         IO<Object, Void, Integer> lockIo = IO.succeed(1).flatMap(n ->
             fnIo.apply(n).on(asyncExecutor).flatMap(n1 ->
