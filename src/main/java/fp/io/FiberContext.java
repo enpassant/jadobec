@@ -126,8 +126,8 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                     break;
                 }
                 case FlatMap:
-                    final IO.FlatMap<Object, Object, F2, F, R2, R> flatmapIO =
-                        (IO.FlatMap<Object, Object, F2, F, R2, R>) curIo;
+                    final IO.FlatMap<Object, F2, F, R2, R> flatmapIO =
+                        (IO.FlatMap<Object, F2, F, R2, R>) curIo;
                     stack.push((R2 v) -> flatmapIO.fn.apply(v));
                     curIo = flatmapIO.io;
                     break;

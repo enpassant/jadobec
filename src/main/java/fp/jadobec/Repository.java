@@ -227,8 +227,8 @@ public class Repository {
     }
 
     private static IO<Connection, Failure, Integer> batchUpdateLoop(String[] sqls, int index) {
-    	return IO.succeed(sqls.length <= index).flatMap((Boolean b) -> b ?
-			IO.<Connection, Failure, Integer>succeed((Integer) 0) :
+    	return IO.<Connection, Failure, Boolean>succeed(sqls.length <= index).flatMap((Boolean b) -> b ?
+			IO.succeed((Integer) 0) :
 			Repository.update(sqls[index])
 				.flatMap(v -> batchUpdateLoop(sqls, index + 1))
 		);
@@ -282,7 +282,7 @@ public class Repository {
     	Builder<T> builder,
     	Iterator<T> iterator
     ) {
-    	return IO.succeed(iterator.hasNext()).flatMap(hasNext -> {
+    	return IO.<Connection, Failure, Boolean>succeed(iterator.hasNext()).flatMap(hasNext -> {
     		if (hasNext) {
 				T value = iterator.next();
 				builder.accept(value);
@@ -304,7 +304,7 @@ public class Repository {
     	List<T> list,
     	Iterator<T> iterator
     ) {
-    	return IO.succeed(iterator.hasNext()).flatMap(hasNext -> {
+    	return IO.<Connection, Failure, Boolean>succeed(iterator.hasNext()).flatMap(hasNext -> {
     		if (hasNext) {
 				T value = iterator.next();
 				list.add(value);
