@@ -16,6 +16,7 @@ import java.util.stream.Stream.Builder;
 
 import javax.sql.DataSource;
 
+import fp.io.Environment;
 import fp.io.IO;
 import fp.io.Runtime;
 import fp.util.Either;
@@ -29,233 +30,307 @@ import fp.util.ThrowingSupplier;
 import fp.util.Tuple2;
 
 public class Repository {
-    private final ThrowingSupplier<Connection, SQLException> connectionFactory;
 
-    private Repository(final DataSource dataSource) {
-        this.connectionFactory = () -> dataSource.getConnection();
-    }
+    public static interface Service {
+        public IO<Object, Failure, Connection> getConnection();
 
-    public <T> Either<Failure, T> use(
-        Runtime<Void> runtime,
-        IO<Connection, Failure, T> command
-    ) {
-        try {
-            final Connection connection = connectionFactory.get();
-            final Either<Failure, T> result = runtime.unsafeRun(command.provide(connection));
-            connection.close();
-            return result;
-        } catch (SQLException e) {
-            return Left.of(ExceptionFailure.of(e));
-        }
-    }
+        public <T> IO<Object, Failure, T> querySingle(
+            Connection connection,
+            String sql,
+            Extractor<T> createObject,
+            Object... params
+        );
 
-    public static Either<Failure, Repository> create(
-        DataSource dataSource,
-        String testSql
-    ) {
-        return ExceptionFailure.tryCatchFinal(
-            () -> dataSource.getConnection().createStatement(),
-            stmt -> {
-                ResultSet rs = stmt.executeQuery(testSql);
-                rs.close();
-                return new Repository(dataSource);
-            },
-            stmt -> stmt.close()
+        public <T> IO<Object, Failure, T> querySinglePrepared(
+            Connection connection,
+            String sql,
+            ThrowingConsumer<PreparedStatement, SQLException> prepare,
+            Extractor<T> createObject
+        );
+
+        public <R, T> IO<Object, Failure, R> query(
+            Connection connection,
+            String sql,
+            Extractor<T> createObject,
+            Function<Iterator<T>, IO<Object, Failure, R>> fn,
+            Object... params
+        );
+
+        public <R, T> IO<Object, Failure, R> queryPrepared(
+            Connection connection,
+            String sql,
+            ThrowingConsumer<PreparedStatement, SQLException> prepare,
+            Extractor<T> createObject,
+            Function<Iterator<T>, IO<Object, Failure, R>> fn
+        );
+
+        public IO<Object, Failure, Integer> update(
+            Connection connection,
+            final String sql
+        );
+
+        public IO<Object, Failure, Integer> updatePrepared(
+            Connection connection,
+            final String sql,
+            final ThrowingConsumer<PreparedStatement, SQLException> prepare
+        );
+
+        public IO<Object, Failure, Integer> batchUpdate(
+            Connection connection,
+            String... sqls
+        );
+
+        public <T> IO<Object, Failure, T> transaction(
+            Connection connection,
+            IO<Object, Failure, T> dbCommand
         );
     }
 
-    @SafeVarargs
-    public static Either<Failure, Repository> create(
-        String driver,
-        String testSql,
-        Tuple2<String, String>... properties
-    ) {
-        Connection conn = null;
-        Statement stmt = null;
+    public static class Live implements Service {
+        private final ThrowingSupplier<Connection, SQLException> connectionFactory;
 
-        try {
-            final Class<?> type = Class.forName(driver);
-            final Constructor<?> constructor = type.getDeclaredConstructor();
-            final DataSource dataSource = (DataSource) constructor.newInstance();
-            for (final Tuple2<String, String> property : properties) {
-                final Method method = type.getDeclaredMethod(
-                    "set" + property.getFirst(),
-                    String.class
-                );
-                method.invoke(dataSource, property.getSecond());
-            }
+        private Live(final DataSource dataSource) {
+            this.connectionFactory = () -> dataSource.getConnection();
+        }
 
-            conn = dataSource.getConnection();
-            stmt = conn.createStatement();
-
-            ResultSet rs = stmt.executeQuery(testSql);
-            rs.close();
-            return Right.of(new Repository(dataSource));
-        } catch (Exception e) {
-            return Left.of(
-                ExceptionFailure.of(e)
+        public static Either<Failure, Live> create(
+            DataSource dataSource,
+            String testSql
+        ) {
+            return ExceptionFailure.tryCatchFinal(
+                () -> dataSource.getConnection().createStatement(),
+                stmt -> {
+                    ResultSet rs = stmt.executeQuery(testSql);
+                    rs.close();
+                    return new Live(dataSource);
+                },
+                stmt -> stmt.close()
             );
-        } finally {
+        }
+
+        @SafeVarargs
+        public static Either<Failure, Live> create(
+            String driver,
+            String testSql,
+            Tuple2<String, String>... properties
+        ) {
+            Connection conn = null;
+            Statement stmt = null;
+
             try {
-                if (stmt != null) {
-                    stmt.close();
+                final Class<?> type = Class.forName(driver);
+                final Constructor<?> constructor = type.getDeclaredConstructor();
+                final DataSource dataSource = (DataSource) constructor.newInstance();
+                for (final Tuple2<String, String> property : properties) {
+                    final Method method = type.getDeclaredMethod(
+                        "set" + property.getFirst(),
+                        String.class
+                    );
+                    method.invoke(dataSource, property.getSecond());
                 }
-            } catch (SQLException se) {
-            }
-        }
-    }
 
-    public static <T> IO<Connection, Failure, T> querySingle(
-        String sql,
-        Extractor<T> createObject,
-        Object... params
-    ) {
-        ThrowingConsumer<PreparedStatement, SQLException> prepare = ps -> {
-            for (int i=0; i<params.length; i++) {
-                ps.setObject(i + 1, params[i]);
-            }
-        };
+                conn = dataSource.getConnection();
+                stmt = conn.createStatement();
 
-        return querySinglePrepared(sql, prepare, createObject);
-    }
-
-    public static <T> IO<Connection, Failure, T> querySinglePrepared(
-        String sql,
-        ThrowingConsumer<PreparedStatement, SQLException> prepare,
-        Extractor<T> createObject
-    ) {
-        return queryPrepared(sql, prepare, createObject, Repository::getFirstFromIterator);
-    }
-
-    private static <T> IO<Connection, Failure, T> getFirstFromIterator(
-        Iterator<T> iterator
-    ) {
-        if (iterator.hasNext()) {
-            return IO.succeed(iterator.next());
-        } else {
-            return IO.fail(GeneralFailure.of("Missing result"));
-        }
-    }
-
-    public static <R, T> IO<Connection, Failure, R> query(
-        String sql,
-        Extractor<T> createObject,
-        Function<Iterator<T>, IO<Connection, Failure, R>> fn,
-        Object... params
-    ) {
-        ThrowingConsumer<PreparedStatement, SQLException> prepare = ps -> {
-            for (int i=0; i<params.length; i++) {
-                ps.setObject(i + 1, params[i]);
-            }
-        };
-
-        return queryPrepared(sql, prepare, createObject, fn);
-    }
-
-    public static <R, T> IO<Connection, Failure, R> queryPrepared(
-        String sql,
-        ThrowingConsumer<PreparedStatement, SQLException> prepare,
-        Extractor<T> createObject,
-        Function<Iterator<T>, IO<Connection, Failure, R>> fn
-    ) {
-        return IO.bracket(IO.absolve(IO.access((Connection connection) -> {
-            PreparedStatement stmt = null;
-
-            try {
-                stmt = connection.prepareStatement(sql);
-
-                prepare.accept(stmt);
-
-                ResultSet rs = stmt.executeQuery();
-                return Right.of((Iterator<T>) new ResultSetIterator<T>(rs, createObject));
+                ResultSet rs = stmt.executeQuery(testSql);
+                rs.close();
+                return Right.of(new Live(dataSource));
             } catch (Exception e) {
                 return Left.of(
-                    (Failure) ExceptionFailure.of(e)
-                );
-            }
-        })),
-            iterator -> IO.effect(() -> ((AutoCloseable) iterator).close()),
-            fn
-        ).blocking();
-    }
-
-    public static IO<Connection, Failure, Integer> update(final String sql) {
-        return updatePrepared(sql, ps -> {});
-    }
-
-    public static IO<Connection, Failure, Integer> updatePrepared(
-        final String sql,
-        final ThrowingConsumer<PreparedStatement, SQLException> prepare
-    ) {
-        return IO.absolve(IO.access((Connection connection) -> {
-            PreparedStatement stmt = null;
-
-            try {
-                stmt = connection.prepareStatement(
-                    sql,
-                    Statement.RETURN_GENERATED_KEYS
-                );
-
-                prepare.accept(stmt);
-
-                stmt.executeUpdate();
-
-                ResultSet generatedKeysRS = stmt.getGeneratedKeys();
-
-                Right<Failure, Integer> result =
-                    Right.of(generatedKeysRS.next() ? generatedKeysRS.getInt(1) : 0);
-
-                generatedKeysRS.close();
-
-                return result;
-            } catch (Exception e) {
-                return Left.of(
-                    (Failure) ExceptionFailure.of(e)
+                    ExceptionFailure.of(e)
                 );
             } finally {
                 try {
-                    if (stmt != null) stmt.close();
-                } catch (SQLException e) {
-                    //logger.error("Update prepared close error", e);
+                    if (stmt != null) {
+                        stmt.close();
+                    }
+                } catch (SQLException se) {
                 }
             }
-        })).blocking();
-    }
+        }
 
-    public static IO<Connection, Failure, Integer> batchUpdate(String... sqls) {
-        return batchUpdateLoop(sqls, 0);
-    }
+        @Override
+        public IO<Object, Failure, Connection> getConnection() {
+            return IO.effect(() -> connectionFactory.get());
+        }
 
-    private static IO<Connection, Failure, Integer> batchUpdateLoop(
-        String[] sqls,
-        int index
-    ) {
-        return IO.<Connection, Failure, Boolean>succeed(
-            sqls.length <= index
-        ).flatMap((Boolean b) -> b ?
-            IO.succeed((Integer) 0) :
-            Repository.update(sqls[index])
-                .flatMap(v -> batchUpdateLoop(sqls, index + 1))
-        );
-    }
+        @Override
+        public <T> IO<Object, Failure, T> querySingle(
+            Connection connection,
+            String sql,
+            Extractor<T> createObject,
+            Object... params
+        ) {
+            ThrowingConsumer<PreparedStatement, SQLException> prepare = ps -> {
+                for (int i=0; i<params.length; i++) {
+                    ps.setObject(i + 1, params[i]);
+                }
+            };
 
-    private static IO<Connection, Failure, Connection> setAutoCommit(
-        Connection connection,
-        boolean flag
-    ) {
-        return IO.absolve(IO.effectTotal(() ->
-            ExceptionFailure.tryCatch(() -> {
-                connection.setAutoCommit(flag);
-                return connection;
-            })
-        ));
-    }
+            return querySinglePrepared(connection, sql, prepare, createObject);
+        }
 
-    public static <T> IO<Connection, Failure, T> transaction(
-        IO<Connection, Failure, T> dbCommand
-    ) {
-        return IO.access((Connection conn) -> conn).flatMap(
-            connection -> IO.bracket(
+        @Override
+        public <T> IO<Object, Failure, T> querySinglePrepared(
+            Connection connection,
+            String sql,
+            ThrowingConsumer<PreparedStatement, SQLException> prepare,
+            Extractor<T> createObject
+        ) {
+            return queryPrepared(
+                connection,
+                sql,
+                prepare,
+                createObject,
+                Repository.Live::getFirstFromIterator
+            );
+        }
+
+        private static <T> IO<Object, Failure, T> getFirstFromIterator(
+            Iterator<T> iterator
+        ) {
+            if (iterator.hasNext()) {
+                return IO.succeed(iterator.next());
+            } else {
+                return IO.fail(GeneralFailure.of("Missing result"));
+            }
+        }
+
+        @Override
+        public <R, T> IO<Object, Failure, R> query(
+            Connection connection,
+            String sql,
+            Extractor<T> createObject,
+            Function<Iterator<T>, IO<Object, Failure, R>> fn,
+            Object... params
+        ) {
+            ThrowingConsumer<PreparedStatement, SQLException> prepare = ps -> {
+                for (int i=0; i<params.length; i++) {
+                    ps.setObject(i + 1, params[i]);
+                }
+            };
+
+            return queryPrepared(connection, sql, prepare, createObject, fn);
+        }
+
+        @Override
+        public <R, T> IO<Object, Failure, R> queryPrepared(
+            Connection connection,
+            String sql,
+            ThrowingConsumer<PreparedStatement, SQLException> prepare,
+            Extractor<T> createObject,
+            Function<Iterator<T>, IO<Object, Failure, R>> fn
+        ) {
+            return IO.bracket(IO.absolve(IO.effect(() -> {
+                PreparedStatement stmt = null;
+
+                try {
+                    stmt = connection.prepareStatement(sql);
+
+                    prepare.accept(stmt);
+
+                    ResultSet rs = stmt.executeQuery();
+                    return Right.of((Iterator<T>) new ResultSetIterator<T>(rs, createObject));
+                } catch (Exception e) {
+                    return Left.of(
+                        (Failure) ExceptionFailure.of(e)
+                    );
+                }
+            })),
+                iterator -> IO.effect(() -> ((AutoCloseable) iterator).close()),
+                fn
+            ).blocking();
+        }
+
+        @Override
+        public IO<Object, Failure, Integer> update(
+            Connection connection,
+            final String sql
+        ) {
+            return updatePrepared(connection, sql, ps -> {});
+        }
+
+        @Override
+        public IO<Object, Failure, Integer> updatePrepared(
+            Connection connection,
+            final String sql,
+            final ThrowingConsumer<PreparedStatement, SQLException> prepare
+        ) {
+            return IO.absolve(IO.effect(() -> {
+                PreparedStatement stmt = null;
+
+                try {
+                    stmt = connection.prepareStatement(
+                        sql,
+                        Statement.RETURN_GENERATED_KEYS
+                    );
+
+                    prepare.accept(stmt);
+
+                    stmt.executeUpdate();
+
+                    ResultSet generatedKeysRS = stmt.getGeneratedKeys();
+
+                    Right<Failure, Integer> result =
+                        Right.of(generatedKeysRS.next() ? generatedKeysRS.getInt(1) : 0);
+
+                    generatedKeysRS.close();
+
+                    return result;
+                } catch (Exception e) {
+                    return Left.of(
+                        (Failure) ExceptionFailure.of(e)
+                    );
+                } finally {
+                    try {
+                        if (stmt != null) stmt.close();
+                    } catch (SQLException e) {
+                        //logger.error("Update prepared close error", e);
+                    }
+                }
+            })).blocking();
+        }
+
+        @Override
+        public IO<Object, Failure, Integer> batchUpdate(
+            Connection connection,
+            String... sqls
+        ) {
+            return batchUpdateLoop(connection, sqls, 0);
+        }
+
+        private IO<Object, Failure, Integer> batchUpdateLoop(
+            Connection connection,
+            String[] sqls,
+            int index
+        ) {
+            return IO.<Object, Failure, Boolean>succeed(
+                sqls.length <= index
+            ).flatMap((Boolean b) -> b ?
+                IO.succeed((Integer) 0) :
+                update(connection, sqls[index])
+                    .flatMap(v -> batchUpdateLoop(connection, sqls, index + 1))
+            );
+        }
+
+        private static IO<Object, Failure, Connection> setAutoCommit(
+            Connection connection,
+            boolean flag
+        ) {
+            return IO.absolve(IO.effectTotal(() ->
+                ExceptionFailure.tryCatch(() -> {
+                    connection.setAutoCommit(flag);
+                    return connection;
+                })
+            ));
+        }
+
+        @Override
+        public <T> IO<Object, Failure, T> transaction(
+            Connection connection,
+            IO<Object, Failure, T> dbCommand
+        ) {
+            return IO.bracket(
                 setAutoCommit(connection, false),
                 connection2 -> setAutoCommit(connection, true),
                 connection3 -> dbCommand.foldM(
@@ -272,22 +347,101 @@ public class Repository {
                         return IO.succeed(success);
                     }
                 )
-            )
-        ).blocking();
+            ).blocking();
+        }
     }
 
-    public static <T> IO<Connection, Failure, Stream<T>> iterateToStream(
+    public static <T> IO<Environment, Failure, Connection> getConnection() {
+        return IO.accessM(env -> env.get(Service.class).getConnection());
+    }
+
+    public static <T> IO<Environment, Failure, T> querySingle(
+        Connection connection,
+        String sql,
+        Extractor<T> createObject,
+        Object... params
+    ) {
+        return IO.accessM(env -> env.get(Service.class)
+            .querySingle(connection, sql, createObject, params));
+    }
+
+    public static <T> IO<Environment, Failure, T> querySinglePrepared(
+        Connection connection,
+        String sql,
+        ThrowingConsumer<PreparedStatement, SQLException> prepare,
+        Extractor<T> createObject
+    ) {
+        return IO.accessM(env -> env.get(Service.class)
+            .querySinglePrepared(connection, sql, prepare, createObject));
+    }
+
+    public static <R, T> IO<Environment, Failure, R> query(
+        Connection connection,
+        String sql,
+        Extractor<T> createObject,
+        Function<Iterator<T>, IO<Object, Failure, R>> fn,
+        Object... params
+    ) {
+        return IO.accessM(env -> env.get(Service.class)
+            .query(connection, sql, createObject, fn, params));
+    }
+
+    public static <R, T> IO<Environment, Failure, R> queryPrepared(
+        Connection connection,
+        String sql,
+        ThrowingConsumer<PreparedStatement, SQLException> prepare,
+        Extractor<T> createObject,
+        Function<Iterator<T>, IO<Object, Failure, R>> fn
+    ) {
+        return IO.accessM(env -> env.get(Service.class)
+            .queryPrepared(connection, sql, prepare, createObject, fn));
+    }
+
+    public static IO<Environment, Failure, Integer> update(
+        Connection connection,
+        final String sql
+    ) {
+        return IO.accessM(env -> env.get(Service.class)
+            .update(connection, sql));
+    }
+
+    public static IO<Environment, Failure, Integer> updatePrepared(
+        Connection connection,
+        final String sql,
+        final ThrowingConsumer<PreparedStatement, SQLException> prepare
+    ) {
+        return IO.accessM(env -> env.get(Service.class)
+            .updatePrepared(connection, sql, prepare));
+    }
+
+    public static IO<Environment, Failure, Integer> batchUpdate(
+        Connection connection,
+        String... sqls
+    ) {
+        return IO.accessM(env -> env.get(Service.class)
+            .batchUpdate(connection, sqls));
+    }
+
+    public static <T> IO<Environment, Failure, T> transaction(
+        Connection connection,
+        IO<Environment, Failure, T> dbCommand
+    ) {
+        return IO.accessM(env -> env.get(Service.class)
+            .transaction(connection, dbCommand.provide(env)));
+    }
+
+    public static <T> IO<Object, Failure, Stream<T>> iterateToStream(
         Iterator<T> iterator
     ) {
         Builder<T> builder = Stream.builder();
         return iterateToStreamLoop(builder, iterator);
     }
 
-    private static <T> IO<Connection, Failure, Stream<T>> iterateToStreamLoop(
+    private static <T> IO<Object, Failure, Stream<T>> iterateToStreamLoop(
         Builder<T> builder,
         Iterator<T> iterator
     ) {
-        return IO.<Connection, Failure, Boolean>succeed(
+        return IO.<Object, Failure, Boolean>succeed(
             iterator.hasNext()
         ).flatMap(hasNext -> {
             if (hasNext) {
@@ -300,18 +454,18 @@ public class Repository {
         });
     }
 
-    public static <T> IO<Connection, Failure, List<T>> iterateToList(
+    public static <T> IO<Object, Failure, List<T>> iterateToList(
         Iterator<T> iterator
     ) {
         List<T> list = new ArrayList<>();
         return iterateToListLoop(list, iterator);
     }
 
-    private static <T> IO<Connection, Failure, List<T>> iterateToListLoop(
+    private static <T> IO<Object, Failure, List<T>> iterateToListLoop(
         List<T> list,
         Iterator<T> iterator
     ) {
-        return IO.<Connection, Failure, Boolean>succeed(
+        return IO.<Object, Failure, Boolean>succeed(
             iterator.hasNext()
         ).flatMap(hasNext -> {
             if (hasNext) {

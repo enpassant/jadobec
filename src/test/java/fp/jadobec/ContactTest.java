@@ -19,6 +19,7 @@ import org.junit.Test;
 
 import fp.io.DefaultPlatform;
 import fp.io.DefaultRuntime;
+import fp.io.Environment;
 import fp.io.IO;
 import fp.io.Runtime;
 import fp.util.Either;
@@ -47,9 +48,9 @@ public class ContactTest {
             User.of(1, "John Doe")
         );
 
-        checkDbCommand(
-            createAndFill.flatMap(v ->
-                queryUsers()
+        checkDbCommand(connection ->
+            createAndFill(connection).flatMap(v ->
+                queryUsers(connection)
             ).peek(users ->
                 assertArrayEquals(
                     expectedUsers.toArray(),
@@ -71,11 +72,12 @@ public class ContactTest {
             )
         );
 
-        checkDbCommand(
-            createAndFill.flatMap(v ->
+        checkDbCommand(connection ->
+            createAndFill(connection).flatMap(v ->
                 mapStreamEither(
-                    queryUsers(),
-                    ContactTest::addOneEmail
+                    connection,
+                    queryUsers(connection),
+                    user -> ContactTest.addOneEmail(connection, user)
                 )
             ).peek(users ->
                 assertArrayEquals(expectedUsers.toArray(), users.toArray())
@@ -85,11 +87,12 @@ public class ContactTest {
 
     @Test
     public void testFailedSingleContact() {
-        checkDbCommand(
-            createAndFill.flatMap(v ->
+        checkDbCommand(connection ->
+            createAndFill(connection).flatMap(v ->
                 mapStreamEither(
-                    queryUsers(),
-                    ContactTest::addOneEmail
+                    connection,
+                    queryUsers(connection),
+                    user -> ContactTest.addOneEmail(connection, user)
                 ).map(items -> items.noneMatch(Either::isRight))
             ).peek(isFailure -> assertFalse(isFailure))
         );
@@ -107,11 +110,12 @@ public class ContactTest {
             )
         );
 
-        checkDbCommand(
-            createAndFill.flatMap(v ->
+        checkDbCommand(connection ->
+            createAndFill(connection).flatMap(v ->
                 mapStreamEither(
-                    queryUsers(),
-                    ContactTest::addEmails
+                    connection,
+                    queryUsers(connection),
+                    user -> ContactTest.addEmails(connection, user)
                 )
             ).peek(users ->
                 assertArrayEquals(expectedUsers.toArray(), users.toArray())
@@ -119,62 +123,68 @@ public class ContactTest {
         );
     }
 
-    private static <F, R, T, U> IO<Connection, F, Stream<Either<F, R>>> mapStreamEither(
-        IO<Connection, F, Stream<Either<F, U>>> io,
-        Function<U, IO<Connection, F, R>> mapper
+    private static <F, R, T, U> IO<Environment, F, Stream<Either<F, R>>> mapStreamEither(
+        Connection connection,
+        IO<Environment, F, Stream<Either<F, U>>> io,
+        Function<U, IO<Environment, F, R>> mapper
     ) {
-        return IO.absolve(IO.access((Connection connection) -> connection)
-            .map(connection ->
-                defaultRuntime.unsafeRun(io.provide(connection))
-                    .map((Stream<Either<F, U>> items) -> items.map(
-                        (Either<F, U> item) -> item.flatMap(
-                            v -> defaultRuntime.unsafeRun(
-                                mapper.apply(v).provide(connection)
-                            )
+        return IO.absolve(IO.access(env ->
+            defaultRuntime.unsafeRun(io.provide(env))
+                .map((Stream<Either<F, U>> items) -> items.map(
+                    (Either<F, U> item) -> item.flatMap(
+                        v -> defaultRuntime.unsafeRun(
+                            mapper.apply(v).provide(env)
                         )
-                    ))
-            )
+                    )
+                )
+            ))
         );
     }
 
     @Test
     public void testPartialLoad() {
         final Either<Failure, User> expectedUser = User.of(2, "Jane Doe");
-        final IO<Connection, Failure, Either<Failure, User>> dbCommandIdCheckedUser =
-            createAndFill.flatMap(v ->
-                queryUserIds()
+        final Function<Connection, IO<Environment, Failure, Either<Failure, User>>>
+            dbCommandIdCheckedUser = connection ->
+            createAndFill(connection).flatMap(v ->
+                queryUserIds(connection)
                     .map(items -> items
                         .filter(ContactTest::checkUserIdSlow)
                         .findFirst()
                     )
-                    .flatMap(ContactTest::querySingleUser)
+                    .flatMap(idOpt -> ContactTest.querySingleUser(connection, idOpt))
             );
 
-        checkDbCommand(
-            dbCommandIdCheckedUser
+        checkDbCommand(connection ->
+            dbCommandIdCheckedUser.apply(connection)
                 .peek(user ->
                     assertEquals(expectedUser, user)
                 )
         );
     }
 
-    private static final IO<Connection, Failure, Integer> createAndFill =
-        Repository.transaction(
-            createDb().flatMap(v ->
-                insertData()
+    private static final IO<Environment, Failure, Integer> createAndFill(
+        Connection connection
+    ) {
+        return Repository.transaction(
+            connection,
+            createDb(connection).flatMap(v ->
+                insertData(connection)
             )
         );
+    }
 
-    private static Either<Failure, Repository> createRepository() {
-        return Repository.create(
+    private static Either<Failure, Repository.Live> createRepository() {
+        return Repository.Live.create(
             "org.h2.jdbcx.JdbcDataSource",
             "SELECT 1",
             Tuple2.of("URL", "jdbc:h2:mem:")
         );
     }
 
-    private static IO<Connection, Failure, Integer> createDb() {
+    private static IO<Environment, Failure, Integer> createDb(Connection connection) {
         return Repository.batchUpdate(
+            connection,
             "CREATE TABLE user(" +
                 "id_user INT auto_increment, " +
                 "name VARCHAR(50) NOT NULL " +
@@ -191,8 +201,9 @@ public class ContactTest {
         );
     }
 
-    private static IO<Connection, Failure, Integer> insertData() {
+    private static IO<Environment, Failure, Integer> insertData(Connection connection) {
         return Repository.batchUpdate(
+            connection,
             "INSERT INTO user(id_user, name) VALUES(1, 'John Doe')",
             "INSERT INTO email(id_user, email, validated) " +
             "  VALUES(1, 'john.doe@doe.com', '0')",
@@ -209,28 +220,41 @@ public class ContactTest {
         );
     }
 
-    private static IO<Connection, Failure, Stream<Either<Failure, User>>> queryUsers() {
+    private static IO<Environment, Failure, Stream<Either<Failure, User>>>
+        queryUsers(Connection connection)
+    {
         return Repository.query(
+            connection,
             "SELECT id_user, name FROM user ORDER BY name",
             rs -> User.of(rs.getInt(1), rs.getString(2)),
             Repository::iterateToStream
         );
     }
 
-    private static IO<Connection, Failure, User> addOneEmail(final User user) {
-        return querySingleEmail(user)
+    private static IO<Environment, Failure, User> addOneEmail(
+        Connection connection,
+        final User user
+    ) {
+        return querySingleEmail(connection, user)
             .map(user::addEmail)
         ;
     }
 
-    private static IO<Connection, Failure, User> addEmails(final User user) {
-        return queryEmails(user)
+    private static IO<Environment, Failure, User> addEmails(
+        Connection connection,
+        final User user
+    ) {
+        return queryEmails(connection, user)
             .map(StreamUtil.reduce(user, User::addEmail))
         ;
     }
 
-    private static IO<Connection, Failure, Email> querySingleEmail(User user) {
+    private static IO<Environment, Failure, Email> querySingleEmail(
+        Connection connection,
+        User user
+    ) {
         return Repository.querySingle(
+            connection,
             "SELECT email, validated " +
                 "FROM email " +
                 "WHERE id_user=? " +
@@ -240,8 +264,11 @@ public class ContactTest {
         );
     }
 
-    private static IO<Connection, Failure, Stream<Email>> queryEmails(User user) {
+    private static IO<Environment, Failure, Stream<Email>> queryEmails(
+        Connection connection, User user
+    ) {
         return Repository.query(
+            connection,
             "SELECT email, validated " +
                 "FROM email " +
                 "WHERE id_user=? " +
@@ -252,8 +279,11 @@ public class ContactTest {
         );
     }
 
-    private static IO<Connection, Failure, Stream<Integer>> queryUserIds() {
+    private static IO<Environment, Failure, Stream<Integer>> queryUserIds(
+        Connection connection
+    ) {
         return Repository.query(
+            connection,
             "SELECT id_user FROM user ORDER BY name",
             rs -> rs.getInt(1),
             Repository::iterateToStream
@@ -264,11 +294,12 @@ public class ContactTest {
         return (id == 2);
     }
 
-    private static IO<Connection, Failure, Either<Failure, User>>
-        querySingleUser(Optional<Integer> idOpt)
+    private static IO<Environment, Failure, Either<Failure, User>>
+        querySingleUser(Connection connection, Optional<Integer> idOpt)
     {
         if (idOpt.isPresent()) {
             return Repository.querySingle(
+                connection,
                 "SELECT id_user, name FROM user where id_user = ?",
                 rs -> User.of(rs.getInt(1), rs.getString(2)),
                 idOpt.get()
@@ -278,13 +309,20 @@ public class ContactTest {
         }
     }
 
-    private static <T> void checkDbCommand(IO<Connection, Failure, T> testDbCommand) {
+    private static <T> void checkDbCommand(
+        Function<Connection, IO<Environment, Failure, T>> testDbCommand
+    ) {
         final Either<Failure, T> repositoryOrFailure = createRepository()
-            .flatMap(repository ->
-                repository.use(defaultRuntime,
-                    testDbCommand
-                )
-            );
+            .flatMap(repository -> {
+                final Environment environment =
+                    Environment.of(Repository.Service.class, repository);
+                return defaultRuntime.unsafeRun(
+                    IO.bracket(
+                        Repository.getConnection(),
+                        connection -> IO.effect(() -> connection.close()),
+                        connection -> testDbCommand.apply(connection)
+                ).provide(environment));
+            });
 
         assertTrue(
             repositoryOrFailure.toString(),

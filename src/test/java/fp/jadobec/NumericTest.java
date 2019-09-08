@@ -19,6 +19,7 @@ import org.junit.Test;
 
 import fp.io.DefaultPlatform;
 import fp.io.DefaultRuntime;
+import fp.io.Environment;
 import fp.io.IO;
 import fp.io.Runtime;
 import fp.util.Either;
@@ -43,14 +44,17 @@ public class NumericTest {
         return object -> logger.log(level, message, object);
     }
 
-    private static final IO<Connection, Failure, Integer> createAndFill =
-        createNumericDb().flatMap(v ->
-            fillNumeric("sin(x)", x -> Math.sin(x)).flatMap(s ->
-            fillNumeric("cos(x)", x -> Math.cos(x)).flatMap(c ->
-            fillNumeric("x", x -> x))));
+    private static final IO<Environment, Failure, Integer> createAndFill(
+        Connection connection
+    ) {
+        return createNumericDb(connection).flatMap(v ->
+            fillNumeric(connection, "sin(x)", x -> Math.sin(x)).flatMap(s ->
+            fillNumeric(connection, "cos(x)", x -> Math.cos(x)).flatMap(c ->
+            fillNumeric(connection, "x", x -> x))));
+    }
 
-    private static Either<Failure, Repository> createRepository() {
-        return Repository.create(
+    private static Either<Failure, Repository.Live> createRepository() {
+        return Repository.Live.create(
             "org.h2.jdbcx.JdbcDataSource",
             "SELECT 1",
             Tuple2.of("URL", "jdbc:h2:mem:")
@@ -59,15 +63,15 @@ public class NumericTest {
 
     @Test
     public void testNumeric() {
-        checkDbCommand(
-            queryNumericData()
+        checkDbCommand(connection ->
+            queryNumericData(connection)
         );
     }
 
     @Test
     public void testReciprocalSum() {
-        checkDbCommand(
-            queryNumericData()
+        checkDbCommand(connection ->
+            queryNumericData(connection)
                 .map(items -> items
                     .map(NumericTest::calcReciprocal)
                     .peek(log(Level.FINEST, "Calculated reciprocal values: {0}"))
@@ -82,8 +86,8 @@ public class NumericTest {
 
     @Test
     public void testReciprocalXSum() {
-        checkDbCommand(
-            queryNumericData()
+        checkDbCommand(connection ->
+            queryNumericData(connection)
                 .map(items -> items
                     .filter(record ->
                         record.fieldOrElse("title", "").equals("sin(x)")
@@ -110,8 +114,11 @@ public class NumericTest {
         );
     }
 
-    private static IO<Connection, Failure, Stream<Record>> queryNumericData() {
+    private static IO<Environment, Failure, Stream<Record>> queryNumericData(
+        Connection connection
+    ) {
         return Repository.query(
+            connection,
             "SELECT l.title, d.x, d.y " +
                 "FROM data d JOIN label l ON d.id_label=l.id_label " +
                 "ORDER BY x",
@@ -131,19 +138,21 @@ public class NumericTest {
         return record.fieldOrElse("y", wrongValue).get();
     }
 
-    private static IO<Connection, Failure, Integer> fillNumeric(
+    private static IO<Environment, Failure, Integer> fillNumeric(
+        final Connection connection,
         final String label,
         final Function<Double, Double> fn
     ) {
         final BigDecimal three = new BigDecimal("3.0");
         final BigDecimal step = new BigDecimal("0.1");
-        return insertLabel(label).flatMap(idLabel ->
+        return insertLabel(connection, label).flatMap(idLabel ->
             Stream
                 .iterate(three.negate(), x -> x.add(step))
                 .limit(1000)
                 .filter(x -> x.compareTo(three) <= 0)
                 .map(x ->
                     insertData(
+                        connection,
                         idLabel,
                         x.doubleValue(),
                         fn.apply(x.doubleValue())
@@ -157,8 +166,11 @@ public class NumericTest {
             );
     }
 
-    private static IO<Connection, Failure, Integer> createNumericDb() {
+    private static IO<Environment, Failure, Integer> createNumericDb(
+        Connection connection
+    ) {
         return Repository.batchUpdate(
+            connection,
             "CREATE TABLE label(" +
                 "id_label INT auto_increment, " +
                 "title VARCHAR(30) NOT NULL " +
@@ -172,19 +184,25 @@ public class NumericTest {
         );
     }
 
-    private static IO<Connection, Failure, Integer> insertLabel(final String label) {
+    private static IO<Environment, Failure, Integer> insertLabel(
+        Connection connection,
+        final String label
+    ) {
         return Repository.updatePrepared(
+            connection,
             "INSERT INTO label(title) values(?)",
             ps -> ps.setString(1, label)
         );
     }
 
-    private static IO<Connection, Failure, Integer> insertData(
+    private static IO<Environment, Failure, Integer> insertData(
+        Connection connection,
         final int idLabel,
         final double x,
         final double y
     ) {
         return Repository.updatePrepared(
+            connection,
             "INSERT INTO data(id_label, x, y) values(?, ?, ?)",
             ps -> {
                 ps.setInt(1, idLabel);
@@ -194,15 +212,22 @@ public class NumericTest {
         );
     }
 
-    private static <T> void checkDbCommand(IO<Connection, Failure, T> testDbCommand) {
+    private static <T> void checkDbCommand(
+        Function<Connection, IO<Environment, Failure, T>> testDbCommand
+    ) {
         final Either<Failure, T> repositoryOrFailure = createRepository()
-            .flatMap(repository ->
-                repository.use(
-                    defaultRuntime,
-                    createAndFill
-                        .flatMap(i -> testDbCommand)
-                )
-            );
+            .flatMap(repository -> {
+                final Environment environment =
+                    Environment.of(Repository.Service.class, repository);
+                return defaultRuntime.unsafeRun(
+                    IO.bracket(
+                        Repository.getConnection(),
+                        connection -> IO.effect(() -> connection.close()),
+                        connection ->
+                            createAndFill(connection)
+                                .flatMap(i -> testDbCommand.apply(connection))
+                ).provide(environment));
+            });
 
         assertTrue(
             repositoryOrFailure.toString(),
