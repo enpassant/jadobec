@@ -13,19 +13,36 @@ public class Log {
 
     public static interface Service {
         IO<Object, Object, Void> debug(String message, Object... params);
+        IO<Object, Object, Void> info(String message, Object... params);
     }
 
     public static class Live implements Service {
-        public IO<Object, Object, Void> debug(String message, Object... params) {
+        private IO<Object, Object, Void> log(
+            String level,
+            String message,
+            Object... params
+        ) {
             return IO.effectTotal(
                 () -> System.out.println(
-                    "[Debug] " + MessageFormat.format(message, params)
+                    "[" + level + "] " + MessageFormat.format(message, params)
                 )
             ).blocking();
+        }
+        @Override
+        public IO<Object, Object, Void> debug(String message, Object... params) {
+            return log("Debug", message, params);
+        }
+        @Override
+        public IO<Object, Object, Void> info(String message, Object... params) {
+            return log("Info", message, params);
         }
     }
 
     public static IO<Environment, Object, Void> debug(String message, Object... params) {
         return IO.accessM(env -> env.get(Service.class).debug(message, params));
+    }
+
+    public static IO<Environment, Object, Void> info(String message, Object... params) {
+        return IO.accessM(env -> env.get(Service.class).info(message, params));
     }
 }

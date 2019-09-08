@@ -29,9 +29,11 @@ public class ModuleTest {
             this.inputs = inputs;
         }
 
+        @Override
         public IO<Object, Object, Void> println(String line) {
             return IO.effectTotal(() -> { sb.append(line).append("\n"); });
         }
+        @Override
         public IO<Object, Failure, String> readLine() {
             return IO.effect(() -> inputs[inputIndex++]);
         }
@@ -43,13 +45,26 @@ public class ModuleTest {
     private class TestLog implements Log.Service {
         private final StringBuilder sb = new StringBuilder();
 
-        public IO<Object, Object, Void> debug(String message, Object... params) {
+        private IO<Object, Object, Void> log(
+            String level,
+            String message,
+            Object... params
+        ) {
             return IO.effectTotal(() -> {
-                sb.append("[Debug] ")
+                sb.append("[" + level + "] ")
                     .append(MessageFormat.format(message, params))
                     .append("\n");
             });
         }
+        @Override
+        public IO<Object, Object, Void> debug(String message, Object... params) {
+            return log("Debug", message, params);
+        }
+        @Override
+        public IO<Object, Object, Void> info(String message, Object... params) {
+            return log("Info", message, params);
+        }
+
         public String getOutputs() {
             return sb.toString();
         }
@@ -58,12 +73,14 @@ public class ModuleTest {
     @Test
     public void testModules() {
         IO<Environment, Object, String> io =
-            Console.println("Good morning, what is your name?").flatMap(v ->
+            Log.info("Start program").flatMap(l1 ->
+            Console.println("Good morning, what is your name?").flatMap(c1 ->
             Console.readLine().flatMap(name ->
-            Log.debug("User name: {0}", name).flatMap(v2 ->
-            Console.println("Good to meet you, " + name + "!").map(v3 ->
+            Log.debug("User''s name: {0}", name).flatMap(l2 ->
+            Console.println("Good to meet you, " + name + "!").flatMap(c2 ->
+            Log.info("Program has finished").map(l3 ->
             name
-        ))));
+        ))))));
 
         final TestConsole testConsole = new TestConsole("John");
         final TestLog testLog = new TestLog();
@@ -83,7 +100,9 @@ public class ModuleTest {
             testConsole.getOutputs()
         );
         Assert.assertEquals(
-            "[Debug] User name: John\n",
+            "[Info] Start program\n" +
+            "[Debug] User's name: John\n" +
+            "[Info] Program has finished\n",
             testLog.getOutputs()
         );
     }
