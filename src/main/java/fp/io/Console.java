@@ -14,11 +14,13 @@ public class Console {
         IO<Object, Failure, String> readLine();
     }
 
-    public static interface Live extends Service {
-        default IO<Object, Object, Void> println(String line) {
-            return IO.effectTotal(() -> System.out.println(line)).blocking();
+    public static class Live implements Service {
+        public IO<Object, Object, Void> println(String line) {
+            return IO.effectTotal(
+                () -> System.out.println(line)
+            ).blocking();
         }
-        default IO<Object, Failure, String> readLine() {
+        public IO<Object, Failure, String> readLine() {
             return IO.effect(() -> {
                 BufferedReader reader = new BufferedReader(
                     new InputStreamReader(System.in)
@@ -28,17 +30,10 @@ public class Console {
         }
     }
 
-    private static class LiveImpl implements Live {
+    public static IO<Environment, Object, Void> println(String line) {
+        return IO.accessM(env -> env.get(Service.class).println(line));
     }
-
-    public static Service live() {
-        return new LiveImpl();
-    }
-
-    public static IO<Service, Object, Void> println(String line) {
-        return IO.accessM((Service console) -> console.println(line));
-    }
-    public static IO<Service, Failure, String> readLine() {
-        return IO.accessM((Service console) -> console.readLine());
+    public static IO<Environment, Failure, String> readLine() {
+        return IO.accessM(env -> env.get(Service.class).readLine());
     }
 }
