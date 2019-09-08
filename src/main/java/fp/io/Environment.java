@@ -1,5 +1,6 @@
 package fp.io;
 
+import java.lang.IllegalArgumentException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -16,11 +17,15 @@ public class Environment {
     }
 
     public <T> Environment and(Class<T> key, T value) {
-        this.map.put(key, value);
+        map.put(key, value);
         return this;
     }
 
     public <T> T get(Class<T> key) {
-        return (T) this.map.get(key);
+        final T value = (T) map.get(key);
+        if (value == null) {
+            throw new IllegalArgumentException("Missing environment: " + key);
+        }
+        return value;
     }
 }
