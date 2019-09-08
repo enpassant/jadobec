@@ -44,7 +44,7 @@ public class ModuleTest {
         IO<Console.Service, Object, String> io =
             Console.println("Good morning, what is your name?").flatMap(v ->
             Console.readLine().flatMap(name ->
-            Console.println("Good to meet you, " + name + "!").fork().map(v2 ->
+            Console.println("Good to meet you, " + name + "!").map(v2 ->
             name
         )));
 
