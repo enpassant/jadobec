@@ -1,5 +1,6 @@
 package fp.io;
 
+import java.text.MessageFormat;
 import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Test;
@@ -39,26 +40,51 @@ public class ModuleTest {
         }
     }
 
+    private class TestLog implements Log.Service {
+        private final StringBuilder sb = new StringBuilder();
+
+        public IO<Object, Object, Void> debug(String message, Object... params) {
+            return IO.effectTotal(() -> {
+                sb.append("[Debug] ")
+                    .append(MessageFormat.format(message, params))
+                    .append("\n");
+            });
+        }
+        public String getOutputs() {
+            return sb.toString();
+        }
+    }
+
     @Test
-    public void testConsole() {
+    public void testModules() {
         IO<Environment, Object, String> io =
             Console.println("Good morning, what is your name?").flatMap(v ->
             Console.readLine().flatMap(name ->
-            Console.println("Good to meet you, " + name + "!").map(v2 ->
+            Log.debug("User name: {0}", name).flatMap(v2 ->
+            Console.println("Good to meet you, " + name + "!").map(v3 ->
             name
-        )));
+        ))));
 
         final TestConsole testConsole = new TestConsole("John");
+        final TestLog testLog = new TestLog();
+
         final Environment environment =
-            //Environment.of(Console.Service.class, new Console.Live());
-            Environment.of(Console.Service.class, testConsole);
+            //Environment.of(Console.Service.class, new Console.Live())
+                //.and(Log.Service.class, new Log.Live());
+            Environment.of(Console.Service.class, testConsole)
+                .and(Log.Service.class, testLog);
 
         final Either<Object, String> name =
             defaultVoidRuntime.unsafeRun(io.provide(environment));
+
         Assert.assertEquals(Right.of("John"), name);
         Assert.assertEquals(
             "Good morning, what is your name?\n" + "Good to meet you, John!\n",
             testConsole.getOutputs()
+        );
+        Assert.assertEquals(
+            "[Debug] User name: John\n",
+            testLog.getOutputs()
         );
     }
 }
