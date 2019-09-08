@@ -61,161 +61,165 @@ public class FiberContext<F, R> implements Fiber<F, R> {
     public <F2, R2> void evaluateNow(IO<Object, F, R> io) {
         curIo = io;
 
-        while (curIo != null) {
-            switch (curIo.tag) {
-                case Absolve:
-                    final IO.Absolve<Object, F, R> absolveIO =
-                        (IO.Absolve<Object, F, R>) curIo;
-                    stack.push((Either<F, R> v) -> v.isLeft() ?
-                        IO.fail(v.left()) :
-                        IO.succeed(v.right())
-                    );
-                    curIo = absolveIO.io;
-                    break;
-                case Access:
-                    curIo = ((IO.Access<Object, F, R>) curIo)
-                        .fn.apply(environments.peek());
-                    break;
-                case Blocking: {
-                    final IO.Blocking<Object, F, R> blockIo =
-                        (IO.Blocking<Object, F, R>) curIo;
-                    value = platform.getBlocking().submit(
-                        () -> new FiberContext<F, R>(
+        try {
+            while (curIo != null) {
+                switch (curIo.tag) {
+                    case Absolve:
+                        final IO.Absolve<Object, F, R> absolveIO =
+                            (IO.Absolve<Object, F, R>) curIo;
+                        stack.push((Either<F, R> v) -> v.isLeft() ?
+                            IO.fail(v.left()) :
+                            IO.succeed(v.right())
+                        );
+                        curIo = absolveIO.io;
+                        break;
+                    case Access:
+                        curIo = ((IO.Access<Object, F, R>) curIo)
+                            .fn.apply(environments.peek());
+                        break;
+                    case Blocking: {
+                        final IO.Blocking<Object, F, R> blockIo =
+                            (IO.Blocking<Object, F, R>) curIo;
+                        value = platform.getBlocking().submit(
+                            () -> new FiberContext<F, R>(
+                                environments.peek(),
+                                platform
+                            ).evaluate(blockIo.io)
+                        );
+                        curIo = nextInstr(value);
+                        break;
+                    }
+                    case Pure:
+                        value = ((IO.Succeed<Object, F, R>) curIo).r;
+                        curIo = nextInstr(value);
+                        break;
+                    case Fail:
+                        unwindStack(stack);
+                        if (stack.isEmpty()) {
+                            done(Left.of(((IO.Fail<Object, F, R>) curIo).f));
+                            return;
+                        }
+                        value = ((IO.Fail<Object, F, R>) curIo).f;
+                        curIo = nextInstr(value);
+                        break;
+                    case Fold: {
+                        final IO.Fold<Object, F, F2, R2, R> foldIO =
+                            (IO.Fold<Object, F, F2, R2, R>) curIo;
+                        stack.push((Function<?, IO<Object, ?, ?>>) curIo);
+                        curIo = foldIO.io;
+                        break;
+                    }
+                    case EffectTotal:
+                        value = ((IO.EffectTotal<Object, F, R>) curIo)
+                            .supplier.get();
+                        curIo = nextInstr(value);
+                        break;
+                    case EffectPartial: {
+                        Either<Failure, R> either = ExceptionFailure.tryCatch(() ->
+                            ((IO.EffectPartial<Object, Failure, R>) curIo).supplier.get()
+                        );
+                        if (either.isRight()) {
+                            value = either.right();
+                            curIo = nextInstr(value);
+                        } else {
+                            curIo = IO.fail(either.left());
+                        }
+                        break;
+                    }
+                    case Bracket: {
+                        final IO.Bracket<Object, F, R2, R, Object> bracketIO =
+                            (IO.Bracket<Object, F, R2, R, Object>) curIo;
+                        Either<F, R2> resource = new FiberContext<F, R2>(
                             environments.peek(),
                             platform
-                        ).evaluate(blockIo.io)
-                    );
-                    curIo = nextInstr(value);
-                    break;
-                }
-                case Pure:
-                    value = ((IO.Succeed<Object, F, R>) curIo).r;
-                    curIo = nextInstr(value);
-                    break;
-                case Fail:
-                    unwindStack(stack);
-                    if (stack.isEmpty()) {
-                        done(Left.of(((IO.Fail<Object, F, R>) curIo).f));
+                        ).evaluate(bracketIO.acquire);
+                        Either<F, R> valueBracket = (Either<F, R>) resource.flatMap(a -> {
+                            final Either<F, R> result = new FiberContext<F, R>(
+                                environments.peek(),
+                                platform)
+                            .evaluate(bracketIO.use.apply(a));
+                            new FiberContext<F, Object>(
+                                environments.peek(),
+                                platform
+                            ).evaluate(bracketIO.release.apply(a));
+                            return result;
+                        });
+                        if (valueBracket.isLeft()) {
+                            curIo = IO.fail(valueBracket.left());
+                        } else {
+                            value = valueBracket.right();
+                            curIo = nextInstr(value);
+                        }
+                        break;
+                    }
+                    case FlatMap:
+                        final IO.FlatMap<Object, F2, F, R2, R> flatmapIO =
+                            (IO.FlatMap<Object, F2, F, R2, R>) curIo;
+                        stack.push((R2 v) -> flatmapIO.fn.apply(v));
+                        curIo = flatmapIO.io;
+                        break;
+                    case Fork: {
+                        final IO.Fork<Object, F, R> forkIo = (IO.Fork<Object, F, R>) curIo;
+                        final IO<Object, F, R> ioValue;
+                        final ExecutorService executor;
+                        if (forkIo.io.tag == IO.Tag.Blocking) {
+                            ioValue = ((IO.Blocking<Object, F, R>) forkIo.io).io;
+                            executor = platform.getBlocking();
+                        } else {
+                            ioValue = forkIo.io;
+                            executor = platform.getExecutor();
+                        }
+                        final FiberContext<F, R> fiberContext =
+                            new FiberContext<F, R>(environments.peek(), platform);
+                        executor.submit(() -> {
+                            return fiberContext.runAsync(ioValue);
+                        });
+                        value = fiberContext;
+                        curIo = nextInstr(value);
+                        break;
+                    }
+                    case Lock:
+                        final IO.Lock<Object, F, R> lockIo = (IO.Lock<Object, F, R>) curIo;
+                        value = lockIo.executor.submit(() -> new FiberContext<F, R>(
+                            environments.peek(),
+                            platform
+                        ).evaluate(lockIo.io));
+                        curIo = nextInstr(value);
+                        break;
+                    case Peek:
+                        final IO.Peek<Object, F, R> peekIO = (IO.Peek<Object, F, R>) curIo;
+                        stack.push((R r) -> {
+                            peekIO.consumer.accept(r);
+                            return IO.succeed(r);
+                        });
+                        curIo = peekIO.io;
+                        value = valueLast;
+                        break;
+                    case Provide:
+                        final IO.Provide<Object, Object, F, Object> provideIO =
+                            (IO.Provide<Object, Object, F, Object>) curIo;
+                        environments.push(provideIO.context);
+                        stack.push((R r) -> IO.effectTotal(() -> {
+                            environments.pop();
+                            return r;
+                        }));
+                        curIo = provideIO.next;
+                        value = valueLast;
+                        break;
+                    default:
+                        done((Either<F, R>) Left.of(GeneralFailure.of("Interrupt")));
                         return;
-                    }
-                    value = ((IO.Fail<Object, F, R>) curIo).f;
-                    curIo = nextInstr(value);
-                    break;
-                case Fold: {
-                    final IO.Fold<Object, F, F2, R2, R> foldIO =
-                        (IO.Fold<Object, F, F2, R2, R>) curIo;
-                    stack.push((Function<?, IO<Object, ?, ?>>) curIo);
-                    curIo = foldIO.io;
-                    break;
                 }
-                case EffectTotal:
-                    value = ((IO.EffectTotal<Object, F, R>) curIo)
-                        .supplier.get();
-                    curIo = nextInstr(value);
-                    break;
-                case EffectPartial: {
-                    Either<Failure, R> either = ExceptionFailure.tryCatch(() ->
-                        ((IO.EffectPartial<Object, Failure, R>) curIo).supplier.get()
-                    );
-                    if (either.isRight()) {
-                        value = either.right();
-                        curIo = nextInstr(value);
-                    } else {
-                        curIo = IO.fail(either.left());
-                    }
-                    break;
-                }
-                case Bracket: {
-                    final IO.Bracket<Object, F, R2, R, Object> bracketIO =
-                        (IO.Bracket<Object, F, R2, R, Object>) curIo;
-                    Either<F, R2> resource = new FiberContext<F, R2>(
-                        environments.peek(),
-                        platform
-                    ).evaluate(bracketIO.acquire);
-                    Either<F, R> valueBracket = (Either<F, R>) resource.flatMap(a -> {
-                        final Either<F, R> result = new FiberContext<F, R>(
-                            environments.peek(),
-                            platform)
-                        .evaluate(bracketIO.use.apply(a));
-                        new FiberContext<F, Object>(
-                            environments.peek(),
-                            platform
-                        ).evaluate(bracketIO.release.apply(a));
-                        return result;
-                    });
-                    if (valueBracket.isLeft()) {
-                        curIo = IO.fail(valueBracket.left());
-                    } else {
-                        value = valueBracket.right();
-                        curIo = nextInstr(value);
-                    }
-                    break;
-                }
-                case FlatMap:
-                    final IO.FlatMap<Object, F2, F, R2, R> flatmapIO =
-                        (IO.FlatMap<Object, F2, F, R2, R>) curIo;
-                    stack.push((R2 v) -> flatmapIO.fn.apply(v));
-                    curIo = flatmapIO.io;
-                    break;
-                case Fork: {
-                    final IO.Fork<Object, F, R> forkIo = (IO.Fork<Object, F, R>) curIo;
-                    final IO<Object, F, R> ioValue;
-                    final ExecutorService executor;
-                    if (forkIo.io.tag == IO.Tag.Blocking) {
-                        ioValue = ((IO.Blocking<Object, F, R>) forkIo.io).io;
-                        executor = platform.getBlocking();
-                    } else {
-                        ioValue = forkIo.io;
-                        executor = platform.getExecutor();
-                    }
-                    final FiberContext<F, R> fiberContext =
-                        new FiberContext<F, R>(environments.peek(), platform);
-                    executor.submit(() -> {
-                        return fiberContext.runAsync(ioValue);
-                    });
-                    value = fiberContext;
-                    curIo = nextInstr(value);
-                    break;
-                }
-                case Lock:
-                    final IO.Lock<Object, F, R> lockIo = (IO.Lock<Object, F, R>) curIo;
-                    value = lockIo.executor.submit(() -> new FiberContext<F, R>(
-                        environments.peek(),
-                        platform
-                    ).evaluate(lockIo.io));
-                    curIo = nextInstr(value);
-                    break;
-                case Peek:
-                    final IO.Peek<Object, F, R> peekIO = (IO.Peek<Object, F, R>) curIo;
-                    stack.push((R r) -> {
-                        peekIO.consumer.accept(r);
-                        return IO.succeed(r);
-                    });
-                    curIo = peekIO.io;
-                    value = valueLast;
-                    break;
-                case Provide:
-                    final IO.Provide<Object, Object, F, Object> provideIO =
-                        (IO.Provide<Object, Object, F, Object>) curIo;
-                    environments.push(provideIO.context);
-                    stack.push((R r) -> IO.effectTotal(() -> {
-                        environments.pop();
-                        return r;
-                    }));
-                    curIo = provideIO.next;
-                    value = valueLast;
-                    break;
-                default:
-                    done((Either<F, R>) Left.of(GeneralFailure.of("Interrupt")));
-                    return;
             }
-        }
 
-        if (value instanceof Future) {
-            Future<Either<?, ?>> futureValue = (Future<Either<?, ?>>) value;
-            value = Failure.tryCatchOptional(() -> futureValue.get()).get().get();
+            if (value instanceof Future) {
+                Future<Either<?, ?>> futureValue = (Future<Either<?, ?>>) value;
+                value = Failure.tryCatchOptional(() -> futureValue.get()).get().get();
+            }
+            done((Either<F, R>) Right.of(value));
+        } catch(Exception e) {
+            done((Either<F, R>) Left.of(new UnsupportedOperationException(e)));
         }
-        done((Either<F, R>) Right.of(value));
     }
 
     @SuppressWarnings("unchecked")
