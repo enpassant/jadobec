@@ -19,6 +19,7 @@ import org.junit.Test;
 
 import fp.io.DefaultPlatform;
 import fp.io.DefaultRuntime;
+import fp.io.Environment;
 import fp.io.IO;
 import fp.io.Runtime;
 import fp.util.Either;
@@ -49,8 +50,8 @@ public class NumericTest {
             fillNumeric("cos(x)", x -> Math.cos(x)).flatMap(c ->
             fillNumeric("x", x -> x))));
 
-    private static Either<Failure, Repository> createRepository() {
-        return Repository.create(
+    private static Either<Failure, Repository.Live> createRepository() {
+        return Repository.Live.create(
             "org.h2.jdbcx.JdbcDataSource",
             "SELECT 1",
             Tuple2.of("URL", "jdbc:h2:mem:")
@@ -196,13 +197,16 @@ public class NumericTest {
 
     private static <T> void checkDbCommand(IO<Connection, Failure, T> testDbCommand) {
         final Either<Failure, T> repositoryOrFailure = createRepository()
-            .flatMap(repository ->
-                repository.use(
-                    defaultRuntime,
-                    createAndFill
-                        .flatMap(i -> testDbCommand)
-                )
-            );
+            .flatMap(repository -> {
+                final Environment environment =
+					Environment.of(Repository.Service.class, repository);
+                return defaultRuntime.unsafeRun(
+                	Repository.use(
+                		createAndFill.flatMap(i ->
+                		testDbCommand
+                    )).provide(environment)
+                );
+            });
 
         assertTrue(
             repositoryOrFailure.toString(),

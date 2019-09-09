@@ -16,8 +16,8 @@ import java.util.stream.Stream.Builder;
 
 import javax.sql.DataSource;
 
+import fp.io.Environment;
 import fp.io.IO;
-import fp.io.Runtime;
 import fp.util.Either;
 import fp.util.ExceptionFailure;
 import fp.util.Failure;
@@ -29,80 +29,91 @@ import fp.util.ThrowingSupplier;
 import fp.util.Tuple2;
 
 public class Repository {
-    private final ThrowingSupplier<Connection, SQLException> connectionFactory;
+	public static interface Service {
+		public <T> IO<Object, Failure, T> use(
+			IO<Connection, Failure, T> command
+		);
+	}
 
-    private Repository(final DataSource dataSource) {
-        this.connectionFactory = () -> dataSource.getConnection();
-    }
+    public static class Live implements Service {
+        private final ThrowingSupplier<Connection, SQLException> connectionFactory;
 
-    public <T> Either<Failure, T> use(
-        Runtime<Void> runtime,
-        IO<Connection, Failure, T> command
-    ) {
-        try {
-            final Connection connection = connectionFactory.get();
-            final Either<Failure, T> result = runtime.unsafeRun(command.provide(connection));
-            connection.close();
-            return result;
-        } catch (SQLException e) {
-            return Left.of(ExceptionFailure.of(e));
+        private Live(final DataSource dataSource) {
+            this.connectionFactory = () -> dataSource.getConnection();
         }
-    }
 
-    public static Either<Failure, Repository> create(
-        DataSource dataSource,
-        String testSql
-    ) {
-        return ExceptionFailure.tryCatchFinal(
-            () -> dataSource.getConnection().createStatement(),
-            stmt -> {
+        @Override
+		public <T> IO<Object, Failure, T> use(
+			IO<Connection, Failure, T> command
+		) {
+			return IO.bracket(
+                IO.effect(() -> connectionFactory.get()),
+                connection -> IO.effect(() -> connection.close()),
+                connection -> command.provide(connection)
+            );
+		}
+		
+        public static Either<Failure, Live> create(
+            DataSource dataSource,
+            String testSql
+        ) {
+            return ExceptionFailure.tryCatchFinal(
+                () -> dataSource.getConnection().createStatement(),
+                stmt -> {
+                    ResultSet rs = stmt.executeQuery(testSql);
+                    rs.close();
+                    return new Live(dataSource);
+                },
+                stmt -> stmt.close()
+            );
+        }
+
+        @SafeVarargs
+        public static Either<Failure, Live> create(
+            String driver,
+            String testSql,
+            Tuple2<String, String>... properties
+        ) {
+            Connection conn = null;
+            Statement stmt = null;
+
+            try {
+                final Class<?> type = Class.forName(driver);
+                final Constructor<?> constructor = type.getDeclaredConstructor();
+                final DataSource dataSource = (DataSource) constructor.newInstance();
+                for (final Tuple2<String, String> property : properties) {
+                    final Method method = type.getDeclaredMethod(
+                        "set" + property.getFirst(),
+                        String.class
+                    );
+                    method.invoke(dataSource, property.getSecond());
+                }
+
+                conn = dataSource.getConnection();
+                stmt = conn.createStatement();
+
                 ResultSet rs = stmt.executeQuery(testSql);
                 rs.close();
-                return new Repository(dataSource);
-            },
-            stmt -> stmt.close()
-        );
-    }
-
-    @SafeVarargs
-    public static Either<Failure, Repository> create(
-        String driver,
-        String testSql,
-        Tuple2<String, String>... properties
-    ) {
-        Connection conn = null;
-        Statement stmt = null;
-
-        try {
-            final Class<?> type = Class.forName(driver);
-            final Constructor<?> constructor = type.getDeclaredConstructor();
-            final DataSource dataSource = (DataSource) constructor.newInstance();
-            for (final Tuple2<String, String> property : properties) {
-                final Method method = type.getDeclaredMethod(
-                    "set" + property.getFirst(),
-                    String.class
+                return Right.of(new Live(dataSource));
+            } catch (Exception e) {
+                return Left.of(
+                    ExceptionFailure.of(e)
                 );
-                method.invoke(dataSource, property.getSecond());
-            }
-
-            conn = dataSource.getConnection();
-            stmt = conn.createStatement();
-
-            ResultSet rs = stmt.executeQuery(testSql);
-            rs.close();
-            return Right.of(new Repository(dataSource));
-        } catch (Exception e) {
-            return Left.of(
-                ExceptionFailure.of(e)
-            );
-        } finally {
-            try {
-                if (stmt != null) {
-                    stmt.close();
+            } finally {
+                try {
+                    if (stmt != null) {
+                        stmt.close();
+                    }
+                } catch (SQLException se) {
                 }
-            } catch (SQLException se) {
             }
         }
+    }
+
+    public static <T> IO<Environment, Failure, T> use(
+		IO<Connection, Failure, T> command
+    ) {
+        return IO.accessM(env -> env.get(Service.class).use(command));
     }
 
     public static <T> IO<Connection, Failure, T> querySingle(

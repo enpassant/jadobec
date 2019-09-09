@@ -12,6 +12,7 @@ import org.junit.Test;
 
 import fp.io.DefaultPlatform;
 import fp.io.DefaultRuntime;
+import fp.io.Environment;
 import fp.io.IO;
 import fp.io.Runtime;
 import fp.util.Either;
@@ -161,13 +162,15 @@ public class RepositoryTest {
 
     private static <T> void checkDbCommandIO(IO<Connection, Failure, T> testDbCommand) {
         final Either<Failure, T> repositoryOrFailure = createRepository()
-            .flatMap(repository ->
-                repository.use(
-                    defaultRuntime,
-                    RepositoryTest.fillIO()
-                        .flatMap(i -> testDbCommand)
-                )
-            );
+            .flatMap(repository -> {
+                final Environment environment =
+					Environment.of(Repository.Service.class, repository);
+                return defaultRuntime.unsafeRun(
+                	Repository.use(
+                		RepositoryTest.fillIO().flatMap(i -> testDbCommand)
+                	).provide(environment)
+                );
+            });
 
         assertTrue(
             repositoryOrFailure.toString(),
@@ -175,8 +178,8 @@ public class RepositoryTest {
         );
     }
 
-    private static Either<Failure, Repository> createRepository() {
-        return Repository.create(
+    private static Either<Failure, Repository.Live> createRepository() {
+        return Repository.Live.create(
             "org.h2.jdbcx.JdbcDataSource",
             "SELECT 1",
             Tuple2.of("URL", "jdbc:h2:mem:")
