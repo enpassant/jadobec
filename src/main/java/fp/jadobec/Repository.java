@@ -211,13 +211,18 @@ public class Repository {
 
                 stmt.executeUpdate();
 
-                ResultSet generatedKeysRS = stmt.getGeneratedKeys();
-
-                Right<Failure, Integer> result =
-                    Right.of(generatedKeysRS.next() ? generatedKeysRS.getInt(1) : 0);
-
-                generatedKeysRS.close();
-
+                Right<Failure, Integer> result;
+                
+                try {
+	                ResultSet generatedKeysRS = stmt.getGeneratedKeys();
+	
+	                result = Right.of(generatedKeysRS.next() ? generatedKeysRS.getInt(1) : 0);
+	
+	                generatedKeysRS.close();
+                } catch(Exception e) {
+                	result = Right.of(0);
+                }
+	                
                 return result;
             } catch (Exception e) {
                 return Left.of(
@@ -338,6 +343,8 @@ public class Repository {
     private static class ResultSetIterator<T>
         implements Iterator<T>, AutoCloseable
     {
+    	private boolean stepNext = true;
+    	private boolean lastHasNext = false;
         private final ResultSet resultSet;
         private final Extractor<T> extractor;
 
@@ -349,7 +356,13 @@ public class Repository {
         @Override
         public boolean hasNext() {
             try {
-                return resultSet.next();
+                if (stepNext) {
+                	stepNext = false;
+                	lastHasNext = resultSet.next();
+                	return lastHasNext;
+                } else {
+                	return lastHasNext;
+                }
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
@@ -358,6 +371,7 @@ public class Repository {
         @Override
         public T next() {
             try {
+            	stepNext = true;
                 return extractor.extract(resultSet);
             } catch (SQLException e) {
                 throw new RuntimeException(e);
