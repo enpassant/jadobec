@@ -46,9 +46,10 @@ public class NumericTest {
 
     private static final IO<Connection, Failure, Integer> createAndFill =
         createNumericDb().flatMap(v ->
-            fillNumeric("sin(x)", x -> Math.sin(x)).flatMap(s ->
-            fillNumeric("cos(x)", x -> Math.cos(x)).flatMap(c ->
-            fillNumeric("x", x -> x))));
+        fillNumeric("sin(x)", x -> Math.sin(x)).flatMap(s ->
+        fillNumeric("cos(x)", x -> Math.cos(x)).flatMap(c ->
+        fillNumeric("x", x -> x)
+    )));
 
     private static Either<Failure, Repository.Live> createRepository() {
         return Repository.Live.create(
