@@ -260,6 +260,15 @@ public class IOTest {
     }
 
     @Test
+    public void testUnit() {
+        IO<Object, Object, Integer> io = IO.succeed(2).flatMap(i1 ->
+            IO.unit().map(i2 ->
+            i1 * i1
+        ));
+        Assert.assertEquals(Right.of(4), defaultRuntime.unsafeRun(io));
+    }
+
+    @Test
     public void testPeek() {
         final Resource res = new Resource();
         IO<Object, Object, Resource> io = IO.succeed(res)

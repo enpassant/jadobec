@@ -105,6 +105,10 @@ public abstract class IO<C, F, R> {
         return new Provide<C, C2, F, R>(context, this);
     }
 
+    public static <C, F, R> IO<C, F, R> unit() {
+        return new Succeed<C, F, R>(null);
+    }
+
     enum Tag {
         Absolve,
         Access,
