@@ -37,8 +37,8 @@ public class RepositoryTest {
     private final List<Person> expectedPersons = Arrays.asList(johnDoe, janeDoe);
 
     @Test
-    public void testQuerySinglePersonIO() {
-        checkDbCommandIO(
+    public void testQuerySinglePerson() {
+        checkDbCommand(
             Repository.querySingle(
                 "SELECT id, name, age FROM person WHERE id = 2",
                 rs -> Person.of(
@@ -53,8 +53,8 @@ public class RepositoryTest {
     }
 
     @Test
-    public void testQueryPersonIO() {
-        checkDbCommandIO(
+    public void testQueryPerson() {
+        checkDbCommand(
             Repository.query(
                 "SELECT id, name, age FROM person",
                 rs -> Person.of(
@@ -70,8 +70,8 @@ public class RepositoryTest {
     }
 
     @Test
-    public void testQueryPreparedPersonIO() {
-        checkDbCommandIO(
+    public void testQueryPreparedPerson() {
+        checkDbCommand(
             Repository.queryPrepared(
                 "SELECT id, name, age FROM person WHERE age < ?",
                 ps -> ps.setInt(1, 40),
@@ -88,10 +88,10 @@ public class RepositoryTest {
     }
 
     @Test
-    public void testUpdatePersonIO() {
-        checkDbCommandIO(
-            updatePersonNameIO(2, "Jake Doe").flatMap(v ->
-                selectSingleAsPersonIO(2)
+    public void testUpdatePerson() {
+        checkDbCommand(
+            updatePersonName(2, "Jake Doe").flatMap(v ->
+                selectSingleAsPerson(2)
             ).peek(person ->
                 assertEquals(jakeDoe, person)
             )
@@ -99,10 +99,10 @@ public class RepositoryTest {
     }
 
     @Test
-    public void testUpdatePreparedPersonIO() {
-        checkDbCommandIO(
-            updatePersonNameIO(2, "Jake Doe").flatMap(v ->
-                selectSingleAsPersonIO(2)
+    public void testUpdatePreparedPerson() {
+        checkDbCommand(
+            updatePersonName(2, "Jake Doe").flatMap(v ->
+                selectSingleAsPerson(2)
             ).peek(person ->
                 assertEquals(jakeDoe, person)
             )
@@ -111,12 +111,12 @@ public class RepositoryTest {
 
     @Test
     public void testGoodTransaction() {
-        checkDbCommandIO(
+        checkDbCommand(
             Repository.transaction(
-                updatePersonNameIO(2, "Jake Doe").flatMap(v ->
-                    updatePersonNameIO(2, "Jare Doe")
+                updatePersonName(2, "Jake Doe").flatMap(v ->
+                    updatePersonName(2, "Jare Doe")
             )).flatMap(v ->
-                selectSingleAsPersonIO(2)
+                selectSingleAsPerson(2)
             ).peek(person ->
                 assertEquals(jareDoe, person)
             )
@@ -125,20 +125,20 @@ public class RepositoryTest {
 
     @Test
     public void testBadTransaction() {
-        checkDbCommandIO(
+        checkDbCommand(
             Repository.transaction(
-                updatePersonNameIO(2, "Jake Doe").flatMap(v ->
-                    updatePersonNameIO(2, null)
+                updatePersonName(2, "Jake Doe").flatMap(v ->
+                    updatePersonName(2, null)
             )).foldM(failure -> IO.succeed(1), success -> IO.succeed(success))
             .flatMap(v ->
-                selectSingleAsPersonIO(2)
+                selectSingleAsPerson(2)
             ).peek(person ->
                 assertEquals(janeDoe, person)
             )
         );
     }
 
-    private static IO<Connection, Failure, Integer> updatePersonNameIO(int id, String name) {
+    private static IO<Connection, Failure, Integer> updatePersonName(int id, String name) {
         return Repository.updatePrepared(
             "UPDATE person SET name=? WHERE id = ?",
             ps -> {
@@ -148,7 +148,7 @@ public class RepositoryTest {
         );
     }
 
-    private static IO<Connection, Failure, Person> selectSingleAsPersonIO( Integer id) {
+    private static IO<Connection, Failure, Person> selectSingleAsPerson( Integer id) {
         return Repository.querySingle(
             "SELECT id, name, age FROM person p WHERE id = ?",
             rs -> Person.of(
@@ -160,14 +160,14 @@ public class RepositoryTest {
         );
     }
 
-    private static <T> void checkDbCommandIO(IO<Connection, Failure, T> testDbCommand) {
+    private static <T> void checkDbCommand(IO<Connection, Failure, T> testDbCommand) {
         final Either<Failure, T> repositoryOrFailure = createRepository()
             .flatMap(repository -> {
                 final Environment environment =
                     Environment.of(Repository.Service.class, repository);
                 return defaultRuntime.unsafeRun(
                     Repository.use(
-                        RepositoryTest.fillIO().flatMap(i -> testDbCommand)
+                        RepositoryTest.fill().flatMap(i -> testDbCommand)
                     ).provide(environment)
                 );
             });
@@ -186,7 +186,7 @@ public class RepositoryTest {
         );
     }
 
-    private static IO<Connection, Failure, Integer> fillIO() {
+    private static IO<Connection, Failure, Integer> fill() {
         return Repository.batchUpdate(
             "CREATE TABLE person(" +
                 "id INT auto_increment, " +
