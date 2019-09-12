@@ -219,6 +219,27 @@ public class IOTest {
         Assert.assertFalse(res2.acquired);
     }
 
+    @Test
+    public void testNestedBracketWithFailure() {
+        final Resource res1 = new Resource();
+        final Resource res2 = new Resource();
+        final IO<Object, String, Integer> io = IO.bracket(
+            IO.effectTotal(() -> res1),
+            resource -> IO.effectTotal(() -> resource.close()),
+            resource -> IO.effectTotal(() -> resource.use(10)).flatMap(n ->
+                IO.bracket(
+                    IO.effectTotal(() -> res2),
+                    resource2 -> IO.effectTotal(() -> resource2.close()),
+                    resource2 -> IO.effectTotal(() -> n + resource2.use(6)).flatMap(i ->
+                        IO.fail("Failure"))
+                )
+            )
+        );
+        Assert.assertEquals(Left.of("Failure"), defaultRuntime.unsafeRun(io));
+        Assert.assertFalse(res1.acquired);
+        Assert.assertFalse(res2.acquired);
+    }
+
     private IO<Object, Void, Boolean> odd(int n) {
         return IO.effectTotal(() -> n == 0).flatMap(isZero ->
             isZero ?
