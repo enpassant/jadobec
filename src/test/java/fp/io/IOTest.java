@@ -91,8 +91,9 @@ public class IOTest {
             IO.effectTotal(() -> 6).fork().flatMap(fiber1 ->
             IO.effectTotal(() -> 7).fork().flatMap(fiber2 ->
             fiber1.join().flatMap(value1 ->
-            fiber2.join().map(value2 -> value1 * value2)
-        )));
+            fiber2.join().map(value2 ->
+            value1 * value2
+        ))));
         Assert.assertEquals(Right.of(42), defaultRuntime.unsafeRun(io));
     }
 
@@ -139,8 +140,9 @@ public class IOTest {
 
     @Test
     public void testEffectPartial() {
-        IO<Object, Failure, Integer> io = IO.effect(() -> 8 / 2).flatMap(
-            (Integer n) -> IO.effectTotal(() -> n * n)
+        IO<Object, Failure, Integer> io =
+            IO.effect(() -> 8 / 2).flatMap((Integer n) ->
+            IO.effectTotal(() -> n * n)
         );
         Assert.assertEquals(
             Right.of(16),
@@ -150,8 +152,9 @@ public class IOTest {
 
     @Test
     public void testEffectPartialWithFailure() {
-        IO<Object, Failure, Integer> io = IO.effect(() -> 8 / 0).flatMap(
-            (Integer n) -> IO.effectTotal(() -> n * n)
+        IO<Object, Failure, Integer> io =
+            IO.effect(() -> 8 / 0).flatMap((Integer n) ->
+            IO.effectTotal(() -> n * n)
         );
         Assert.assertEquals(
             Left.of(ExceptionFailure.of(
@@ -187,7 +190,7 @@ public class IOTest {
     @Test
     public void testRelease() {
         final Resource res = new Resource();
-            final IO<Void, Void, Integer> io = IO.bracket(
+        final IO<Void, Void, Integer> io = IO.bracket(
             IO.succeed(res),
             resource -> IO.effectTotal(() -> resource.close()),
             resource -> IO.effectTotal(() -> resource.use(10))
@@ -217,13 +220,19 @@ public class IOTest {
     }
 
     private IO<Object, Void, Boolean> odd(int n) {
-        return IO.effectTotal(() -> n == 0)
-            .flatMap(b -> b ? IO.succeed(false) : even(n - 1) );
+        return IO.effectTotal(() -> n == 0).flatMap(isZero ->
+            isZero ?
+                IO.succeed(false) :
+                even(n - 1)
+        );
     }
 
     private IO<Object, Void, Boolean> even(int n) {
-        return IO.effectTotal(() -> n == 0)
-            .flatMap(b -> b ? IO.succeed(true) : odd(n - 1) );
+        return IO.effectTotal(() -> n == 0).flatMap(isZero ->
+            isZero ?
+                IO.succeed(true) :
+                odd(n - 1)
+        );
     }
 
     @Test
