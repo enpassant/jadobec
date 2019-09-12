@@ -7,6 +7,8 @@ import java.util.function.Supplier;
 
 import fp.util.Either;
 import fp.util.Failure;
+import fp.util.Left;
+import fp.util.Right;
 import fp.util.Statement;
 import fp.util.ThrowingStatement;
 import fp.util.ThrowingSupplier;
@@ -32,6 +34,13 @@ public abstract class IO<C, F, R> {
 
     public static <C, F, R> IO<C, F, R> succeed(R r) {
         return new Succeed<C, F, R>(r);
+    }
+
+    public <F2> IO<C, F2, Either<F, R>> either() {
+        return foldM(
+            failure -> IO.succeed(Left.of(failure)),
+            success -> IO.succeed(Right.of(success))
+        );
     }
 
     public static <C, F, R> IO<C, F, R> fail(F f) {

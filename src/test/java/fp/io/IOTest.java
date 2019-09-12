@@ -58,6 +58,24 @@ public class IOTest {
     }
 
     @Test
+    public void testEitherSuccess() {
+        IO<Object, Void, Either<Object, Integer>> io = IO.succeed(8).either();
+        Assert.assertEquals(
+            Right.of(Right.of(8)),
+            defaultRuntime.unsafeRun(io)
+        );
+    }
+
+    @Test
+    public void testEitherFail() {
+        IO<Object, Void, Either<String, Object>> io = IO.fail("Syntax error").either();
+        Assert.assertEquals(
+            Right.of(Left.of("Syntax error")),
+            defaultRuntime.unsafeRun(io)
+        );
+    }
+
+    @Test
     public void testFail() {
         IO<Void, String, ?> io = IO.fail("Syntax error");
         Assert.assertEquals(Left.of("Syntax error"), defaultVoidRuntime.unsafeRun(io));
