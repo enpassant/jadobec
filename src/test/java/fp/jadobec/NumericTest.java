@@ -199,11 +199,11 @@ public class NumericTest {
         final Either<Failure, T> repositoryOrFailure = createRepository()
             .flatMap(repository -> {
                 final Environment environment =
-					Environment.of(Repository.Service.class, repository);
+                    Environment.of(Repository.Service.class, repository);
                 return defaultRuntime.unsafeRun(
-                	Repository.use(
-                		createAndFill.flatMap(i ->
-                		testDbCommand
+                    Repository.use(
+                        createAndFill.flatMap(i ->
+                        testDbCommand
                     )).provide(environment)
                 );
             });

@@ -1,11 +1,6 @@
 package fp.io;
 
-import java.io.BufferedReader;
-import java.io.InputStreamReader;
-
 import java.text.MessageFormat;
-
-import fp.util.Failure;
 
 public class Log {
     private Log() {

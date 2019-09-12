@@ -151,11 +151,11 @@ public class RepositoryTest {
     private static IO<Connection, Failure, Person> selectSingleAsPersonIO( Integer id) {
         return Repository.querySingle(
             "SELECT id, name, age FROM person p WHERE id = ?",
-			rs -> Person.of(
-				rs.getInt("id"),
-				rs.getString("name"),
-				rs.getInt("age")
-			),
+            rs -> Person.of(
+                rs.getInt("id"),
+                rs.getString("name"),
+                rs.getInt("age")
+            ),
             id
         );
     }
@@ -164,11 +164,11 @@ public class RepositoryTest {
         final Either<Failure, T> repositoryOrFailure = createRepository()
             .flatMap(repository -> {
                 final Environment environment =
-					Environment.of(Repository.Service.class, repository);
+                    Environment.of(Repository.Service.class, repository);
                 return defaultRuntime.unsafeRun(
-                	Repository.use(
-                		RepositoryTest.fillIO().flatMap(i -> testDbCommand)
-                	).provide(environment)
+                    Repository.use(
+                        RepositoryTest.fillIO().flatMap(i -> testDbCommand)
+                    ).provide(environment)
                 );
             });
 

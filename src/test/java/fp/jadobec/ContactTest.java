@@ -283,9 +283,9 @@ public class ContactTest {
         final Either<Failure, T> repositoryOrFailure = createRepository()
             .flatMap(repository -> {
                 final Environment environment =
-					Environment.of(Repository.Service.class, repository);
+                    Environment.of(Repository.Service.class, repository);
                 return defaultRuntime.unsafeRun(
-                	Repository.use(testDbCommand).provide(environment)
+                    Repository.use(testDbCommand).provide(environment)
                 );
             });
 

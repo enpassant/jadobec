@@ -29,11 +29,11 @@ import fp.util.ThrowingSupplier;
 import fp.util.Tuple2;
 
 public class Repository {
-	public static interface Service {
-		public <T> IO<Object, Failure, T> use(
-			IO<Connection, Failure, T> command
-		);
-	}
+    public static interface Service {
+        public <T> IO<Object, Failure, T> use(
+            IO<Connection, Failure, T> command
+        );
+    }
 
     public static class Live implements Service {
         private final ThrowingSupplier<Connection, SQLException> connectionFactory;
@@ -43,16 +43,16 @@ public class Repository {
         }
 
         @Override
-		public <T> IO<Object, Failure, T> use(
-			IO<Connection, Failure, T> command
-		) {
-			return IO.bracket(
+        public <T> IO<Object, Failure, T> use(
+            IO<Connection, Failure, T> command
+        ) {
+            return IO.bracket(
                 IO.effect(() -> connectionFactory.get()),
                 connection -> IO.effect(() -> connection.close()),
                 connection -> command.provide(connection)
             );
-		}
-		
+        }
+        
         public static Either<Failure, Live> create(
             DataSource dataSource,
             String testSql
@@ -111,7 +111,7 @@ public class Repository {
     }
 
     public static <T> IO<Environment, Failure, T> use(
-		IO<Connection, Failure, T> command
+        IO<Connection, Failure, T> command
     ) {
         return IO.accessM(env -> env.get(Service.class).use(command));
     }
@@ -214,15 +214,15 @@ public class Repository {
                 Right<Failure, Integer> result;
                 
                 try {
-	                ResultSet generatedKeysRS = stmt.getGeneratedKeys();
-	
-	                result = Right.of(generatedKeysRS.next() ? generatedKeysRS.getInt(1) : 0);
-	
-	                generatedKeysRS.close();
+                    ResultSet generatedKeysRS = stmt.getGeneratedKeys();
+    
+                    result = Right.of(generatedKeysRS.next() ? generatedKeysRS.getInt(1) : 0);
+    
+                    generatedKeysRS.close();
                 } catch(Exception e) {
-                	result = Right.of(0);
+                    result = Right.of(0);
                 }
-	                
+                    
                 return result;
             } catch (Exception e) {
                 return Left.of(
@@ -343,8 +343,8 @@ public class Repository {
     private static class ResultSetIterator<T>
         implements Iterator<T>, AutoCloseable
     {
-    	private boolean stepNext = true;
-    	private boolean lastHasNext = false;
+        private boolean stepNext = true;
+        private boolean lastHasNext = false;
         private final ResultSet resultSet;
         private final Extractor<T> extractor;
 
@@ -357,11 +357,11 @@ public class Repository {
         public boolean hasNext() {
             try {
                 if (stepNext) {
-                	stepNext = false;
-                	lastHasNext = resultSet.next();
-                	return lastHasNext;
+                    stepNext = false;
+                    lastHasNext = resultSet.next();
+                    return lastHasNext;
                 } else {
-                	return lastHasNext;
+                    return lastHasNext;
                 }
             } catch (Exception e) {
                 throw new RuntimeException(e);
@@ -371,7 +371,7 @@ public class Repository {
         @Override
         public T next() {
             try {
-            	stepNext = true;
+                stepNext = true;
                 return extractor.extract(resultSet);
             } catch (SQLException e) {
                 throw new RuntimeException(e);
