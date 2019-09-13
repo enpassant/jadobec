@@ -339,6 +339,38 @@ public class Repository {
             }
         });
     }
+    
+    public static <F, R, U> IO<Connection, F, Stream<Either<F, R>>> mapStreamEither(
+        IO<Connection, F, Stream<Either<F, U>>> io,
+        Function<U, IO<Connection, F, R>> mapper
+    ) {
+        Builder<Either<F, R>> builder = Stream.builder();
+        return io.flatMap(stream -> mapStreamEitherLoop(builder, stream.iterator(), mapper));
+    }
+    
+    private static <F, R, U> IO<Connection, F, Stream<Either<F, R>>> mapStreamEitherLoop(
+        Builder<Either<F, R>> builder,
+        Iterator<Either<F, U>> iterator,
+        Function<U, IO<Connection, F, R>> mapper
+    ) {
+        return IO.<Connection, F, Boolean>succeed(
+            iterator.hasNext()
+        ).flatMap(hasNext -> {
+            if (hasNext) {
+                return iterator.next().map(mapper).fold(
+                    failure -> {
+                        builder.accept(Left.of(failure));
+                        return mapStreamEitherLoop(builder, iterator, mapper);
+                    },
+                    success -> success.either().flatMap(value -> {
+                        builder.accept(value);
+                        return mapStreamEitherLoop(builder, iterator, mapper);
+                    }));
+            } else {
+                return IO.succeed(builder.build());
+            }
+        });
+    }
 
     private static class ResultSetIterator<T>
         implements Iterator<T>, AutoCloseable

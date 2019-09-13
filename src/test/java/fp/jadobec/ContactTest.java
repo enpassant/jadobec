@@ -7,14 +7,11 @@ import static org.junit.Assert.assertTrue;
 
 import java.sql.Connection;
 import java.util.Arrays;
-import java.util.Iterator;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
-import java.util.stream.Stream.Builder;
 
 import org.junit.AfterClass;
 import org.junit.Test;
@@ -76,7 +73,7 @@ public class ContactTest {
 
         checkDbCommand(
             createAndFill.flatMap(v ->
-                mapStreamEither(
+                Repository.mapStreamEither(
                     queryUsers(),
                     ContactTest::addOneEmail
                 )
@@ -90,7 +87,7 @@ public class ContactTest {
     public void testFailedSingleContact() {
         checkDbCommand(
             createAndFill.flatMap(v ->
-                mapStreamEither(
+                Repository.mapStreamEither(
                     queryUsers(),
                     ContactTest::addOneEmail
                 ).map(items -> items.noneMatch(Either::isRight))
@@ -112,7 +109,7 @@ public class ContactTest {
 
         checkDbCommand(
             createAndFill.flatMap(v ->
-                mapStreamEither(
+                Repository.mapStreamEither(
                     queryUsers(),
                     ContactTest::addEmails
                 )
@@ -120,38 +117,6 @@ public class ContactTest {
                 assertArrayEquals(expectedUsers.toArray(), users.toArray())
             )
         );
-    }
-    
-    private static <F, R, T, U> IO<Connection, F, Stream<Either<F, R>>> mapStreamEither(
-        IO<Connection, F, Stream<Either<F, U>>> io,
-        Function<U, IO<Connection, F, R>> mapper
-    ) {
-        Builder<Either<F, R>> builder = Stream.builder();
-        return io.flatMap(stream -> mapStreamEitherLoop(builder, stream.iterator(), mapper));
-    }
-    
-    private static <F, R, T, U> IO<Connection, F, Stream<Either<F, R>>> mapStreamEitherLoop(
-        Builder<Either<F, R>> builder,
-        Iterator<Either<F, U>> iterator,
-        Function<U, IO<Connection, F, R>> mapper
-    ) {
-        return IO.<Connection, F, Boolean>succeed(
-            iterator.hasNext()
-        ).flatMap(hasNext -> {
-            if (hasNext) {
-                return iterator.next().map(mapper).fold(
-                    failure -> {
-                        builder.accept(Left.of(failure));
-                        return mapStreamEitherLoop(builder, iterator, mapper);
-                    },
-                    success -> success.either().flatMap(value -> {
-                        builder.accept(value);
-                        return mapStreamEitherLoop(builder, iterator, mapper);
-                    }));
-            } else {
-                return IO.succeed(builder.build());
-            }
-        });
     }
 
     @Test
