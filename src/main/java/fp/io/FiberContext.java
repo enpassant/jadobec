@@ -30,7 +30,7 @@ public class FiberContext<F, R> implements Fiber<F, R> {
     private Deque<Object> environments = new ArrayDeque<Object>();
     private Deque<Function<?, IO<Object, ?, ?>>> stack =
         new ArrayDeque<Function<?, IO<Object, ?, ?>>>();
-    
+
     private Deque<Boolean> interruptStatus = new ArrayDeque<Boolean>();
     private boolean interrupted = false;
 
@@ -67,7 +67,7 @@ public class FiberContext<F, R> implements Fiber<F, R> {
 
         try {
             while (curIo != null) {
-                if (curIo.tag == Tag.Fail || !shouldInterrupt()) { 
+                if (curIo.tag == Tag.Fail || !shouldInterrupt()) {
                     switch (curIo.tag) {
                         case Absolve:
                             final IO.Absolve<Object, F, R> absolveIO =
@@ -213,10 +213,10 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                             value = valueLast;
                             break;
                         default:
-                            curIo = IO.interrupt();                    
+                            curIo = IO.interrupt();
                     }
                 } else {
-                    curIo = IO.interrupt();                    
+                    curIo = IO.interrupt();
                 }
             }
 
@@ -236,16 +236,16 @@ public class FiberContext<F, R> implements Fiber<F, R> {
             return null;
         } else {
             if (value instanceof Future) {
-                Future<Either<?, ?>> futureValue = (Future<Either<?, ?>>) value;
-                Either<Failure, Either<?, ?>> valueTry =
+                Future<Either<Exit<F>, ?>> futureValue = (Future<Either<Exit<F>, ?>>) value;
+                Either<Failure, Either<Exit<F>, ?>> valueTry =
                     ExceptionFailure.tryCatch(() -> futureValue.get());
                 if (valueTry.isLeft()) {
                     ((ExceptionFailure) valueTry.left()).throwable.printStackTrace();
                     return IO.fail(Exit.fail((F) valueTry.left()));
                 }
-                Either<?, ?> either = valueTry.get();
+                Either<Exit<F>, ?> either = valueTry.get();
                 if (either.isLeft()) {
-                    return IO.fail(Exit.fail((F) either.left()));
+                    return IO.fail(either.left());
                 }
                 value = either.get();
             }
@@ -355,11 +355,11 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                 success -> IO.succeed(success)
             );
     }
-    
+
     private boolean interruptible() {
         return interruptStatus.isEmpty() || interruptStatus.peek();
     }
-    
+
     private boolean shouldInterrupt() {
         return interrupted && interruptible();
     }

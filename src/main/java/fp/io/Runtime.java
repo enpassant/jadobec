@@ -13,7 +13,6 @@ public interface Runtime<C> {
         final Either<Failure, Either<Exit<F>, R>> eitherValue =
             ExceptionFailure.tryCatch(() -> unsafeRunAsync(io).get());
         eitherValue.forEachLeft(failure -> {
-            System.out.println("Failure: " + failure);
             if (failure instanceof ExceptionFailure) {
                 ExceptionFailure exceptionFailure = (ExceptionFailure) failure;
                 exceptionFailure.throwable.printStackTrace(System.err);
