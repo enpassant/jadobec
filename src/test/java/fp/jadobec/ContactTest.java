@@ -66,10 +66,10 @@ public class ContactTest {
             Left.of(Exit.fail(GeneralFailure.of("Missing result"))),
             User.of(2, "Jane Doe").map(user ->
                 user.addEmail(Email.of("jane@doe.com", false))
-            ),
+            ).mapLeft(failure -> Exit.fail(failure)),
             User.of(1, "John Doe").map(user ->
                 user.addEmail(Email.of("john@doe.com", true))
-            )
+            ).mapLeft(failure -> Exit.fail(failure))
         );
 
         checkDbCommand(
