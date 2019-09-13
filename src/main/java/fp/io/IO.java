@@ -7,7 +7,6 @@ import java.util.function.Supplier;
 
 import fp.util.Either;
 import fp.util.Failure;
-import fp.util.GeneralFailure;
 import fp.util.Left;
 import fp.util.Right;
 import fp.util.Statement;
@@ -44,7 +43,7 @@ public abstract class IO<C, F, R> {
         );
     }
 
-    public static <C, F, R> IO<C, F, R> fail(F f) {
+    public static <C, F, R> IO<C, F, R> fail(Exit<F> f) {
         return new Fail<C, F, R>(f);
     }
 
@@ -92,7 +91,7 @@ public abstract class IO<C, F, R> {
     }
 
     public static <C, F, R> IO<C, F, R> interrupt() {
-        return new Fail<C, F, R>((F) GeneralFailure.of("Interrupt"));
+        return new Fail<C, F, R>(Exit.interrupt());
     }
 
     public IO<C, F, R> interruptible() {
@@ -187,8 +186,8 @@ public abstract class IO<C, F, R> {
     }
 
     static class Fail<C, F, R> extends IO<C, F, R> {
-        final F f;
-        public Fail(F f) {
+        final Exit<F> f;
+        public Fail(Exit<F> f) {
             tag = Tag.Fail;
             this.f = f;
         }

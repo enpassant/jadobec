@@ -19,6 +19,7 @@ import org.junit.Test;
 import fp.io.DefaultPlatform;
 import fp.io.DefaultRuntime;
 import fp.io.Environment;
+import fp.io.Exit;
 import fp.io.IO;
 import fp.io.Runtime;
 import fp.util.Either;
@@ -61,8 +62,8 @@ public class ContactTest {
 
     @Test
     public void testSingleContact() {
-        final List<Either<Failure, User>> expectedUsers = Arrays.asList(
-            Left.of(GeneralFailure.of("Missing result")),
+        final List<Either<Exit<Failure>, User>> expectedUsers = Arrays.asList(
+            Left.of(Exit.fail(GeneralFailure.of("Missing result"))),
             User.of(2, "Jane Doe").map(user ->
                 user.addEmail(Email.of("jane@doe.com", false))
             ),
@@ -255,7 +256,7 @@ public class ContactTest {
                 idOpt.get()
             );
         } else {
-            return IO.fail((Failure) GeneralFailure.of("Missing user id"));
+            return IO.fail(Exit.fail((Failure) GeneralFailure.of("Missing user id")));
         }
     }
 
@@ -264,9 +265,9 @@ public class ContactTest {
             .flatMap(repository -> {
                 final Environment environment =
                     Environment.of(Repository.Service.class, repository);
-                return defaultRuntime.unsafeRun(
+                return Exit.resultFlatten(defaultRuntime.unsafeRun(
                     Repository.use(testDbCommand).provide(environment)
-                );
+                ));
             });
 
         assertTrue(

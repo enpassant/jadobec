@@ -13,6 +13,7 @@ import org.junit.Test;
 import fp.io.DefaultPlatform;
 import fp.io.DefaultRuntime;
 import fp.io.Environment;
+import fp.io.Exit;
 import fp.io.IO;
 import fp.io.Runtime;
 import fp.util.Either;
@@ -165,10 +166,10 @@ public class RepositoryTest {
             .flatMap(repository -> {
                 final Environment environment =
                     Environment.of(Repository.Service.class, repository);
-                return defaultRuntime.unsafeRun(
+                return Exit.resultFlatten(defaultRuntime.unsafeRun(
                     Repository.use(
                         RepositoryTest.fill().flatMap(i -> testDbCommand)
-                    ).provide(environment)
+                    ).provide(environment))
                 );
             });
 

@@ -35,7 +35,7 @@ public class IOTest {
     @Test
     public void testAbsolveFailure() {
         IO<Void, Integer, Integer> io = IO.absolve(IO.succeed(Left.of(4)));
-        Assert.assertEquals(Left.of(4), defaultVoidRuntime.unsafeRun(io));
+        Assert.assertEquals(Left.of(Exit.fail(4)), defaultVoidRuntime.unsafeRun(io));
     }
 
     @Test
@@ -68,7 +68,7 @@ public class IOTest {
 
     @Test
     public void testEitherFail() {
-        IO<Object, Void, Either<String, Object>> io = IO.fail("Syntax error").either();
+        IO<Object, Void, Either<String, Object>> io = IO.fail(Exit.fail("Syntax error")).either();
         Assert.assertEquals(
             Right.of(Left.of("Syntax error")),
             defaultRuntime.unsafeRun(io)
@@ -77,8 +77,8 @@ public class IOTest {
 
     @Test
     public void testFail() {
-        IO<Void, String, ?> io = IO.fail("Syntax error");
-        Assert.assertEquals(Left.of("Syntax error"), defaultVoidRuntime.unsafeRun(io));
+        IO<Void, String, ?> io = IO.fail(Exit.fail("Syntax error"));
+        Assert.assertEquals(Left.of(Exit.fail("Syntax error")), defaultVoidRuntime.unsafeRun(io));
     }
 
     @Test
@@ -94,7 +94,7 @@ public class IOTest {
 
     @Test
     public void testFoldFailure() {
-        IO<Void, String, Integer> ioValue = IO.fail("Error");
+        IO<Void, String, Integer> ioValue = IO.fail(Exit.fail("Error"));
         IO<Void, String, Integer> io = ioValue
             .foldM(
                 v -> IO.succeed(8),
@@ -139,7 +139,7 @@ public class IOTest {
             fiber2.join().map(value2 ->
             value1 + "," + value2
         ))));
-        Either<Object, String> result = defaultRuntime.unsafeRun(io);
+        Either<Exit<Object>, String> result = defaultRuntime.unsafeRun(io);
         Assert.assertTrue(
             "One of the thread's name is not good: " + result,
             result.orElse("").matches(
@@ -175,8 +175,8 @@ public class IOTest {
             IO.effectTotal(() -> n * n)
         );
         Assert.assertEquals(
-            Left.of(ExceptionFailure.of(
-                new ArithmeticException("/ by zero"))
+            Left.of(Exit.fail(ExceptionFailure.of(
+                new ArithmeticException("/ by zero")))
             ).toString(),
             defaultRuntime.unsafeRun(io).toString()
         );
@@ -249,11 +249,11 @@ public class IOTest {
                     IO.effectTotal(() -> res2),
                     resource2 -> IO.effectTotal(() -> resource2.close()),
                     resource2 -> IO.effectTotal(() -> n + resource2.use(6)).flatMap(i ->
-                        IO.fail("Failure"))
+                        IO.fail(Exit.fail("Failure")))
                 )
             )
         );
-        Assert.assertEquals(Left.of("Failure"), defaultRuntime.unsafeRun(io));
+        Assert.assertEquals(Left.of(Exit.fail("Failure")), defaultRuntime.unsafeRun(io));
         Assert.assertFalse(res1.acquired);
         Assert.assertFalse(res2.acquired);
     }

@@ -17,6 +17,7 @@ import java.util.stream.Stream.Builder;
 import javax.sql.DataSource;
 
 import fp.io.Environment;
+import fp.io.Exit;
 import fp.io.IO;
 import fp.util.Either;
 import fp.util.ExceptionFailure;
@@ -144,7 +145,7 @@ public class Repository {
         if (iterator.hasNext()) {
             return IO.succeed(iterator.next());
         } else {
-            return IO.fail(GeneralFailure.of("Missing result"));
+            return IO.fail(Exit.fail(GeneralFailure.of("Missing result")));
         }
     }
 
@@ -279,7 +280,7 @@ public class Repository {
                         try {
                             connection3.rollback();
                         } catch(SQLException e) {};
-                        return IO.fail(failure);
+                        return IO.fail(Exit.fail(failure));
                     },
                     success -> {
                         try {
