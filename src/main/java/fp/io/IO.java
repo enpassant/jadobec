@@ -7,6 +7,7 @@ import java.util.function.Supplier;
 
 import fp.util.Either;
 import fp.util.Failure;
+import fp.util.GeneralFailure;
 import fp.util.Left;
 import fp.util.Right;
 import fp.util.Statement;
@@ -90,6 +91,22 @@ public abstract class IO<C, F, R> {
         return new Fork<C, F, R>(this);
     }
 
+    public static <C, F, R> IO<C, F, R> interrupt() {
+        return new Fail<C, F, R>((F) GeneralFailure.of("Interrupt"));
+    }
+
+    public IO<C, F, R> interruptible() {
+        return new InterruptStatus<C, F, R>(this, true);
+    }
+
+    public IO<C, F, R> uninterruptible() {
+        return new InterruptStatus<C, F, R>(this, true);
+    }
+
+    public IO<C, F, R> checkInterrupt(Function<InterruptStatus<C, F, R>, IO<Object, F, R>> fn) {
+        return new CheckInterrupt<C, F, R>(fn);
+    }
+
     public <R2> IO<C, F, R2> map(Function<R, R2> fn) {
         return new FlatMap<C, F, F, R, R2>(this, r -> IO.succeed(fn.apply(r)));
     }
@@ -129,10 +146,17 @@ public abstract class IO<C, F, R> {
         Fork,
         EffectTotal,
         EffectPartial,
+        InterruptStatus,
+        CheckInterrupt,
         FlatMap,
         Lock,
         Peek,
         Provide
+    }
+    
+    enum Interruptible {
+        Interruptible,
+        Uninterruptible
     }
 
     static class Absolve<C, F, R> extends IO<C, F, R> {
@@ -274,6 +298,29 @@ public abstract class IO<C, F, R> {
         @Override
         public String toString() {
                 return "FlatMap(" + io + ", " + fn + ")";
+        }
+    }
+
+    static class InterruptStatus<C, F, R> extends IO<C, F, R> {
+        final IO<C, F, R> io;
+        final boolean flag;
+
+        public InterruptStatus(
+            final IO<C, F, R> io,
+            final boolean flag
+        ) {
+            tag = Tag.InterruptStatus;
+            this.io = io;
+            this.flag = flag;
+        }
+    }
+
+    static class CheckInterrupt<C, F, R> extends IO<C, F, R> {
+        final Function<InterruptStatus<C, F, R>, IO<Object, F, R>> fn;
+        
+        public CheckInterrupt(Function<InterruptStatus<C, F, R>, IO<Object, F, R>> fn) {
+            tag = Tag.CheckInterrupt;
+            this.fn = fn;
         }
     }
 
