@@ -11,13 +11,13 @@ public class Exit<F> {
     private final F value;
     private final Failure failure;
     private final Cause cause;
-    
+
     private Exit(F value) {
         this.failure = GeneralFailure.of(value);;
         this.cause = Cause.Fail;
         this.value = value;
     }
-    
+
     private Exit(Failure failure, Cause cause) {
         this.failure = failure;
         this.cause = cause;
@@ -29,21 +29,21 @@ public class Exit<F> {
         Fail,
         Interrupt
     }
-    
+
     /**
      * @return the failure
      */
     public Failure getFailure() {
         return failure;
     }
-    
+
     /**
      * @return the failure
      */
     public F getValue() {
         return value;
     }
-    
+
     /**
      * @return the cause
      */
@@ -103,8 +103,10 @@ public class Exit<F> {
     public int hashCode() {
         return failure.hashCode() * 11 + cause.hashCode();
     }
-    
-    public static <F, R> Either<Failure, R> resultFlatten(Either<Exit<Failure>, R> result) {
+
+    public static <F, R> Either<Failure, R> resultFlatten(
+        Either<Exit<Failure>, R> result
+    ) {
         return result.fold(
             exit -> Left.of(exit.getValue()),
             success -> Right.of(success)

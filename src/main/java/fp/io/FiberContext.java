@@ -139,7 +139,7 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                                 environments.peek(),
                                 platform
                             ).evaluate(bracketIO.acquire);
-                            Either<Exit<F>, R> valueBracket = (Either<Exit<F>, R>) resource.flatMap(a -> {
+                            Either<Exit<F>, R> valueBracket = resource.flatMap(a -> {
                                 final Either<Exit<F>, R> result = new FiberContext<F, R>(
                                     environments.peek(),
                                     platform)
@@ -165,7 +165,8 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                             curIo = flatmapIO.io;
                             break;
                         case Fork: {
-                            final IO.Fork<Object, F, R> forkIo = (IO.Fork<Object, F, R>) curIo;
+                            final IO.Fork<Object, F, R> forkIo =
+                                (IO.Fork<Object, F, R>) curIo;
                             final IO<Object, F, R> ioValue;
                             final ExecutorService executor;
                             if (forkIo.io.tag == IO.Tag.Blocking) {
@@ -185,7 +186,8 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                             break;
                         }
                         case Lock:
-                            final IO.Lock<Object, F, R> lockIo = (IO.Lock<Object, F, R>) curIo;
+                            final IO.Lock<Object, F, R> lockIo =
+                                (IO.Lock<Object, F, R>) curIo;
                             value = lockIo.executor.submit(() -> new FiberContext<F, R>(
                                 environments.peek(),
                                 platform
@@ -193,7 +195,8 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                             curIo = nextInstr(value);
                             break;
                         case Peek:
-                            final IO.Peek<Object, F, R> peekIO = (IO.Peek<Object, F, R>) curIo;
+                            final IO.Peek<Object, F, R> peekIO =
+                                (IO.Peek<Object, F, R>) curIo;
                             stack.push((R r) -> {
                                 peekIO.consumer.accept(r);
                                 return IO.succeed(r);
@@ -319,7 +322,10 @@ public class FiberContext<F, R> implements Fiber<F, R> {
         final FiberStatus status;
         private final List<CompletableFuture<Either<Exit<F>, R>>> observers;
 
-        public Executing(FiberStatus status, List<CompletableFuture<Either<Exit<F>, R>>> observers) {
+        public Executing(
+            FiberStatus status,
+            List<CompletableFuture<Either<Exit<F>, R>>> observers
+        ) {
             this.status = status;
             this.observers = observers;
         }

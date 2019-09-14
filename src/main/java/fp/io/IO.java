@@ -102,7 +102,9 @@ public abstract class IO<C, F, R> {
         return new InterruptStatus<C, F, R>(this, true);
     }
 
-    public IO<C, F, R> checkInterrupt(Function<InterruptStatus<C, F, R>, IO<Object, F, R>> fn) {
+    public IO<C, F, R> checkInterrupt(
+        Function<InterruptStatus<C, F, R>, IO<Object, F, R>> fn
+    ) {
         return new CheckInterrupt<C, F, R>(fn);
     }
 
@@ -152,7 +154,7 @@ public abstract class IO<C, F, R> {
         Peek,
         Provide
     }
-    
+
     enum Interruptible {
         Interruptible,
         Uninterruptible
@@ -316,7 +318,7 @@ public abstract class IO<C, F, R> {
 
     static class CheckInterrupt<C, F, R> extends IO<C, F, R> {
         final Function<InterruptStatus<C, F, R>, IO<Object, F, R>> fn;
-        
+
         public CheckInterrupt(Function<InterruptStatus<C, F, R>, IO<Object, F, R>> fn) {
             tag = Tag.CheckInterrupt;
             this.fn = fn;
