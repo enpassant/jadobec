@@ -58,6 +58,16 @@ public class IOTest {
     }
 
     @Test
+    public void testDie() {
+        IO<Void, Void, Integer> io = IO.effectTotal(() -> 8 / 0);
+        final Either<Exit<Void>, Integer> result = defaultVoidRuntime.unsafeRun(io);
+        Assert.assertTrue(
+            result.toString(),
+            result.isLeft() && result.left().isDie()
+        );
+    }
+
+    @Test
     public void testEitherSuccess() {
         IO<Object, Void, Either<Object, Integer>> io = IO.succeed(8).either();
         Assert.assertEquals(

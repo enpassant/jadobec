@@ -67,6 +67,18 @@ public class Exit<F> {
         return new Exit<F>(GeneralFailure.of("Interrupt"), Cause.Interrupt);
     }
 
+    public boolean isDie() {
+        return cause == Cause.Die;
+    }
+
+    public boolean isFail() {
+        return cause == Cause.Fail;
+    }
+
+    public boolean isInterrupt() {
+        return cause == Cause.Interrupt;
+    }
+
     @Override
     public String toString() {
         switch (cause) {
