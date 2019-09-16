@@ -1,5 +1,7 @@
 package fp.io;
 
+import java.util.Objects;
+
 import fp.util.Either;
 import fp.util.ExceptionFailure;
 import fp.util.Failure;
@@ -93,7 +95,8 @@ public class Exit<F> {
         if (other instanceof Exit) {
             @SuppressWarnings("unchecked")
             Exit<F> exit = (Exit<F>) other;
-            return exit.toString().equals(this.toString());
+            return Objects.equals(failure, exit.failure)
+                && Objects.equals(cause, exit.cause);
         } else {
             return false;
         }
