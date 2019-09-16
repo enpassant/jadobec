@@ -9,11 +9,12 @@ import org.junit.AfterClass;
 import org.junit.Assert;
 import org.junit.Test;
 
+import fp.util.Either;
 import fp.util.ExceptionFailure;
 import fp.util.Failure;
-import fp.util.Either;
 import fp.util.Left;
 import fp.util.Right;
+import fp.util.Tuple2;
 
 public class IOTest {
     final static DefaultPlatform platform = new DefaultPlatform();
@@ -340,5 +341,28 @@ public class IOTest {
         Assert.assertEquals(Right.of(res), defaultRuntime.unsafeRun(io));
         Assert.assertEquals(4, res.usage);
         Assert.assertEquals(false, res.acquired);
+    }
+
+    @Test
+    public void testZipWith() {
+        IO<Object, Object, String> io = IO.succeed(2).zipWith(
+            IO.succeed("Test"),
+            (i, s) -> s + "-" + i
+        );
+        Assert.assertEquals(
+            Right.of("Test-2"),
+            defaultRuntime.unsafeRun(io)
+        );
+    }
+
+    @Test
+    public void testZip() {
+        IO<Object, Object, Tuple2<Integer, String>> io = IO.succeed(2).zip(
+            IO.succeed("Test")
+        );
+        Assert.assertEquals(
+            Right.of(Tuple2.of(2, "Test")),
+            defaultRuntime.unsafeRun(io)
+        );
     }
 }

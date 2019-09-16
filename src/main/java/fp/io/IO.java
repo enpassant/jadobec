@@ -1,6 +1,7 @@
 package fp.io;
 
 import java.util.concurrent.ExecutorService;
+import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
@@ -12,6 +13,7 @@ import fp.util.Right;
 import fp.util.Statement;
 import fp.util.ThrowingStatement;
 import fp.util.ThrowingSupplier;
+import fp.util.Tuple2;
 
 public abstract class IO<C, F, R> {
     Tag tag;
@@ -138,6 +140,25 @@ public abstract class IO<C, F, R> {
 
     public static <C, F, R> IO<C, F, R> unit() {
         return new Succeed<C, F, R>(null);
+    }
+
+    public <F2, R2> IO<C, F2, Tuple2<R, R2>> zip(
+        IO<C, F2, R2> that
+    ) {
+        return this.flatMap(r ->
+            that.map(r2 ->
+            Tuple2.of(r, r2)
+        ));
+    }
+
+    public <F2, R2, R3> IO<C, F2, R3> zipWith(
+        IO<C, F2, R2> that,
+        BiFunction<R, R2, R3> fn
+    ) {
+        return this.flatMap(r ->
+            that.map(r2 ->
+            fn.apply(r, r2)
+        ));
     }
 
     enum Tag {
