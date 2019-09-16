@@ -3,6 +3,7 @@ package fp.util;
 import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
+import java.util.Objects;
 import java.util.stream.Collectors;
 
 public final class Tuple2<A, B> {
@@ -35,5 +36,27 @@ public final class Tuple2<A, B> {
 
     public B getSecond() {
         return second;
+    }
+
+    @Override
+    public String toString() {
+        return "Tuple2(" + first.toString() + "," + second.toString() + ")";
+    }
+
+    @Override
+    public boolean equals(Object other) {
+        if (other instanceof Tuple2) {
+            @SuppressWarnings("unchecked")
+            Tuple2<A, B> tuple = (Tuple2<A, B>) other;
+            return Objects.equals(first, tuple.first)
+                && Objects.equals(second, tuple.second);
+        } else {
+            return false;
+        }
+    }
+
+    @Override
+    public int hashCode() {
+        return first.hashCode() * 11 + second.hashCode();
     }
 }
