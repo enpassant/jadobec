@@ -185,6 +185,14 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                             curIo = nextInstr(value);
                             break;
                         }
+                        case InterruptStatus:
+                            final IO.InterruptStatus<Object, F, R> interruptStatusIo =
+                                (IO.InterruptStatus<Object, F, R>) curIo;
+                            
+                            interruptStatus.push(interruptStatusIo.flag);
+                            stack.push(new InterruptExit());
+                            curIo = interruptStatusIo.io;
+                            break;
                         case Lock:
                             final IO.Lock<Object, F, R> lockIo =
                                 (IO.Lock<Object, F, R>) curIo;
@@ -265,7 +273,9 @@ public class FiberContext<F, R> implements Fiber<F, R> {
 
         while(unwinding && !stack.isEmpty()) {
             final Function<?, IO<Object, ?, ?>> fn = stack.pop();
-            if (fn instanceof IO.Fold) {
+            if (fn instanceof InterruptExit) {
+                popDrop(null);
+            } else if (fn instanceof IO.Fold) {
                 stack.push(((IO.Fold) fn).failure);
                 unwinding = false;
             }
@@ -368,5 +378,28 @@ public class FiberContext<F, R> implements Fiber<F, R> {
 
     private boolean shouldInterrupt() {
         return interrupted && interruptible();
+    }
+    
+    private <A> A popDrop(A a) {
+        if (!interruptStatus.isEmpty()) {
+            interruptStatus.pop();
+        }
+        return a;
+    }
+    
+    private class InterruptExit<C> implements Function<R, IO<C, F, R>> {
+        @Override
+        public IO<C, F, R> apply(R v) {
+            boolean isInterruptible = interruptStatus.isEmpty() ?
+                true :
+                interruptStatus.peek();
+            
+            if (isInterruptible) {
+                popDrop(null);
+                return IO.succeed(v);
+            } else {
+                return IO.effectTotal(() -> popDrop(v));
+            }
+        }
     }
 }
