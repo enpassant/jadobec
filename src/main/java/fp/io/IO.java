@@ -90,6 +90,10 @@ public abstract class IO<C, F, R> {
         return new Fork<C, F, R>(this);
     }
 
+    public static <C, F, R> IO<C, F, R> halt(Exit<F> exit) {
+        return new Fail<C, F, R>(exit);
+    }
+
     public static <C, F, R> IO<C, F, R> interrupt() {
         return new Fail<C, F, R>(Exit.interrupt());
     }
