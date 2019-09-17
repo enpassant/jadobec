@@ -127,11 +127,12 @@ public abstract class IO<C, F, R> {
         Function<A, IO<C, F, R2>> release,
         Function<A, IO<C, F, R>> use
     ) {
-        return new Bracket<C, F, A, R, R2>(
-            acquire,
-            release,
-            use
-        );
+        return IO.absolve(
+            acquire.flatMap(a ->
+            use.apply(a).either().flatMap(either ->
+            release.apply(a).either().map(r2 ->
+            either
+        ))));
     }
 
     public <C2> IO<C2, F, R> provide(C context) {
@@ -165,7 +166,6 @@ public abstract class IO<C, F, R> {
         Absolve,
         Access,
         Blocking,
-        Bracket,
         Pure,
         Fail,
         Fold,
@@ -248,23 +248,6 @@ public abstract class IO<C, F, R> {
         ) {
             tag = Tag.Blocking;
             this.io = io;
-        }
-    }
-
-    static class Bracket<C, F, A, R, R2> extends IO<C, F, R> {
-        IO<C, F, A> acquire;
-        Function<A, IO<C, F, R2>> release;
-        Function<A, IO<C, F, R>> use;
-
-        public Bracket(
-            IO<C, F, A> acquire,
-            Function<A, IO<C, F, R2>> release,
-            Function<A, IO<C, F, R>> use
-        ) {
-            tag = Tag.Bracket;
-            this.acquire = acquire;
-            this.release = release;
-            this.use = use;
         }
     }
 

@@ -132,32 +132,6 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                             }
                             break;
                         }
-                        case Bracket: {
-                            final IO.Bracket<Object, F, R2, R, Object> bracketIO =
-                                (IO.Bracket<Object, F, R2, R, Object>) curIo;
-                            Either<Exit<F>, R2> resource = new FiberContext<F, R2>(
-                                environments.peek(),
-                                platform
-                            ).evaluate(bracketIO.acquire);
-                            Either<Exit<F>, R> valueBracket = resource.flatMap(a -> {
-                                final Either<Exit<F>, R> result = new FiberContext<F, R>(
-                                    environments.peek(),
-                                    platform)
-                                .evaluate(bracketIO.use.apply(a));
-                                new FiberContext<F, Object>(
-                                    environments.peek(),
-                                    platform
-                                ).evaluate(bracketIO.release.apply(a));
-                                return result;
-                            });
-                            if (valueBracket.isLeft()) {
-                                curIo = IO.fail(valueBracket.left());
-                            } else {
-                                value = valueBracket.right();
-                                curIo = nextInstr(value);
-                            }
-                            break;
-                        }
                         case FlatMap:
                             final IO.FlatMap<Object, F2, F, R2, R> flatmapIO =
                                 (IO.FlatMap<Object, F2, F, R2, R>) curIo;

@@ -227,9 +227,9 @@ public class IOTest {
         final IO<Void, Void, Integer> io = IO.bracket(
             IO.succeed(res),
             resource -> IO.effectTotal(() -> resource.close()),
-            resource -> IO.effectTotal(() -> resource.use(10))
+            resource -> IO.effectTotal(() -> resource.use(2))
         );
-        Assert.assertEquals(Right.of(10), defaultVoidRuntime.unsafeRun(io));
+        Assert.assertEquals(Right.of(2), defaultVoidRuntime.unsafeRun(io));
         Assert.assertFalse(res.acquired);
     }
 
@@ -240,15 +240,15 @@ public class IOTest {
         final IO<Object, Void, Integer> io = IO.bracket(
             IO.effectTotal(() -> res1),
             resource -> IO.effectTotal(() -> resource.close()),
-            resource -> IO.effectTotal(() -> resource.use(10)).flatMap(n ->
+            resource -> IO.effectTotal(() -> resource.use(3)).flatMap(n ->
                 IO.bracket(
                     IO.effectTotal(() -> res2),
                     resource2 -> IO.effectTotal(() -> resource2.close()),
-                    resource2 -> IO.effectTotal(() -> n + resource2.use(6))
+                    resource2 -> IO.effectTotal(() -> n + resource2.use(4))
                 )
             )
         );
-        Assert.assertEquals(Right.of(16), defaultRuntime.unsafeRun(io));
+        Assert.assertEquals(Right.of(7), defaultRuntime.unsafeRun(io));
         Assert.assertFalse(res1.acquired);
         Assert.assertFalse(res2.acquired);
     }
@@ -260,7 +260,7 @@ public class IOTest {
         final IO<Object, String, Integer> io = IO.bracket(
             IO.effectTotal(() -> res1),
             resource -> IO.effectTotal(() -> resource.close()),
-            resource -> IO.effectTotal(() -> resource.use(10)).flatMap(n ->
+            resource -> IO.effectTotal(() -> resource.use(5)).flatMap(n ->
                 IO.bracket(
                     IO.effectTotal(() -> res2),
                     resource2 -> IO.effectTotal(() -> resource2.close()),
@@ -336,10 +336,10 @@ public class IOTest {
     public void testPeek() {
         final Resource res = new Resource();
         IO<Object, Object, Resource> io = IO.succeed(res)
-            .peek(r1 -> r1.use(4))
+            .peek(r1 -> r1.use(7))
             .peek(r2 -> r2.close());
         Assert.assertEquals(Right.of(res), defaultRuntime.unsafeRun(io));
-        Assert.assertEquals(4, res.usage);
+        Assert.assertEquals(7, res.usage);
         Assert.assertEquals(false, res.acquired);
     }
 
