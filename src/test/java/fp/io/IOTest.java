@@ -365,4 +365,59 @@ public class IOTest {
             defaultRuntime.unsafeRun(io)
         );
     }
+
+    private IO<Object, Failure, Integer> sleep(long millis) {
+        return IO.succeed(millis > 0).flatMap(isPositive -> {
+            if (isPositive) { 
+                return IO.effect(() -> Thread.sleep(10)).flatMap(n ->
+                    sleep(millis - 10));
+            } else {
+                return IO.succeed(1);
+            }
+        });
+    }
+
+    private <A> IO<Object, Failure, A> slow(long millis, A value) {
+        return sleep(millis).map(n -> value);
+    }
+
+    @Test
+    public void testZipPar() {
+        IO<Object, Failure, Tuple2<Integer, String>> io = slow(10, 2).zipPar(
+            slow(1, "Test")
+        );
+        Assert.assertEquals(
+            Right.of(Tuple2.of(2, "Test")),
+            defaultRuntime.unsafeRun(io)
+        );
+    }
+
+    @Test
+    public void testZipParWithFailureFirst() {
+        IO<Object, Failure, Tuple2<Integer, String>> io =
+            IO.<Object, Failure, Integer>interrupt().zipPar(
+                slow(3000, "Test")
+        );
+        final Either<Exit<Failure>, Tuple2<Integer, String>> result =
+            defaultRuntime.unsafeRun(io);
+        
+        Assert.assertTrue(
+            result.toString(),
+            result.isLeft() && result.left().isInterrupt()
+        );
+    }
+
+    @Test
+    public void testZipParWithFailureSecond() {
+        IO<Object, Failure, Tuple2<Integer, String>> io = slow(3000, 2).zipPar(
+            IO.interrupt()
+        );
+        final Either<Exit<Failure>, Tuple2<Integer, String>> result =
+            defaultRuntime.unsafeRun(io);
+        
+        Assert.assertTrue(
+            result.toString(),
+            result.isLeft() && result.left().isInterrupt()
+        );
+    }
 }

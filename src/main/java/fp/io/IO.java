@@ -162,6 +162,23 @@ public abstract class IO<C, F, R> {
         ));
     }
 
+    public <R2> IO<C, F, Tuple2<R, R2>> zipPar(
+        IO<C, F, R2> that
+    ) {
+        return this.fork().flatMap(fiber ->
+            that.fork().flatMap(fiberThat ->
+                IO.<C, Failure, Object>effect(() -> {
+                    Tuple2<Fiber, Fiber> fibers = fiber.raceWith(fiberThat).get();
+                    return fibers.getFirst().getCompletedValue().forEachLeft(
+                        failure -> fibers.getSecond().interrupt()
+                    );
+                }).flatMap(f ->
+                fiber.<C>join().flatMap((R value) ->
+                fiberThat.<C>join().map((R2 valueThat) ->
+                Tuple2.of(value, valueThat)
+        )))));
+    }
+
     enum Tag {
         Absolve,
         Access,
