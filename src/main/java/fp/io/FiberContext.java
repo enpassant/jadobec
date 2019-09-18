@@ -16,7 +16,6 @@ import fp.util.ExceptionFailure;
 import fp.util.Failure;
 import fp.util.Left;
 import fp.util.Right;
-import fp.util.Tuple2;
 
 public class FiberContext<F, R> implements Fiber<F, R> {
     private final Platform platform;
@@ -359,15 +358,14 @@ public class FiberContext<F, R> implements Fiber<F, R> {
             );
     }
     
+    @SuppressWarnings("unchecked")
     @Override
-    public <R2> Future<Tuple2<Fiber, Fiber>> raceWith(Fiber<F, R2> that) {
-        CompletableFuture<Fiber<F, ?>> winner = new CompletableFuture<>();
-        ((Fiber) this).register(winner);
-        ((Fiber) that).register(winner);
+    public <R2> Future<RaceResult<F, R, R2>> raceWith(Fiber<F, R2> that) {
+        CompletableFuture<Fiber<F, Object>> winner = new CompletableFuture<>();
+        ((Fiber<F, Object>) this).register(winner);
+        ((Fiber<F, Object>) that).register(winner);
         return winner.thenApply(winnerFiber ->
-            winnerFiber == this ?
-                Tuple2.of(this, that) :
-                Tuple2.of(that, this)
+            new RaceResult<>(this, that, winnerFiber == this)
         );
     }
 
