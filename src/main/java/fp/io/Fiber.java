@@ -1,6 +1,6 @@
 package fp.io;
 
 public interface Fiber<F, R> {
-    IO<Object, F, R> interrupt();
-    IO<Object, F, R> join();
+    <C> IO<C, F, R> interrupt();
+    <C> IO<C, F, R> join();
 }

@@ -332,13 +332,13 @@ public class FiberContext<F, R> implements Fiber<F, R> {
     }
 
     @Override
-    public IO<Object, F, R> interrupt() {
+    public <C> IO<C, F, R> interrupt() {
         interrupted = true;
         return IO.interrupt();
     }
 
     @Override
-    public IO<Object, F, R> join() {
+    public <C> IO<C, F, R> join() {
         Either<Exit<F>, R> value2 = getValue();
         return value2
             .fold(
