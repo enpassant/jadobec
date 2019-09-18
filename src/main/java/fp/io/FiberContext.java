@@ -16,14 +16,15 @@ import fp.util.ExceptionFailure;
 import fp.util.Failure;
 import fp.util.Left;
 import fp.util.Right;
+import fp.util.Tuple2;
 
 public class FiberContext<F, R> implements Fiber<F, R> {
     private final Platform platform;
     private IO<Object, ?, ?> curIo;
     private Object value = null;
     private Object valueLast = null;
-        private final CompletableFuture<Either<Exit<F>, R>> observer =
-            new CompletableFuture<Either<Exit<F>, R>>();
+        private final CompletableFuture<Fiber<F, R>> observer =
+            new CompletableFuture<Fiber<F, R>>();
     private final AtomicReference<FiberState<F, R>> state;
 
     private Deque<Object> environments = new ArrayDeque<Object>();
@@ -40,7 +41,7 @@ public class FiberContext<F, R> implements Fiber<F, R> {
         }
         this.platform = platform;
 
-        final List<CompletableFuture<Either<Exit<F>, R>>> observers =
+        final List<CompletableFuture<Fiber<F, R>>> observers =
             new ArrayList<>();
         observers.add(observer);
 
@@ -57,7 +58,7 @@ public class FiberContext<F, R> implements Fiber<F, R> {
 
     public <F2, R2> Future<Either<Exit<F>, R>> runAsync(IO<Object, F, R> io) {
         evaluateNow(io);
-        return observer;
+        return observer.thenApply(Fiber::getCompletedValue);
     }
 
     @SuppressWarnings("unchecked")
@@ -259,19 +260,30 @@ public class FiberContext<F, R> implements Fiber<F, R> {
             if (!state.compareAndSet(oldState, doneValue)) {
                 done(value);
             } else {
-                executing.notifyObservers(value);
+                executing.notifyObservers(this);
             }
         }
     }
 
-    private void register(CompletableFuture<Either<Exit<F>, R>> observer) {
+    @Override
+    public void register(CompletableFuture<Fiber<F, R>> observer) {
         final FiberState<F, R> oldState = state.get();
         if (oldState instanceof Executing) {
             Executing<F, R> executing = (Executing<F, R>) oldState;
             if (!state.compareAndSet(oldState, executing.addObserver(observer))) {
                 register(observer);
             }
+        } else {
+            observer.complete(this);
         }
+    }
+    
+    @Override
+    public Either<Exit<F>, R> getCompletedValue() {
+        final FiberState<F, R> oldState = state.get();
+
+        final Done<F, R> done = (Done<F, R>) oldState;
+        return done.value;
     }
 
     private Either<Exit<F>, R> getValue() {
@@ -279,7 +291,7 @@ public class FiberContext<F, R> implements Fiber<F, R> {
         if (oldState instanceof Executing) {
             final Executing<F, R> executing = (Executing<F, R>) oldState;
             return ExceptionFailure.tryCatch(
-                () -> executing.firstObserver().get()
+                () -> executing.firstObserver().thenApply(Fiber::getCompletedValue).get()
             ).fold(
                 failure -> Left.of(Exit.die((ExceptionFailure) failure)),
                 success -> success
@@ -299,26 +311,26 @@ public class FiberContext<F, R> implements Fiber<F, R> {
 
     private static class Executing<F, R> implements FiberState<F, R> {
         final FiberStatus status;
-        private final List<CompletableFuture<Either<Exit<F>, R>>> observers;
+        private final List<CompletableFuture<Fiber<F, R>>> observers;
 
         public Executing(
             FiberStatus status,
-            List<CompletableFuture<Either<Exit<F>, R>>> observers
+            List<CompletableFuture<Fiber<F, R>>> observers
         ) {
             this.status = status;
             this.observers = observers;
         }
 
-        public Executing<F, R> addObserver(CompletableFuture<Either<Exit<F>, R>> observer) {
+        public Executing<F, R> addObserver(CompletableFuture<Fiber<F, R>> observer) {
             this.observers.add(observer);
             return new Executing<F, R>(this.status, this.observers);
         }
 
-        public void notifyObservers(Either<Exit<F>, R> value) {
+        public void notifyObservers(Fiber<F, R> value) {
             observers.forEach(future -> future.complete(value));
         }
 
-        public CompletableFuture<Either<Exit<F>, R>> firstObserver() {
+        public CompletableFuture<Fiber<F, R>> firstObserver() {
             return observers.get(0);
         }
     }
@@ -332,7 +344,7 @@ public class FiberContext<F, R> implements Fiber<F, R> {
     }
 
     @Override
-    public <C> IO<C, F, R> interrupt() {
+    public <C, R2> IO<C, F, R2> interrupt() {
         interrupted = true;
         return IO.interrupt();
     }
@@ -345,6 +357,18 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                 failure -> IO.fail(failure),
                 success -> IO.succeed(success)
             );
+    }
+    
+    @Override
+    public <R2> Future<Tuple2<Fiber, Fiber>> raceWith(Fiber<F, R2> that) {
+        CompletableFuture<Fiber<F, ?>> winner = new CompletableFuture<>();
+        ((Fiber) this).register(winner);
+        ((Fiber) that).register(winner);
+        return winner.thenApply(winnerFiber ->
+            winnerFiber == this ?
+                Tuple2.of(this, that) :
+                Tuple2.of(that, this)
+        );
     }
 
     private boolean interruptible() {
