@@ -10,7 +10,6 @@ import java.util.concurrent.Future;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
-import fp.io.Exit.Cause;
 import fp.io.IO.Tag;
 import fp.util.Either;
 import fp.util.ExceptionFailure;
@@ -101,7 +100,7 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                         case Fail:
                             unwindStack(stack);
                             Exit<F> exit = ((IO.Fail<Object, F, R>) curIo).f;
-                            if (stack.isEmpty() || exit.getCause() != Cause.Fail) {
+                            if (stack.isEmpty()) {
                                 done(Left.of(exit));
                                 return;
                             }
@@ -204,12 +203,6 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                     curIo = IO.interrupt();
                 }
             }
-
-            if (value instanceof Future) {
-                Future<Either<?, ?>> futureValue = (Future<Either<?, ?>>) value;
-                value = Failure.tryCatchOptional(() -> futureValue.get()).get().get();
-            }
-            done(Right.of((R) value));
         } catch(Exception e) {
             done(Left.of(Exit.die(new UnsupportedOperationException(e))));
         }
@@ -217,23 +210,25 @@ public class FiberContext<F, R> implements Fiber<F, R> {
 
     @SuppressWarnings("unchecked")
     private IO<Object, F, R> nextInstr(Object value) {
+        if (value instanceof Future) {
+            Future<Either<Exit<F>, ?>> futureValue = (Future<Either<Exit<F>, ?>>) value;
+            Either<Failure, Either<Exit<F>, ?>> valueTry =
+                ExceptionFailure.tryCatch(() -> futureValue.get());
+            if (valueTry.isLeft()) {
+                ((ExceptionFailure) valueTry.left()).throwable.printStackTrace();
+                return IO.fail(Exit.fail((F) valueTry.left()));
+            }
+            Either<Exit<F>, ?> either = valueTry.get();
+            if (either.isLeft()) {
+                return IO.fail(either.left());
+            }
+            value = either.get();
+        }
+
         if (stack.isEmpty()) {
+            done(Right.of((R) value));
             return null;
         } else {
-            if (value instanceof Future) {
-                Future<Either<Exit<F>, ?>> futureValue = (Future<Either<Exit<F>, ?>>) value;
-                Either<Failure, Either<Exit<F>, ?>> valueTry =
-                    ExceptionFailure.tryCatch(() -> futureValue.get());
-                if (valueTry.isLeft()) {
-                    ((ExceptionFailure) valueTry.left()).throwable.printStackTrace();
-                    return IO.fail(Exit.fail((F) valueTry.left()));
-                }
-                Either<Exit<F>, ?> either = valueTry.get();
-                if (either.isLeft()) {
-                    return IO.fail(either.left());
-                }
-                value = either.get();
-            }
             final Function<Object, IO<Object, ?, ?>> fn =
                 (Function<Object, IO<Object, ?, ?>>) stack.pop();
             valueLast = value;
@@ -249,7 +244,7 @@ public class FiberContext<F, R> implements Fiber<F, R> {
             final Function<?, IO<Object, ?, ?>> fn = stack.pop();
             if (fn instanceof InterruptExit) {
                 popDrop(null);
-            } else if (fn instanceof IO.Fold) {
+            } else if (fn instanceof IO.Fold && !shouldInterrupt()) {
                 stack.push(((IO.Fold) fn).failure);
                 unwinding = false;
             }
@@ -334,6 +329,12 @@ public class FiberContext<F, R> implements Fiber<F, R> {
         public Done(Either<Exit<F>, R> value) {
             this.value = value;
         }
+    }
+
+    @Override
+    public IO<Object, F, R> interrupt() {
+        interrupted = true;
+        return IO.interrupt();
     }
 
     @Override

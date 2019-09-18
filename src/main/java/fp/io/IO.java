@@ -105,7 +105,7 @@ public abstract class IO<C, F, R> {
     }
 
     public IO<C, F, R> uninterruptible() {
-        return new InterruptStatus<C, F, R>(this, true);
+        return new InterruptStatus<C, F, R>(this, false);
     }
 
     public IO<C, F, R> checkInterrupt(
