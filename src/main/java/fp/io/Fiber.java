@@ -6,6 +6,7 @@ import java.util.concurrent.Future;
 import fp.util.Either;
 
 public interface Fiber<F, R> {
+    Either<Exit<F>, R> getValue();
     Either<Exit<F>, R> getCompletedValue();
     <C> IO<C, F, Void> interrupt();
     <C> IO<C, F, R> join();

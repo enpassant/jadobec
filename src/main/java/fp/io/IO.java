@@ -149,7 +149,7 @@ public abstract class IO<C, F, R> {
                     fiber.raceWith(fiberThat).get()
                 ).flatMap(raceResult -> {
                     return raceResult.getWinner().getCompletedValue().fold(
-                        failure -> raceResult.getLooser().getCompletedValue().fold(
+                        failure -> raceResult.getLooser().getValue().fold(
                             f -> (IO<C, F, R>) IO.<C, F, R>fail(f),
                             s -> (IO<C, F, R>) IO.succeed(s)
                         ),

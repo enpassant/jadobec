@@ -285,7 +285,7 @@ public class FiberContext<F, R> implements Fiber<F, R> {
         return done.value;
     }
 
-    private Either<Exit<F>, R> getValue() {
+    public Either<Exit<F>, R> getValue() {
         final FiberState<F, R> oldState = state.get();
         if (oldState instanceof Executing) {
             final Executing<F, R> executing = (Executing<F, R>) oldState;
