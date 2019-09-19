@@ -12,6 +12,7 @@ import org.junit.Test;
 import fp.util.Either;
 import fp.util.ExceptionFailure;
 import fp.util.Failure;
+import fp.util.GeneralFailure;
 import fp.util.Left;
 import fp.util.Right;
 import fp.util.Tuple2;
@@ -399,6 +400,34 @@ public class IOTest {
         );
         Assert.assertEquals(
             Right.of(5),
+            defaultRuntime.unsafeRun(io)
+        );
+    }
+
+    @Test
+    public void testRaceWinnerFail() {
+        IO<Object, Failure, Integer> io = slow(50, 2).race(
+            slow(1, 5).<Failure, Integer>flatMap(n ->
+                IO.fail(Exit.fail(GeneralFailure.of(n)))
+            )
+        );
+        Assert.assertEquals(
+            Right.of(2),
+            defaultRuntime.unsafeRun(io)
+        );
+    }
+
+    @Test
+    public void testRaceFails() {
+        IO<Object, Failure, Integer> io = slow(50, 2).<Failure, Integer>flatMap(n ->
+            IO.fail(Exit.fail(GeneralFailure.of(n)))
+        ).race(
+            slow(1, 5).<Failure, Integer>flatMap(n ->
+                IO.fail(Exit.fail(GeneralFailure.of(n)))
+            )
+        );
+        Assert.assertEquals(
+            Left.of(Exit.fail(GeneralFailure.of(2))),
             defaultRuntime.unsafeRun(io)
         );
     }
