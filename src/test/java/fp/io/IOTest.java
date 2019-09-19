@@ -367,19 +367,11 @@ public class IOTest {
         );
     }
 
-    private IO<Object, Failure, Integer> sleep(long millis) {
-        return IO.succeed(millis > 0).flatMap(isPositive -> {
-            if (isPositive) { 
-                return IO.effect(() -> Thread.sleep(10)).flatMap(n ->
-                    sleep(millis - 10));
-            } else {
-                return IO.succeed(1);
-            }
-        });
-    }
-
     private <A> IO<Object, Failure, A> slow(long millis, A value) {
-        return sleep(millis).map(n -> value);
+        return IO.effect(() -> {
+            Thread.sleep(millis);
+            return value;
+        }).blocking().map(a -> a);
     }
 
     @Test

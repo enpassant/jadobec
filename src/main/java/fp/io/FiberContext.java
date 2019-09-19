@@ -32,6 +32,7 @@ public class FiberContext<F, R> implements Fiber<F, R> {
 
     private Deque<Boolean> interruptStatus = new ArrayDeque<Boolean>();
     private boolean interrupted = false;
+    private Thread thread = null;
 
     public FiberContext(Object context, Platform platform) {
         super();
@@ -62,6 +63,8 @@ public class FiberContext<F, R> implements Fiber<F, R> {
 
     @SuppressWarnings("unchecked")
     public <F2, R2> void evaluateNow(IO<Object, F, R> io) {
+        this.thread = Thread.currentThread();
+
         curIo = io;
 
         try {
@@ -126,7 +129,11 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                             if (either.isRight()) {
                                 value = either.right();
                                 curIo = nextInstr(value);
-                            } else {
+                            } else if (((ExceptionFailure) either.left()).throwable
+                                instanceof InterruptedException
+                            ) {
+                                curIo = IO.fail(Exit.interrupt());
+                            } else  {
                                 curIo = IO.fail(Exit.fail(either.left()));
                             }
                             break;
@@ -215,8 +222,7 @@ public class FiberContext<F, R> implements Fiber<F, R> {
             Either<Failure, Either<Exit<F>, ?>> valueTry =
                 ExceptionFailure.tryCatch(() -> futureValue.get());
             if (valueTry.isLeft()) {
-                ((ExceptionFailure) valueTry.left()).throwable.printStackTrace();
-                return IO.fail(Exit.fail((F) valueTry.left()));
+                return IO.fail(Exit.die((ExceptionFailure) valueTry.left()));
             }
             Either<Exit<F>, ?> either = valueTry.get();
             if (either.isLeft()) {
@@ -345,6 +351,16 @@ public class FiberContext<F, R> implements Fiber<F, R> {
     @Override
     public <C> IO<C, F, Void> interrupt() {
         interrupted = true;
+        if (thread != null) {
+            switch (thread.getState()) {
+                case BLOCKED:
+                case WAITING:
+                case TIMED_WAITING:
+                    thread.interrupt();
+                    break;
+                default:
+            }
+        }
         return IO.effectTotal(() -> {});
     }
 

@@ -58,6 +58,9 @@ public class Exit<F> {
     }
 
     public static <F> Exit<F> die(ExceptionFailure failure) {
+        if (failure.throwable instanceof InterruptedException) {
+            return interrupt();
+        }
         return new Exit<F>(failure, Cause.Die);
     }
 
