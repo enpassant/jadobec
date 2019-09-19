@@ -393,6 +393,17 @@ public class IOTest {
     }
 
     @Test
+    public void testRace() {
+        IO<Object, Failure, Integer> io = slow(100, 2).race(
+            slow(1, 5)
+        );
+        Assert.assertEquals(
+            Right.of(5),
+            defaultRuntime.unsafeRun(io)
+        );
+    }
+
+    @Test
     public void testZipParWithFailureFirst() {
         IO<Object, Failure, Tuple2<Integer, String>> io =
             IO.<Object, Failure, Integer>interrupt().zipPar(

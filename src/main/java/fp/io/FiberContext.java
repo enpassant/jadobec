@@ -343,9 +343,9 @@ public class FiberContext<F, R> implements Fiber<F, R> {
     }
 
     @Override
-    public <C, R2> IO<C, F, R2> interrupt() {
+    public <C> IO<C, F, Void> interrupt() {
         interrupted = true;
-        return IO.interrupt();
+        return IO.effectTotal(() -> {});
     }
 
     @Override

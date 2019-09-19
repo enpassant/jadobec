@@ -7,6 +7,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import fp.util.Either;
+import fp.util.ExceptionFailure;
 import fp.util.Failure;
 import fp.util.Left;
 import fp.util.Right;
@@ -137,6 +138,29 @@ public abstract class IO<C, F, R> {
 
     public <C2> IO<C2, F, R> provide(C context) {
         return new Provide<C, C2, F, R>(context, this);
+    }
+
+    public IO<C, F, R> race(
+        IO<C, F, R> that
+    ) {
+        return this.fork().flatMap(fiber ->
+            that.fork().flatMap(fiberThat ->
+                IO.<C, Failure, RaceResult<F, R, R>>effect(() ->
+                    fiber.raceWith(fiberThat).get()
+                ).flatMap(raceResult -> {
+                    return raceResult.getWinner().getCompletedValue().fold(
+                        failure -> raceResult.getLooser().getCompletedValue().fold(
+                            f -> (IO<C, F, R>) IO.<C, F, R>fail(f),
+                            s -> (IO<C, F, R>) IO.succeed(s)
+                        ),
+                        success -> {
+                            raceResult.getLooser().interrupt();
+                            return (IO<C, F, R>) IO.succeed(success);
+                        }
+                    );
+                })
+            )
+        );
     }
 
     public static <C, F, R> IO<C, F, R> unit() {
