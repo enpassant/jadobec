@@ -259,8 +259,8 @@ public class IOTest {
         );
 
         Assert.assertEquals(
-            Left.of(Cause.then(
-                Cause.die(divideByZero),
+            Left.of(
+                Cause.die(divideByZero).then(
                 Cause.die(notClosable))
             ),
             defaultVoidRuntime.unsafeRun(io)
@@ -453,7 +453,7 @@ public class IOTest {
             )
         );
         Assert.assertEquals(
-            Left.of(Cause.then(Cause.fail(5), Cause.fail(2))),
+            Left.of(Cause.fail(5).then(Cause.fail(2))),
             defaultRuntime.unsafeRun(io)
         );
     }

@@ -102,9 +102,14 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                             break;
                         case Fail:
                             unwindStack(stack);
-                            Cause<F> cause = ((IO.Fail<Object, F, R>) curIo).f;
+                            final Cause<F> cause = ((IO.Fail<Object, F, R>) curIo).f;
                             if (stack.isEmpty()) {
-                                done(Left.of(cause));
+                                final Cause<F> causeNew = 
+                                    (interrupted && !cause.isInterrupt()) ?
+                                        cause.then(Cause.interrupt()) :
+                                        cause;
+
+                                done(Left.of(causeNew));
                                 return;
                             }
                             value = cause;

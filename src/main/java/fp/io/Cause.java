@@ -86,8 +86,8 @@ public abstract class Cause<F> {
         return kind == Kind.Interrupt;
     }
 
-    public static <F> Cause<F> then(Cause<F> first, Cause<F> second) {
-        return new Then<F>(first, second);
+    public Cause<F> then(Cause<F> second) {
+        return new Then<F>(this, second);
     }
 
     @Override

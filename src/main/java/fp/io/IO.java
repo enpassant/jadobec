@@ -149,7 +149,7 @@ public abstract class IO<C, F, R> {
         return acquire.flatMap(a ->
             use.apply(a).foldCauseM(
                 cause1 -> release.apply(a).foldCauseM(
-                    cause2 -> IO.fail(Cause.then(cause1, cause2)),
+                    cause2 -> IO.fail(cause1.then(cause2)),
                     value -> IO.fail(cause1)
                 ),
                 success -> release.apply(a).foldCauseM(
@@ -175,7 +175,7 @@ public abstract class IO<C, F, R> {
                 .flatMap(raceResult -> {
                     return raceResult.<R>getWinner().getCompletedValue().fold(
                         failure -> raceResult.<R>getLooser().getValue().fold(
-                            f -> IO.fail(Cause.then(failure, f)),
+                            f -> IO.fail(failure.then(f)),
                             s -> IO.succeed(s)
                         ),
                         success -> {
