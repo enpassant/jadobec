@@ -8,6 +8,7 @@ import fp.util.Failure;
 import fp.util.GeneralFailure;
 import fp.util.Left;
 import fp.util.Right;
+import fp.util.Tuple2;
 
 public abstract class Cause<F> {
     protected final Failure failure;
@@ -21,7 +22,9 @@ public abstract class Cause<F> {
     public enum Kind {
         Die,
         Fail,
-        Interrupt
+        Interrupt,
+        Both,
+        Then
     }
 
     /**
@@ -43,6 +46,10 @@ public abstract class Cause<F> {
      */
     public Kind getKind() {
         return kind;
+    }
+
+    public static <F> Cause<F> both(Cause<F> first, Cause<F> second) {
+        return new Both<F>(first, second);
     }
 
     public static <F> Cause<F> die(ExceptionFailure failure) {
@@ -74,6 +81,10 @@ public abstract class Cause<F> {
 
     public boolean isInterrupt() {
         return kind == Kind.Interrupt;
+    }
+
+    public static <F> Cause<F> then(Cause<F> first, Cause<F> second) {
+        return new Then<F>(first, second);
     }
 
     @Override
@@ -135,6 +146,40 @@ public abstract class Cause<F> {
     static class Interrupt<F> extends Cause<F> {
         private Interrupt() {
             super(GeneralFailure.of(Kind.Interrupt), Kind.Interrupt);
+        }
+    }
+
+    static class Both <F> extends Cause<F> {
+        private final Cause<F> first;
+        private final Cause<F> second;
+        
+        private Both(Cause<F> first, Cause<F> second) {
+            super(GeneralFailure.of(Tuple2.of(first, second)), Kind.Both);
+            
+            this.first = first;
+            this.second = second;
+        }
+
+        @Override
+        public String toString() {
+            return "Both(" + first + ", " + second + ")";
+        }
+    }
+
+    static class Then <F> extends Cause<F> {
+        private final Cause<F> first;
+        private final Cause<F> second;
+        
+        private Then(Cause<F> first, Cause<F> second) {
+            super(GeneralFailure.of(Tuple2.of(first, second)), Kind.Then);
+            
+            this.first = first;
+            this.second = second;
+        }
+
+        @Override
+        public String toString() {
+            return "Then(" + first + ", " + second + ")";
         }
     }
 }
