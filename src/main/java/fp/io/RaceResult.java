@@ -15,11 +15,13 @@ public class RaceResult<F, R1, R2> {
         this.isFirstTheWinner = isFirstTheWinner;
     }
     
-    public Fiber<F, ?> getLooser() {
-        return !isFirstTheWinner ? fiberFirst : fiberSecond;
+    @SuppressWarnings("unchecked")
+    public <R> Fiber<F, R> getLooser() {
+        return (Fiber<F, R>) (!isFirstTheWinner ? fiberFirst : fiberSecond);
     }
     
-    public Fiber<F, ?> getWinner() {
-        return isFirstTheWinner ? fiberFirst : fiberSecond;
+    @SuppressWarnings("unchecked")
+    public <R> Fiber<F, R> getWinner() {
+        return (Fiber<F, R>) (isFirstTheWinner ? fiberFirst : fiberSecond);
     }
 }

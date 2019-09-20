@@ -156,14 +156,14 @@ public abstract class IO<C, F, R> {
                     fiber.raceWith(fiberThat).get()
                 ).mapFailure(failure -> Cause.die((ExceptionFailure) failure))
                 .flatMap(raceResult -> {
-                    return raceResult.getWinner().getCompletedValue().fold(
-                        failure -> raceResult.getLooser().getValue().fold(
-                            f -> (IO<C, F, R>) IO.<C, F, R>fail(Cause.then(failure, f)),
-                            s -> (IO<C, F, R>) IO.succeed(s)
+                    return raceResult.<R>getWinner().getCompletedValue().fold(
+                        failure -> raceResult.<R>getLooser().getValue().fold(
+                            f -> IO.fail(Cause.then(failure, f)),
+                            s -> IO.succeed(s)
                         ),
                         success -> {
                             raceResult.getLooser().interrupt();
-                            return (IO<C, F, R>) IO.succeed(success);
+                            return IO.succeed(success);
                         }
                     );
                 })
