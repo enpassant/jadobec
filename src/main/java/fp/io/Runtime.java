@@ -9,8 +9,8 @@ import fp.util.Left;
 
 public interface Runtime<C> {
     @SuppressWarnings("unchecked")
-    default <F, R> Either<Exit<F>, R> unsafeRun(IO<C, F, R> io) {
-        final Either<Failure, Either<Exit<F>, R>> eitherValue =
+    default <F, R> Either<Cause<F>, R> unsafeRun(IO<C, F, R> io) {
+        final Either<Failure, Either<Cause<F>, R>> eitherValue =
             ExceptionFailure.tryCatch(() -> unsafeRunAsync(io).get());
         eitherValue.forEachLeft(failure -> {
             if (failure instanceof ExceptionFailure) {
@@ -18,14 +18,14 @@ public interface Runtime<C> {
                 exceptionFailure.throwable.printStackTrace(System.err);
             }
         });
-        return (Either<Exit<F>, R>) eitherValue.fold(
-            failure -> Left.of(Exit.fail(failure)),
+        return (Either<Cause<F>, R>) eitherValue.fold(
+            failure -> Left.of(Cause.fail(failure)),
             success -> success
         );
     }
 
     @SuppressWarnings("unchecked")
-    default <F, R> Future<Either<Exit<F>, R>> unsafeRunAsync(IO<C, F, R> io) {
+    default <F, R> Future<Either<Cause<F>, R>> unsafeRunAsync(IO<C, F, R> io) {
         FiberContext<F, R> fiberContext = createFiberContext();
         return fiberContext.runAsync((IO<Object, F, R>) io);
     }

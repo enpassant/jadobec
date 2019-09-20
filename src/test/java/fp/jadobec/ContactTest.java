@@ -19,7 +19,7 @@ import org.junit.Test;
 import fp.io.DefaultPlatform;
 import fp.io.DefaultRuntime;
 import fp.io.Environment;
-import fp.io.Exit;
+import fp.io.Cause;
 import fp.io.IO;
 import fp.io.Runtime;
 import fp.util.Either;
@@ -256,7 +256,7 @@ public class ContactTest {
                 idOpt.get()
             );
         } else {
-            return IO.fail(Exit.fail((Failure) GeneralFailure.of("Missing user id")));
+            return IO.fail(Cause.fail((Failure) GeneralFailure.of("Missing user id")));
         }
     }
 
@@ -265,7 +265,7 @@ public class ContactTest {
             .flatMap(repository -> {
                 final Environment environment =
                     Environment.of(Repository.Service.class, repository);
-                return Exit.resultFlatten(defaultRuntime.unsafeRun(
+                return Cause.resultFlatten(defaultRuntime.unsafeRun(
                     Repository.use(testDbCommand).provide(environment)
                 ));
             });

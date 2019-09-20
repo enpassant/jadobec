@@ -51,12 +51,12 @@ public class FiberContext<F, R> implements Fiber<F, R> {
         );
     }
 
-    public <F2, R2> Either<Exit<F>, R> evaluate(IO<Object, F, R> io) {
+    public <F2, R2> Either<Cause<F>, R> evaluate(IO<Object, F, R> io) {
         evaluateNow(io);
         return getValue();
     }
 
-    public <F2, R2> Future<Either<Exit<F>, R>> runAsync(IO<Object, F, R> io) {
+    public <F2, R2> Future<Either<Cause<F>, R>> runAsync(IO<Object, F, R> io) {
         evaluateNow(io);
         return observer.thenApply(Fiber::getCompletedValue);
     }
@@ -75,7 +75,7 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                             final IO.Absolve<Object, F, R> absolveIO =
                                 (IO.Absolve<Object, F, R>) curIo;
                             stack.push((Either<F, R> v) -> v.isLeft() ?
-                                IO.fail(Exit.fail(v.left())) :
+                                IO.fail(Cause.fail(v.left())) :
                                 IO.succeed(v.right())
                             );
                             curIo = absolveIO.io;
@@ -102,12 +102,12 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                             break;
                         case Fail:
                             unwindStack(stack);
-                            Exit<F> exit = ((IO.Fail<Object, F, R>) curIo).f;
+                            Cause<F> cause = ((IO.Fail<Object, F, R>) curIo).f;
                             if (stack.isEmpty()) {
-                                done(Left.of(exit));
+                                done(Left.of(cause));
                                 return;
                             }
-                            value = exit.getValue();
+                            value = cause.getValue();
                             curIo = nextInstr(value);
                             break;
                         case Fold: {
@@ -132,9 +132,9 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                             } else if (((ExceptionFailure) either.left()).throwable
                                 instanceof InterruptedException
                             ) {
-                                curIo = IO.fail(Exit.interrupt());
+                                curIo = IO.fail(Cause.interrupt());
                             } else  {
-                                curIo = IO.fail(Exit.fail(either.left()));
+                                curIo = IO.fail(Cause.fail(either.left()));
                             }
                             break;
                         }
@@ -211,20 +211,20 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                 }
             }
         } catch(Exception e) {
-            done(Left.of(Exit.die(new UnsupportedOperationException(e))));
+            done(Left.of(Cause.die(new UnsupportedOperationException(e))));
         }
     }
 
     @SuppressWarnings("unchecked")
     private IO<Object, F, R> nextInstr(Object value) {
         if (value instanceof Future) {
-            Future<Either<Exit<F>, ?>> futureValue = (Future<Either<Exit<F>, ?>>) value;
-            Either<Failure, Either<Exit<F>, ?>> valueTry =
+            Future<Either<Cause<F>, ?>> futureValue = (Future<Either<Cause<F>, ?>>) value;
+            Either<Failure, Either<Cause<F>, ?>> valueTry =
                 ExceptionFailure.tryCatch(() -> futureValue.get());
             if (valueTry.isLeft()) {
-                return IO.fail(Exit.die((ExceptionFailure) valueTry.left()));
+                return IO.fail(Cause.die((ExceptionFailure) valueTry.left()));
             }
-            Either<Exit<F>, ?> either = valueTry.get();
+            Either<Cause<F>, ?> either = valueTry.get();
             if (either.isLeft()) {
                 return IO.fail(either.left());
             }
@@ -257,7 +257,7 @@ public class FiberContext<F, R> implements Fiber<F, R> {
         }
     }
 
-    private void done(Either<Exit<F>, R> value) {
+    private void done(Either<Cause<F>, R> value) {
         final FiberState<F, R> oldState = state.get();
         if (oldState instanceof Executing) {
             final Executing<F, R> executing = (Executing<F, R>) oldState;
@@ -284,21 +284,21 @@ public class FiberContext<F, R> implements Fiber<F, R> {
     }
     
     @Override
-    public Either<Exit<F>, R> getCompletedValue() {
+    public Either<Cause<F>, R> getCompletedValue() {
         final FiberState<F, R> oldState = state.get();
 
         final Done<F, R> done = (Done<F, R>) oldState;
         return done.value;
     }
 
-    public Either<Exit<F>, R> getValue() {
+    public Either<Cause<F>, R> getValue() {
         final FiberState<F, R> oldState = state.get();
         if (oldState instanceof Executing) {
             final Executing<F, R> executing = (Executing<F, R>) oldState;
             return ExceptionFailure.tryCatch(
                 () -> executing.firstObserver().thenApply(Fiber::getCompletedValue).get()
             ).fold(
-                failure -> Left.of(Exit.die((ExceptionFailure) failure)),
+                failure -> Left.of(Cause.die((ExceptionFailure) failure)),
                 success -> success
             );
         } else {
@@ -341,9 +341,9 @@ public class FiberContext<F, R> implements Fiber<F, R> {
     }
 
     private static class Done<F, R> implements FiberState<F, R> {
-        final Either<Exit<F>, R> value;
+        final Either<Cause<F>, R> value;
 
-        public Done(Either<Exit<F>, R> value) {
+        public Done(Either<Cause<F>, R> value) {
             this.value = value;
         }
     }
@@ -366,7 +366,7 @@ public class FiberContext<F, R> implements Fiber<F, R> {
 
     @Override
     public <C> IO<C, F, R> join() {
-        Either<Exit<F>, R> value2 = getValue();
+        Either<Cause<F>, R> value2 = getValue();
         return value2
             .fold(
                 failure -> IO.fail(failure),

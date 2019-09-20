@@ -9,24 +9,24 @@ import fp.util.GeneralFailure;
 import fp.util.Left;
 import fp.util.Right;
 
-public class Exit<F> {
+public class Cause<F> {
     private final F value;
     private final Failure failure;
-    private final Cause cause;
+    private final Kind kind;
 
-    private Exit(F value) {
+    private Cause(F value) {
         this.failure = GeneralFailure.of(value);;
-        this.cause = Cause.Fail;
+        this.kind = Kind.Fail;
         this.value = value;
     }
 
-    private Exit(Failure failure, Cause cause) {
+    private Cause(Failure failure, Kind cause) {
         this.failure = failure;
-        this.cause = cause;
+        this.kind = cause;
         this.value = null;
     }
 
-    public enum Cause {
+    public enum Kind {
         Die,
         Fail,
         Interrupt
@@ -49,57 +49,57 @@ public class Exit<F> {
     /**
      * @return the cause
      */
-    public Cause getCause() {
-        return cause;
+    public Kind getCause() {
+        return kind;
     }
 
-    public static <F> Exit<F> fail(F failureValue) {
-        return new Exit<F>(failureValue);
+    public static <F> Cause<F> fail(F failureValue) {
+        return new Cause<F>(failureValue);
     }
 
-    public static <F> Exit<F> die(ExceptionFailure failure) {
+    public static <F> Cause<F> die(ExceptionFailure failure) {
         if (failure.throwable instanceof InterruptedException) {
             return interrupt();
         }
-        return new Exit<F>(failure, Cause.Die);
+        return new Cause<F>(failure, Kind.Die);
     }
 
-    public static <F> Exit<F> die(Throwable throwable) {
-        return new Exit<F>(ExceptionFailure.of(throwable), Cause.Die);
+    public static <F> Cause<F> die(Throwable throwable) {
+        return new Cause<F>(ExceptionFailure.of(throwable), Kind.Die);
     }
 
-    public static <F> Exit<F> interrupt() {
-        return new Exit<F>(GeneralFailure.of("Interrupt"), Cause.Interrupt);
+    public static <F> Cause<F> interrupt() {
+        return new Cause<F>(GeneralFailure.of("Interrupt"), Kind.Interrupt);
     }
 
     public boolean isDie() {
-        return cause == Cause.Die;
+        return kind == Kind.Die;
     }
 
     public boolean isFail() {
-        return cause == Cause.Fail;
+        return kind == Kind.Fail;
     }
 
     public boolean isInterrupt() {
-        return cause == Cause.Interrupt;
+        return kind == Kind.Interrupt;
     }
 
     @Override
     public String toString() {
-        switch (cause) {
+        switch (kind) {
             case Fail: return "Fail(" + value + ")";
             default:
-                return "Exit(" + failure + ", " + cause + ")";
+                return "Exit(" + failure + ", " + kind + ")";
         }
     }
 
     @Override
     public boolean equals(Object other) {
-        if (other instanceof Exit) {
+        if (other instanceof Cause) {
             @SuppressWarnings("unchecked")
-            Exit<F> exit = (Exit<F>) other;
-            return Objects.equals(failure, exit.failure)
-                && Objects.equals(cause, exit.cause);
+            Cause<F> cause = (Cause<F>) other;
+            return Objects.equals(failure, cause.failure)
+                && Objects.equals(kind, cause.kind);
         } else {
             return false;
         }
@@ -107,14 +107,14 @@ public class Exit<F> {
 
     @Override
     public int hashCode() {
-        return failure.hashCode() * 11 + cause.hashCode();
+        return failure.hashCode() * 11 + kind.hashCode();
     }
 
     public static <F, R> Either<Failure, R> resultFlatten(
-        Either<Exit<Failure>, R> result
+        Either<Cause<Failure>, R> result
     ) {
         return result.fold(
-            exit -> Left.of(exit.getValue()),
+            cause -> Left.of(cause.getValue()),
             success -> Right.of(success)
         );
     }

@@ -101,7 +101,7 @@ public class ModuleTest {
             Environment.of(Console.Service.class, testConsole)
                 .and(Log.Service.class, testLog);
 
-        final Either<Exit<Object>, String> name =
+        final Either<Cause<Object>, String> name =
             defaultVoidRuntime.unsafeRun(io.provide(environment));
 
         Assert.assertEquals(Right.of("John"), name);

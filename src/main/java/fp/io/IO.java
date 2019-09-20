@@ -46,7 +46,7 @@ public abstract class IO<C, F, R> {
         );
     }
 
-    public static <C, F, R> IO<C, F, R> fail(Exit<F> f) {
+    public static <C, F, R> IO<C, F, R> fail(Cause<F> f) {
         return new Fail<C, F, R>(f);
     }
 
@@ -93,12 +93,12 @@ public abstract class IO<C, F, R> {
         return new Fork<C, F, R>(this);
     }
 
-    public static <C, F, R> IO<C, F, R> halt(Exit<F> exit) {
-        return new Fail<C, F, R>(exit);
+    public static <C, F, R> IO<C, F, R> halt(Cause<F> cause) {
+        return new Fail<C, F, R>(cause);
     }
 
     public static <C, F, R> IO<C, F, R> interrupt() {
-        return new Fail<C, F, R>(Exit.interrupt());
+        return new Fail<C, F, R>(Cause.interrupt());
     }
 
     public IO<C, F, R> interruptible() {
@@ -254,8 +254,8 @@ public abstract class IO<C, F, R> {
     }
 
     static class Fail<C, F, R> extends IO<C, F, R> {
-        final Exit<F> f;
-        public Fail(Exit<F> f) {
+        final Cause<F> f;
+        public Fail(Cause<F> f) {
             tag = Tag.Fail;
             this.f = f;
         }

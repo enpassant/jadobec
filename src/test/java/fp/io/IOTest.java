@@ -37,7 +37,7 @@ public class IOTest {
     @Test
     public void testAbsolveFailure() {
         IO<Void, Integer, Integer> io = IO.absolve(IO.succeed(Left.of(4)));
-        Assert.assertEquals(Left.of(Exit.fail(4)), defaultVoidRuntime.unsafeRun(io));
+        Assert.assertEquals(Left.of(Cause.fail(4)), defaultVoidRuntime.unsafeRun(io));
     }
 
     @Test
@@ -62,7 +62,7 @@ public class IOTest {
     @Test
     public void testDie() {
         IO<Void, Void, Integer> io = IO.effectTotal(() -> 8 / 0);
-        final Either<Exit<Void>, Integer> result = defaultVoidRuntime.unsafeRun(io);
+        final Either<Cause<Void>, Integer> result = defaultVoidRuntime.unsafeRun(io);
         Assert.assertTrue(
             result.toString(),
             result.isLeft() && result.left().isDie()
@@ -81,7 +81,7 @@ public class IOTest {
     @Test
     public void testEitherFail() {
         IO<Object, Void, Either<String, Object>> io =
-            IO.fail(Exit.fail("Syntax error")).either();
+            IO.fail(Cause.fail("Syntax error")).either();
 
         Assert.assertEquals(
             Right.of(Left.of("Syntax error")),
@@ -91,9 +91,9 @@ public class IOTest {
 
     @Test
     public void testFail() {
-        IO<Void, String, ?> io = IO.fail(Exit.fail("Syntax error"));
+        IO<Void, String, ?> io = IO.fail(Cause.fail("Syntax error"));
         Assert.assertEquals(
-            Left.of(Exit.fail("Syntax error")),
+            Left.of(Cause.fail("Syntax error")),
             defaultVoidRuntime.unsafeRun(io)
         );
     }
@@ -111,7 +111,7 @@ public class IOTest {
 
     @Test
     public void testFoldFailure() {
-        IO<Void, String, Integer> ioValue = IO.fail(Exit.fail("Error"));
+        IO<Void, String, Integer> ioValue = IO.fail(Cause.fail("Error"));
         IO<Void, String, Integer> io = ioValue
             .foldM(
                 v -> IO.succeed(8),
@@ -156,7 +156,7 @@ public class IOTest {
             fiber2.join().map(value2 ->
             value1 + "," + value2
         ))));
-        Either<Exit<Object>, String> result = defaultRuntime.unsafeRun(io);
+        Either<Cause<Object>, String> result = defaultRuntime.unsafeRun(io);
         Assert.assertTrue(
             "One of the thread's name is not good: " + result,
             result.orElse("").matches(
@@ -192,7 +192,7 @@ public class IOTest {
             IO.effectTotal(() -> n * n)
         );
         Assert.assertEquals(
-            Left.of(Exit.fail(ExceptionFailure.of(
+            Left.of(Cause.fail(ExceptionFailure.of(
                 new ArithmeticException("/ by zero")))
             ).toString(),
             defaultRuntime.unsafeRun(io).toString()
@@ -266,11 +266,11 @@ public class IOTest {
                     IO.effectTotal(() -> res2),
                     resource2 -> IO.effectTotal(() -> resource2.close()),
                     resource2 -> IO.effectTotal(() -> n + resource2.use(6)).flatMap(i ->
-                        IO.fail(Exit.fail("Failure")))
+                        IO.fail(Cause.fail("Failure")))
                 )
             )
         );
-        Assert.assertEquals(Left.of(Exit.fail("Failure")), defaultRuntime.unsafeRun(io));
+        Assert.assertEquals(Left.of(Cause.fail("Failure")), defaultRuntime.unsafeRun(io));
         Assert.assertFalse(res1.acquired);
         Assert.assertFalse(res2.acquired);
     }
@@ -400,7 +400,7 @@ public class IOTest {
     public void testRaceWinnerFail() {
         IO<Object, Failure, Integer> io = slow(50, 2).race(
             slow(1, 5).<Failure, Integer>flatMap(n ->
-                IO.fail(Exit.fail(GeneralFailure.of(n)))
+                IO.fail(Cause.fail(GeneralFailure.of(n)))
             )
         );
         Assert.assertEquals(
@@ -412,14 +412,14 @@ public class IOTest {
     @Test
     public void testRaceFails() {
         IO<Object, Failure, Integer> io = slow(50, 2).<Failure, Integer>flatMap(n ->
-            IO.fail(Exit.fail(GeneralFailure.of(n)))
+            IO.fail(Cause.fail(GeneralFailure.of(n)))
         ).race(
             slow(1, 5).<Failure, Integer>flatMap(n ->
-                IO.fail(Exit.fail(GeneralFailure.of(n)))
+                IO.fail(Cause.fail(GeneralFailure.of(n)))
             )
         );
         Assert.assertEquals(
-            Left.of(Exit.fail(GeneralFailure.of(2))),
+            Left.of(Cause.fail(GeneralFailure.of(2))),
             defaultRuntime.unsafeRun(io)
         );
     }
@@ -430,7 +430,7 @@ public class IOTest {
             IO.<Object, Failure, Integer>interrupt().zipPar(
                 slow(3000, "Test")
         );
-        final Either<Exit<Failure>, Tuple2<Integer, String>> result =
+        final Either<Cause<Failure>, Tuple2<Integer, String>> result =
             defaultRuntime.unsafeRun(io);
         
         Assert.assertTrue(
@@ -444,7 +444,7 @@ public class IOTest {
         IO<Object, Failure, Tuple2<Integer, String>> io = slow(3000, 2).zipPar(
             IO.interrupt()
         );
-        final Either<Exit<Failure>, Tuple2<Integer, String>> result =
+        final Either<Cause<Failure>, Tuple2<Integer, String>> result =
             defaultRuntime.unsafeRun(io);
         
         Assert.assertTrue(
