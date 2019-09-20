@@ -146,12 +146,18 @@ public abstract class IO<C, F, R> {
         Function<A, IO<C, F, R2>> release,
         Function<A, IO<C, F, R>> use
     ) {
-        return IO.absolve(
-            acquire.flatMap(a ->
-            use.apply(a).either().flatMap(either ->
-            release.apply(a).either().map(r2 ->
-            either
-        ))));
+        return acquire.flatMap(a ->
+            use.apply(a).foldCauseM(
+                cause1 -> release.apply(a).foldCauseM(
+                    cause2 -> IO.fail(Cause.then(cause1, cause2)),
+                    value -> IO.fail(cause1)
+                ),
+                success -> release.apply(a).foldCauseM(
+                    cause2 -> IO.fail(cause2),
+                    value -> IO.succeed(success)
+                )
+            )
+        );
     }
 
     public <C2> IO<C2, F, R> provide(C context) {

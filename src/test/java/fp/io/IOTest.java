@@ -234,7 +234,7 @@ public class IOTest {
     }
 
     @Test
-    public void testRelease() {
+    public void testBracket() {
         final Resource res = new Resource();
         final IO<Void, Void, Integer> io = IO.bracket(
             IO.succeed(res),
@@ -243,6 +243,29 @@ public class IOTest {
         );
         Assert.assertEquals(Right.of(2), defaultVoidRuntime.unsafeRun(io));
         Assert.assertFalse(res.acquired);
+    }
+
+    @Test
+    public void testBracketWithTwoFailures() {
+        final Resource res = new Resource();
+        final GeneralFailure<String> notClosable = GeneralFailure.of("Not closable");
+        final GeneralFailure<String> divideByZero = GeneralFailure.of("/ by zero");
+
+        final IO<Void, Failure, Integer> io = IO.bracket(
+            IO.succeed(res),
+            resource -> IO.fail(Cause.die(notClosable)),
+            resource -> IO.<Void, Failure, Integer>effect(() -> 8 / 2)
+                .flatMap(i -> IO.fail(Cause.die(divideByZero)))
+        );
+
+        Assert.assertEquals(
+            Left.of(Cause.then(
+                Cause.die(divideByZero),
+                Cause.die(notClosable))
+            ),
+            defaultVoidRuntime.unsafeRun(io)
+        );
+        Assert.assertTrue(res.acquired);
     }
 
     @Test
