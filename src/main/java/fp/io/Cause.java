@@ -52,9 +52,12 @@ public abstract class Cause<F> {
         return new Both<F>(first, second);
     }
 
-    public static <F> Cause<F> die(ExceptionFailure failure) {
-        if (failure.throwable instanceof InterruptedException) {
-            return interrupt();
+    public static <F> Cause<F> die(Failure failure) {
+        if (failure instanceof ExceptionFailure) {
+            ExceptionFailure exceptionFailure = (ExceptionFailure) failure;
+            if (exceptionFailure.throwable instanceof InterruptedException) {
+                return interrupt();
+            }
         }
         return new Die<F>(failure);
     }
