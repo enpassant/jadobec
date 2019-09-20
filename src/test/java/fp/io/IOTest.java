@@ -411,15 +411,15 @@ public class IOTest {
 
     @Test
     public void testRaceFails() {
-        IO<Object, Failure, Integer> io = slow(50, 2).<Failure, Integer>flatMap(n ->
-            IO.fail(Cause.fail(GeneralFailure.of(n)))
+        IO<Object, Integer, Integer> io = slow(50, 2).<Integer, Integer>flatMap(n ->
+            IO.fail(Cause.fail(n))
         ).race(
-            slow(1, 5).<Failure, Integer>flatMap(n ->
-                IO.fail(Cause.fail(GeneralFailure.of(n)))
+            slow(1, 5).<Integer, Integer>flatMap(n ->
+                IO.fail(Cause.fail(n))
             )
         );
         Assert.assertEquals(
-            Left.of(Cause.fail(GeneralFailure.of(2))),
+            Left.of(Cause.then(Cause.fail(5), Cause.fail(2))),
             defaultRuntime.unsafeRun(io)
         );
     }

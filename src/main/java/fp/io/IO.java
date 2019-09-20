@@ -7,7 +7,6 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import fp.util.Either;
-import fp.util.ExceptionFailure;
 import fp.util.Failure;
 import fp.util.Left;
 import fp.util.Right;
@@ -150,7 +149,7 @@ public abstract class IO<C, F, R> {
                 ).flatMap(raceResult -> {
                     return raceResult.getWinner().getCompletedValue().fold(
                         failure -> raceResult.getLooser().getValue().fold(
-                            f -> (IO<C, F, R>) IO.<C, F, R>fail(f),
+                            f -> (IO<C, F, R>) IO.<C, F, R>fail(Cause.then(failure, f)),
                             s -> (IO<C, F, R>) IO.succeed(s)
                         ),
                         success -> {
