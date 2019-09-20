@@ -114,10 +114,21 @@ public class IOTest {
         IO<Void, String, Integer> ioValue = IO.fail(Cause.fail("Error"));
         IO<Void, String, Integer> io = ioValue
             .foldM(
-                v -> IO.succeed(8),
+                v -> IO.succeed(v.length()),
                 v -> IO.succeed(v * v)
             );
-        Assert.assertEquals(Right.of(8), defaultVoidRuntime.unsafeRun(io));
+        Assert.assertEquals(Right.of(5), defaultVoidRuntime.unsafeRun(io));
+    }
+
+    @Test
+    public void testFoldCauseFailure() {
+        IO<Void, String, Integer> ioValue = IO.fail(Cause.fail("Error"));
+        IO<Void, String, Integer> io = ioValue
+            .foldCauseM(
+                v -> IO.succeed(v.getValue().length()),
+                v -> IO.succeed(v * v)
+            );
+        Assert.assertEquals(Right.of(5), defaultVoidRuntime.unsafeRun(io));
     }
 
     @Test

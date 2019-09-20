@@ -107,7 +107,7 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                                 done(Left.of(cause));
                                 return;
                             }
-                            value = cause.getValue();
+                            value = cause;
                             curIo = nextInstr(value);
                             break;
                         case Fold: {

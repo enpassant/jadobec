@@ -50,13 +50,24 @@ public abstract class IO<C, F, R> {
         return new Fail<C, F, R>(f);
     }
 
+    public <F2, R2> IO<C, F2, R2> foldCauseM(
+        Function<Cause<F>, IO<C, F2, R2>> failure,
+        Function<R, IO<C, F2, R2>> success
+    ) {
+        return new Fold<C, F, F2, R, R2>(
+            this,
+            failure,
+            success
+        );
+    }
+
     public <F2, R2> IO<C, F2, R2> foldM(
         Function<F, IO<C, F2, R2>> failure,
         Function<R, IO<C, F2, R2>> success
     ) {
         return new Fold<C, F, F2, R, R2>(
             this,
-            failure,
+            cause -> failure.apply(cause.getValue()),
             success
         );
     }
@@ -307,12 +318,12 @@ public abstract class IO<C, F, R> {
         implements Function<A, IO<C, F2, R>>
     {
         IO<C, F, A> io;
-        Function<F, IO<C, F2, R>> failure;
+        Function<Cause<F>, IO<C, F2, R>> failure;
         Function<A, IO<C, F2, R>> success;
 
         public Fold(
             IO<C, F, A> io,
-            Function<F, IO<C, F2, R>> failure,
+            Function<Cause<F>, IO<C, F2, R>> failure,
             Function<A, IO<C, F2, R>> success
         ) {
             tag = Tag.Fold;
