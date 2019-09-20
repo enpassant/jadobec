@@ -191,9 +191,9 @@ public abstract class IO<C, F, R> {
         return this.fork().flatMap(fiber ->
             that.fork().flatMap(fiberThat ->
                 IO.<C, Failure, Object>effect(() -> {
-                    RaceResult<F, R, R2> fibers = fiber.raceWith(fiberThat).get();
-                    return fibers.getWinner().getCompletedValue().forEachLeft(
-                        failure -> fibers.getLooser().interrupt()
+                    RaceResult<F, R, R2> raceResult = fiber.raceWith(fiberThat).get();
+                    return raceResult.getWinner().getCompletedValue().forEachLeft(
+                        failure -> raceResult.getLooser().interrupt()
                     );
                 }).flatMap(f ->
                 fiber.<C>join().flatMap((R value) ->
