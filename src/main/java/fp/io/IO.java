@@ -19,7 +19,7 @@ import fp.util.Tuple2;
 public abstract class IO<C, F, R> {
     Tag tag;
 
-    public static <C, F, R> IO<C, F, R> absolve(IO<C, ?, Either<F, R>> io) {
+    public static <C, F, R> IO<C, F, R> absolve(IO<C, F, Either<F, R>> io) {
         return new Absolve<C, F, R>(io);
     }
 
@@ -254,10 +254,10 @@ public abstract class IO<C, F, R> {
     }
 
     static class Absolve<C, F, R> extends IO<C, F, R> {
-        final IO<C, ?, Either<F, R>> io;
+        final IO<C, F, Either<F, R>> io;
 
         public Absolve(
-            IO<C, ?, Either<F, R>> io
+            IO<C, F, Either<F, R>> io
         ) {
             tag = Tag.Absolve;
             this.io = io;
