@@ -7,6 +7,7 @@ import java.util.function.Function;
 import java.util.function.Supplier;
 
 import fp.util.Either;
+import fp.util.ExceptionFailure;
 import fp.util.Failure;
 import fp.util.Left;
 import fp.util.Right;
@@ -118,6 +119,13 @@ public abstract class IO<C, F, R> {
         return new FlatMap<C, F, F, R, R2>(this, r -> IO.succeed(fn.apply(r)));
     }
 
+    public <F2> IO<C, F2, R> mapFailure(Function<F, Cause<F2>> fn) {
+        return foldM(
+            failure -> IO.fail(fn.apply(failure)),
+            success -> IO.succeed(success)
+        );
+    }
+
     public IO<C, F, R> on(ExecutorService executor) {
         return new Lock<C, F, R>(this, executor);
     }
@@ -146,7 +154,8 @@ public abstract class IO<C, F, R> {
             that.fork().flatMap(fiberThat ->
                 IO.<C, Failure, RaceResult<F, R, R>>effect(() ->
                     fiber.raceWith(fiberThat).get()
-                ).flatMap(raceResult -> {
+                ).mapFailure(failure -> Cause.die((ExceptionFailure) failure))
+                .flatMap(raceResult -> {
                     return raceResult.getWinner().getCompletedValue().fold(
                         failure -> raceResult.getLooser().getValue().fold(
                             f -> (IO<C, F, R>) IO.<C, F, R>fail(Cause.then(failure, f)),
@@ -190,12 +199,14 @@ public abstract class IO<C, F, R> {
     ) {
         return this.fork().flatMap(fiber ->
             that.fork().flatMap(fiberThat ->
-                IO.<C, Failure, Object>effect(() -> {
-                    RaceResult<F, R, R2> raceResult = fiber.raceWith(fiberThat).get();
-                    return raceResult.getWinner().getCompletedValue().forEachLeft(
+                IO.<C, Failure, RaceResult<F, R, R2>>effect(() ->
+                    fiber.raceWith(fiberThat).get()
+                ).mapFailure(failure -> Cause.die((ExceptionFailure) failure))
+                .map(raceResult ->
+                    raceResult.getWinner().getCompletedValue().forEachLeft(
                         failure -> raceResult.getLooser().interrupt()
-                    );
-                }).flatMap(f ->
+                    )
+                ).flatMap(f ->
                 fiber.<C>join().flatMap((R value) ->
                 fiberThat.<C>join().map((R2 valueThat) ->
                 Tuple2.of(value, valueThat)
@@ -330,7 +341,7 @@ public abstract class IO<C, F, R> {
 
         @Override
         public String toString() {
-                return "Fork(" + io + ")";
+            return "Fork(" + io + ")";
         }
     }
 
