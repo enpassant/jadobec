@@ -9,21 +9,13 @@ import fp.util.GeneralFailure;
 import fp.util.Left;
 import fp.util.Right;
 
-public class Cause<F> {
-    private final F value;
-    private final Failure failure;
-    private final Kind kind;
-
-    private Cause(F value) {
-        this.failure = GeneralFailure.of(value);;
-        this.kind = Kind.Fail;
-        this.value = value;
-    }
+public abstract class Cause<F> {
+    protected final Failure failure;
+    protected final Kind kind;
 
     private Cause(Failure failure, Kind cause) {
         this.failure = failure;
         this.kind = cause;
-        this.value = null;
     }
 
     public enum Kind {
@@ -43,7 +35,7 @@ public class Cause<F> {
      * @return the failure
      */
     public F getValue() {
-        return value;
+        throw new UnsupportedOperationException();
     }
 
     /**
@@ -53,23 +45,23 @@ public class Cause<F> {
         return kind;
     }
 
-    public static <F> Cause<F> fail(F failureValue) {
-        return new Cause<F>(failureValue);
-    }
-
     public static <F> Cause<F> die(ExceptionFailure failure) {
         if (failure.throwable instanceof InterruptedException) {
             return interrupt();
         }
-        return new Cause<F>(failure, Kind.Die);
+        return new Die<F>(failure);
     }
 
     public static <F> Cause<F> die(Throwable throwable) {
-        return new Cause<F>(ExceptionFailure.of(throwable), Kind.Die);
+        return new Die<F>(ExceptionFailure.of(throwable));
+    }
+
+    public static <F> Cause<F> fail(F failureValue) {
+        return new Fail<F>(failureValue);
     }
 
     public static <F> Cause<F> interrupt() {
-        return new Cause<F>(GeneralFailure.of("Interrupt"), Kind.Interrupt);
+        return new Interrupt<F>();
     }
 
     public boolean isDie() {
@@ -86,11 +78,7 @@ public class Cause<F> {
 
     @Override
     public String toString() {
-        switch (kind) {
-            case Fail: return "Fail(" + value + ")";
-            default:
-                return "Exit(" + failure + ", " + kind + ")";
-        }
+        return "Cause(" + failure + ", " + kind + ")";
     }
 
     @Override
@@ -117,5 +105,36 @@ public class Cause<F> {
             cause -> Left.of(cause.getValue()),
             success -> Right.of(success)
         );
+    }
+
+    static class Die<F> extends Cause<F> {
+        private Die(Failure failure) {
+            super(failure, Kind.Die);
+        }
+    }
+    
+    static class Fail<F> extends Cause<F> {
+        private final F value;
+        
+        private Fail(F value) {
+            super(GeneralFailure.of(value), Kind.Fail);
+            this.value = value;
+        }
+        
+        @Override
+        public F getValue() {
+            return value;
+        }
+
+        @Override
+        public String toString() {
+            return "Fail(" + value + ")";
+        }
+    }
+
+    static class Interrupt<F> extends Cause<F> {
+        private Interrupt() {
+            super(GeneralFailure.of(Kind.Interrupt), Kind.Interrupt);
+        }
     }
 }
