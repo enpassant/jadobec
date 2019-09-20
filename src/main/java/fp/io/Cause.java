@@ -49,7 +49,7 @@ public class Cause<F> {
     /**
      * @return the cause
      */
-    public Kind getCause() {
+    public Kind getKind() {
         return kind;
     }
 
