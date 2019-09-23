@@ -379,6 +379,29 @@ public class IOTest {
     }
 
     @Test
+    public void testRepeat() {
+        final Resource res = new Resource();
+        IO<Object, Object, Resource> io = IO.succeed(res)
+            .peek(r1 -> r1.use(1)).repeat(5)
+            .peek(r2 -> r2.close());
+        Assert.assertEquals(Right.of(res), defaultRuntime.unsafeRun(io));
+        Assert.assertEquals(5, res.usage);
+    }
+
+    @Test
+    public void testRepeatWithFailure() {
+        final Resource res = new Resource();
+        IO<Object, Object, Resource> io = IO.succeed(res)
+            .flatMap(r1 -> {
+                r1.use(1);
+                return IO.<Object, Object, Resource>fail(Cause.fail(5));
+            }).repeat(5)
+            .peek(r2 -> r2.close());
+        Assert.assertEquals(Right.of(res), defaultRuntime.unsafeRun(io));
+        Assert.assertEquals(5, res.usage);
+    }
+
+    @Test
     public void testZipWith() {
         IO<Object, Object, String> io = IO.succeed(2).zipWith(
             IO.succeed("Test"),

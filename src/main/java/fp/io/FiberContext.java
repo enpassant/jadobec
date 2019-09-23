@@ -11,6 +11,7 @@ import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
 import fp.io.IO.Tag;
+import fp.io.Scheduler.State;
 import fp.util.Either;
 import fp.util.ExceptionFailure;
 import fp.util.Failure;
@@ -208,6 +209,22 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                             curIo = provideIO.next;
                             value = valueLast;
                             break;
+                        case Schedule: {
+                            final IO.Schedule<Object, F, Object> scheduleIO =
+                                (IO.Schedule<Object, F, Object>) curIo;
+                            State state = scheduleIO.scheduler.getState();
+                            if (state instanceof Scheduler.Execution) {
+                                curIo = scheduleIO.io.foldCauseM(
+                                    scheduleIO.failure.apply(scheduleIO),
+                                    scheduleIO.success.apply(scheduleIO)
+                                );
+                            } else if (state instanceof Scheduler.Wait) {
+                            } else {
+                                curIo = nextInstr(value);
+                            }
+
+                            break;
+                        }
                         default:
                             curIo = IO.interrupt();
                     }

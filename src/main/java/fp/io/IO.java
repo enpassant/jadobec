@@ -188,6 +188,28 @@ public abstract class IO<C, F, R> {
         );
     }
 
+    public IO<C, F, R> repeat(int count) {
+        return new Schedule<C, F, R>(
+            this,
+            new Scheduler.Counter(count),
+            schedule -> f -> IO.fail(f),
+            schedule -> s -> new IO.Schedule<C, F, R>(
+                schedule.io,
+                schedule.scheduler.updateState(),
+                schedule.failure,
+                schedule.success
+            )
+        );
+    }
+
+    public IO<C, F, R> schedule(
+        final Scheduler scheduler,
+        Function<Schedule<C, F, R>, Function<Cause<F>, IO<C, F, R>>> failure,
+        Function<Schedule<C, F, R>, Function<R, IO<C, F, R>>> success
+    ) {
+        return new Schedule<C, F, R>(this, scheduler, failure, success);
+    }
+
     public static <C, F, R> IO<C, F, R> unit() {
         return new Succeed<C, F, R>(null);
     }
@@ -245,7 +267,8 @@ public abstract class IO<C, F, R> {
         FlatMap,
         Lock,
         Peek,
-        Provide
+        Provide,
+        Schedule
     }
 
     enum Interruptible {
@@ -430,6 +453,26 @@ public abstract class IO<C, F, R> {
             tag = Tag.Provide;
             this.context = context;
             this.next = next;
+        }
+    }
+
+    static class Schedule<C, F, R> extends IO<C, F, R> {
+        final IO<C, F, R> io;
+        final Scheduler scheduler;
+        final Function<Schedule<C, F, R>, Function<Cause<F>, IO<C, F, R>>> failure;
+        final Function<Schedule<C, F, R>, Function<R, IO<C, F, R>>> success;
+        
+        public Schedule(
+            final IO<C, F, R> io,
+            final Scheduler scheduler,
+            final Function<Schedule<C, F, R>, Function<Cause<F>, IO<C, F, R>>> failure,
+            final Function<Schedule<C, F, R>, Function<R, IO<C, F, R>>> success
+        ) {
+            tag = Tag.Schedule;
+            this.io = io;
+            this.scheduler = scheduler;
+            this.failure = failure;
+            this.success = success;
         }
     }
 }
