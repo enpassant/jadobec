@@ -61,13 +61,14 @@ public abstract class IO<C, F, R> {
         );
     }
 
+    @SuppressWarnings({ "unchecked", "rawtypes" })
     public <F2, R2> IO<C, F2, R2> foldM(
         Function<F, IO<C, F2, R2>> failure,
         Function<R, IO<C, F2, R2>> success
     ) {
         return new Fold<C, F, F2, R, R2>(
             this,
-            cause -> failure.apply(cause.getValue()),
+            cause -> cause.isFail() ? failure.apply(cause.getValue()) : fail((Cause) cause),
             success
         );
     }
@@ -190,6 +191,13 @@ public abstract class IO<C, F, R> {
 
     public <F2, R2> IO<C, F, R> recover(Function<F, IO<C, F2, R2>> fn) {
         return foldM(
+            fn,
+            success -> IO.succeed(success)
+        );
+    }
+
+    public <F2, R2> IO<C, F, R> recoverCause(Function<Cause<F>, IO<C, F2, R2>> fn) {
+        return foldCauseM(
             fn,
             success -> IO.succeed(success)
         );
