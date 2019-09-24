@@ -397,8 +397,48 @@ public class IOTest {
                 return IO.<Object, Object, Resource>fail(Cause.fail(5));
             }).repeat(5)
             .peek(r2 -> r2.close());
+        Assert.assertEquals(Left.of(Cause.fail(5)), defaultRuntime.unsafeRun(io));
+        Assert.assertEquals(1, res.usage);
+    }
+
+    @Test
+    public void testRetry() {
+        final Resource res = new Resource();
+        IO<Object, Object, Resource> io = IO.succeed(res)
+            .peek(r1 -> r1.use(1)).retry(5)
+            .peek(r2 -> r2.close());
         Assert.assertEquals(Right.of(res), defaultRuntime.unsafeRun(io));
+        Assert.assertEquals(1, res.usage);
+    }
+
+    @Test
+    public void testRetryWithFailure() {
+        final Resource res = new Resource();
+        IO<Object, Object, Resource> io = IO.succeed(res)
+            .flatMap(r1 -> {
+                r1.use(1);
+                return IO.<Object, Object, Resource>fail(Cause.fail(5));
+            }).retry(5)
+            .peek(r2 -> r2.close());
+        Assert.assertEquals(Left.of(Cause.fail(5)), defaultRuntime.unsafeRun(io));
         Assert.assertEquals(5, res.usage);
+    }
+
+    @Test
+    public void testRetryWithRecoveredFailure() {
+        final Resource res = new Resource();
+        IO<Object, Object, Resource> io = IO.succeed(res)
+            .flatMap(r1 -> {
+                r1.use(1);
+                if (r1.usage > 3) {
+                    return IO.succeed(r1);
+                } else {
+                    return IO.<Object, Object, Resource>fail(Cause.fail(5));
+                }
+            }).retry(5)
+            .peek(r2 -> r2.close());
+        Assert.assertEquals(Right.of(res), defaultRuntime.unsafeRun(io));
+        Assert.assertEquals(4, res.usage);
     }
 
     @Test

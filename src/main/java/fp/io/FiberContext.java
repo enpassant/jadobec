@@ -101,7 +101,7 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                             value = ((IO.Succeed<Object, F, R>) curIo).r;
                             curIo = nextInstr(value);
                             break;
-                        case Fail:
+                        case Fail: {
                             unwindStack(stack);
                             final Cause<F> cause = ((IO.Fail<Object, F, R>) curIo).f;
                             if (stack.isEmpty()) {
@@ -116,6 +116,7 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                             value = cause;
                             curIo = nextInstr(value);
                             break;
+                        }
                         case Fold: {
                             final IO.Fold<Object, F, F2, R2, R> foldIO =
                                 (IO.Fold<Object, F, F2, R2, R>) curIo;
@@ -220,7 +221,12 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                                 );
                             } else if (state instanceof Scheduler.Wait) {
                             } else {
-                                curIo = nextInstr(value);
+                                if (value instanceof Cause) {
+                                    Cause<?> cause = (Cause<?>) value;
+                                    curIo = IO.fail(cause);
+                                } else {
+                                    curIo = nextInstr(value);
+                                }
                             }
 
                             break;

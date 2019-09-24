@@ -202,6 +202,20 @@ public abstract class IO<C, F, R> {
         );
     }
 
+    public IO<C, F, R> retry(int count) {
+        return new Schedule<C, F, R>(
+            this,
+            new Scheduler.Counter(count),
+            schedule -> f -> new IO.Schedule<C, F, R>(
+                schedule.io,
+                schedule.scheduler.updateState(),
+                schedule.failure,
+                schedule.success
+            ),
+            schedule -> s -> IO.succeed(s)
+        );
+    }
+
     public IO<C, F, R> schedule(
         final Scheduler scheduler,
         Function<Schedule<C, F, R>, Function<Cause<F>, IO<C, F, R>>> failure,
