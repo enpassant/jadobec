@@ -130,7 +130,7 @@ public class RepositoryTest {
             Repository.transaction(
                 updatePersonName(2, "Jake Doe").flatMap(v ->
                     updatePersonName(2, null)
-            )).foldM(failure -> IO.succeed(1), success -> IO.succeed(success))
+            )).recover(failure -> IO.succeed(1))
             .flatMap(v ->
                 selectSingleAsPerson(2)
             ).peek(person ->

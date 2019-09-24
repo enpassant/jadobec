@@ -379,6 +379,20 @@ public class IOTest {
     }
 
     @Test
+    public void testRecoverWithSuccess() {
+        IO<Object, Object, Integer> io = IO.succeed(3)
+            .recover(failure -> IO.succeed(5));
+        Assert.assertEquals(Right.of(3), defaultRuntime.unsafeRun(io));
+    }
+
+    @Test
+    public void testRecoverWithFailure() {
+        IO<Object, Object, Integer> io = IO.<Object, Object, Integer>fail(Cause.fail(3))
+            .recover(failure -> IO.succeed(5));
+        Assert.assertEquals(Right.of(5), defaultRuntime.unsafeRun(io));
+    }
+
+    @Test
     public void testRepeat() {
         final Resource res = new Resource();
         IO<Object, Object, Resource> io = IO.succeed(res)

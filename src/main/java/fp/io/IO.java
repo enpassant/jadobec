@@ -188,6 +188,13 @@ public abstract class IO<C, F, R> {
         );
     }
 
+    public <F2, R2> IO<C, F, R> recover(Function<F, IO<C, F2, R2>> fn) {
+        return foldM(
+            fn,
+            success -> IO.succeed(success)
+        );
+    }
+
     public IO<C, F, R> repeat(int count) {
         return new Schedule<C, F, R>(
             this,
