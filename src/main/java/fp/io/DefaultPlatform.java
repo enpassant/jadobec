@@ -3,6 +3,7 @@ package fp.io;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.ThreadFactory;
 
 public class DefaultPlatform implements Platform {
@@ -16,6 +17,9 @@ public class DefaultPlatform implements Platform {
         new PlatformThreadFactory("io-executor")
     );
     private final ExecutorService forkJoin = new ForkJoinPool(1);
+    private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(
+        java.lang.Runtime.getRuntime().availableProcessors()
+    );
 
     public DefaultPlatform() {
         platformCount++;
@@ -42,6 +46,11 @@ public class DefaultPlatform implements Platform {
     public ExecutorService getForkJoin() {
         return forkJoin;
     }
+    
+    @Override
+    public ScheduledExecutorService getScheduler() {
+        return scheduler;
+    };
 
     class PlatformThreadFactory implements ThreadFactory {
         private final String poolName;
