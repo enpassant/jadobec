@@ -7,6 +7,7 @@ import java.util.List;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
 
@@ -211,15 +212,25 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                             value = valueLast;
                             break;
                         case Schedule: {
-                            final IO.Schedule<Object, F, Object> scheduleIO =
-                                (IO.Schedule<Object, F, Object>) curIo;
+                            final IO.Schedule<Object, F, R> scheduleIO =
+                                (IO.Schedule<Object, F, R>) curIo;
                             State state = scheduleIO.scheduler.getState();
                             if (state instanceof Scheduler.Execution) {
                                 curIo = scheduleIO.io.foldCauseM(
                                     scheduleIO.failure.apply(scheduleIO),
                                     scheduleIO.success.apply(scheduleIO)
                                 );
-                            } else if (state instanceof Scheduler.Wait) {
+                            } else if (state instanceof Scheduler.Delay) {
+                                final Scheduler.Delay delay = (Scheduler.Delay) state;
+                                value = platform.getScheduler().schedule(
+                                    () -> new FiberContext<F, R>(
+                                        environments.peek(),
+                                        platform
+                                    ).evaluate(scheduleIO.io),
+                                    delay.nanoSecond,
+                                    TimeUnit.NANOSECONDS
+                                );
+                                curIo = nextInstr(value);
                             } else {
                                 if (value instanceof Cause) {
                                     Cause<?> cause = (Cause<?>) value;

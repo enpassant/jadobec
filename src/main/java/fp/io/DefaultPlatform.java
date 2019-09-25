@@ -18,7 +18,8 @@ public class DefaultPlatform implements Platform {
     );
     private final ExecutorService forkJoin = new ForkJoinPool(1);
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(
-        java.lang.Runtime.getRuntime().availableProcessors()
+        java.lang.Runtime.getRuntime().availableProcessors(),
+        new PlatformThreadFactory("io-scheduler")
     );
 
     public DefaultPlatform() {
@@ -30,6 +31,7 @@ public class DefaultPlatform implements Platform {
         blocking.shutdown();
         executor.shutdown();
         forkJoin.shutdown();
+        scheduler.shutdown();
     }
 
     @Override

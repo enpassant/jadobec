@@ -203,6 +203,15 @@ public abstract class IO<C, F, R> {
         );
     }
 
+    public IO<C, F, R> delay(long nanoseconds) {
+        return new Schedule<C, F, R>(
+            this,
+            new Scheduler.Delayer(nanoseconds),
+            schedule -> f -> IO.fail(f),
+            schedule -> s -> IO.succeed(s)
+        );
+    }
+
     public IO<C, F, R> repeat(int count) {
         return new Schedule<C, F, R>(
             this,

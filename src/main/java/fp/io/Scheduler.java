@@ -8,10 +8,10 @@ public abstract class Scheduler {
     
     public class End implements State {}
     public class Execution implements State {}
-    public class Wait implements State {
+    public class Delay implements State {
         public final long nanoSecond;
         
-        public Wait(long nanoSecond) {
+        public Delay(long nanoSecond) {
             this.nanoSecond = nanoSecond;
         }
     }
@@ -31,6 +31,24 @@ public abstract class Scheduler {
         @Override
         public Scheduler updateState() {
             return new Counter(count - 1);
+        }
+    }
+    
+    public static class Delayer extends Scheduler {
+        private final long nanoseconds;
+        
+        public Delayer(long nanoseconds) {
+            this.nanoseconds = nanoseconds;
+        }
+
+        @Override
+        public State getState() {
+            return nanoseconds <= 0 ? new End() : new Delay(nanoseconds);
+        }
+
+        @Override
+        public Scheduler updateState() {
+            return new Delayer(0);
         }
     }
 }

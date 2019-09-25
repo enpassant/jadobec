@@ -426,6 +426,15 @@ public class IOTest {
     }
 
     @Test
+    public void testDelay() {
+        long delayNanoseconds = 5000000L;
+        IO<Object, Object, Boolean> io = IO.succeed(System.nanoTime())
+            .map(start -> System.nanoTime() - start).delay(delayNanoseconds)
+            .map(elapsed -> elapsed >= delayNanoseconds);
+        Assert.assertEquals(Right.of(true), defaultRuntime.unsafeRun(io));
+    }
+
+    @Test
     public void testRepeat() {
         final Resource res = new Resource();
         IO<Object, Object, Resource> io = IO.succeed(res)
