@@ -1,8 +1,11 @@
 package fp.io;
 
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
+import java.util.concurrent.Future;
 import java.util.function.Function;
 
 import org.junit.AfterClass;
@@ -520,13 +523,6 @@ public class IOTest {
         );
     }
 
-    private <A> IO<Object, Failure, A> slow(long millis, A value) {
-        return IO.effect(() -> {
-            Thread.sleep(millis);
-            return value;
-        }).blocking().map(a -> a);
-    }
-
     @Test
     public void testZipPar() {
         IO<Object, Failure, Tuple2<Integer, String>> io = slow(10, 2).zipPar(
@@ -600,9 +596,76 @@ public class IOTest {
         final Either<Cause<Failure>, Tuple2<Integer, String>> result =
             defaultRuntime.unsafeRun(io);
         
+        result.forEachLeft(failure -> {
+            if (failure.getFailure() instanceof ExceptionFailure) {
+                ExceptionFailure exceptionFailure = (ExceptionFailure) failure.getFailure();
+                exceptionFailure.throwable.printStackTrace(System.err);
+            }
+        });
         Assert.assertTrue(
             result.toString(),
             result.isLeft() && result.left().isInterrupt()
         );
+    }
+
+    //*
+    @Test
+    public void testBlockingFutureCancel() {
+        final long start = System.currentTimeMillis();
+        final long millis = 100L;
+
+        final Future<?> future =
+            platform.toCompletablePromise(
+                platform.getBlocking().submit(() -> slowOld(millis / 4, "OK"))
+            ).thenApply(either -> {
+                ExceptionFailure.tryCatch(
+                    () -> platform.toCompletablePromise(
+                        platform.getBlocking().submit(() -> slowOld(millis, "OK 2"))
+                    ).get()
+                );
+                
+                return ExceptionFailure.tryCatch(
+                    () -> platform.toCompletablePromise(
+                        platform.getBlocking().submit(() -> slowOld(millis, "OK 3"))
+                    ).get()
+                );
+            });
+
+        platform.getExecutor().submit(() -> {
+            slowOld(millis / 3, "Cancel"); future.cancel(true);
+        });
+        
+        try {
+            future.get();
+        } catch (CancellationException e) {
+        } catch (InterruptedException e) {
+        } catch (ExecutionException e) {
+            e.printStackTrace();
+        }
+        final long time = System.currentTimeMillis() - start;
+        
+        Assert.assertTrue(
+            "Time was: " + time,
+            time < millis
+        );
+    }
+    //*/
+
+    private <A> Either<Exception, A> slowOld(long millis, A value) {
+        try {
+            Thread.sleep(millis);
+//            System.out.println("Value: " + value);
+            return Right.of(value);
+        } catch (InterruptedException e) {
+            //e.printStackTrace();
+            return Left.of(e);
+        }
+    }
+
+    private <A> IO<Object, Failure, A> slow(long millis, A value) {
+        return IO.effect(() -> {
+            Thread.sleep(millis);
+            return value;
+        }).blocking().map(a -> a);
     }
 }
