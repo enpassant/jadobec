@@ -1,6 +1,8 @@
 package fp.io;
 
 import java.util.Objects;
+import java.util.concurrent.CancellationException;
+import java.util.concurrent.ExecutionException;
 
 import fp.util.Either;
 import fp.util.ExceptionFailure;
@@ -54,8 +56,15 @@ public abstract class Cause<F> {
 
     public static <F> Cause<F> die(Failure failure) {
         if (failure instanceof ExceptionFailure) {
-            ExceptionFailure exceptionFailure = (ExceptionFailure) failure;
-            if (exceptionFailure.throwable instanceof InterruptedException) {
+            final ExceptionFailure exceptionFailure = (ExceptionFailure) failure;
+            final Throwable throwable =
+                (exceptionFailure.throwable instanceof ExecutionException) ?
+                    exceptionFailure.throwable.getCause() :
+                    exceptionFailure.throwable;
+            
+            if (throwable instanceof CancellationException) {
+                return interrupt();
+            } else if (throwable instanceof InterruptedException) {
                 return interrupt();
             }
         }

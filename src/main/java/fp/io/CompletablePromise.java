@@ -1,5 +1,6 @@
 package fp.io;
 
+import java.util.concurrent.CancellationException;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutionException;
 import java.util.concurrent.Future;
@@ -21,11 +22,13 @@ public class CompletablePromise<V> extends CompletableFuture<V> {
         CompletablePromise<V> completablePromise =
             new CompletablePromise<>(platform, future);
         
-        platform.getScheduler().schedule(
-            completablePromise::tryToComplete,
-            1,
-            TimeUnit.MILLISECONDS
-        );
+        if (!future.isDone()) {
+            platform.getScheduler().schedule(
+                completablePromise::tryToComplete,
+                100000,
+                TimeUnit.NANOSECONDS
+            );
+        }
         
         return completablePromise;
     }
@@ -35,6 +38,8 @@ public class CompletablePromise<V> extends CompletableFuture<V> {
             try {
                 complete(future.get());
             } catch (InterruptedException e) {
+                completeExceptionally(e);
+            } catch (CancellationException e) {
                 completeExceptionally(e);
             } catch (ExecutionException e) {
                 completeExceptionally(e.getCause());
@@ -47,6 +52,10 @@ public class CompletablePromise<V> extends CompletableFuture<V> {
             return;
         }
 
-        platform.getScheduler().schedule(this::tryToComplete, 1, TimeUnit.MILLISECONDS);
+        platform.getScheduler().schedule(
+            this::tryToComplete,
+            100000,
+            TimeUnit.NANOSECONDS
+        );
     }
 }

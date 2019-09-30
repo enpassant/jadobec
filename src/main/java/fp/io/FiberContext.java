@@ -10,6 +10,7 @@ import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.concurrent.atomic.AtomicReference;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 import fp.io.IO.Tag;
 import fp.io.Scheduler.State;
@@ -20,12 +21,16 @@ import fp.util.Left;
 import fp.util.Right;
 
 public class FiberContext<F, R> implements Fiber<F, R> {
+    private static long counter = 0;
+    private final long number;
+    
     private final Platform platform;
     private IO<Object, ?, ?> curIo;
     private Object value = null;
     private Object valueLast = null;
-        private final CompletableFuture<Fiber<F, R>> observer =
-            new CompletableFuture<Fiber<F, R>>();
+    private CompletableFuture<Void> mainFuture = null;
+    private final CompletableFuture<Fiber<F, R>> observer =
+        new CompletableFuture<Fiber<F, R>>();
     private final AtomicReference<FiberState<F, R>> state;
 
     private Deque<Object> environments = new ArrayDeque<Object>();
@@ -35,9 +40,15 @@ public class FiberContext<F, R> implements Fiber<F, R> {
     private Deque<Boolean> interruptStatus = new ArrayDeque<Boolean>();
     private boolean interrupted = false;
     private Thread thread = null;
+    private Stream.Builder<Future<?>> streamFuture = Stream.<Future<?>>builder();
+    private Stream.Builder<Fiber<?, ?>> streamFiberBuilder =
+        Stream.<Fiber<?, ?>>builder();
 
     public FiberContext(Object context, Platform platform) {
         super();
+        counter++;
+        number = counter;
+
         if (context != null) {
             environments.push(context);
         }
@@ -89,11 +100,15 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                         case Blocking: {
                             final IO.Blocking<Object, F, R> blockIo =
                                 (IO.Blocking<Object, F, R>) curIo;
+                            final FiberContext<F, R> fiberContext = new FiberContext<F, R>(
+                                environments.peek(),
+                                platform
+                            );
+                            streamFiberBuilder.add(fiberContext);
+//                            System.out.println("Blocking Fiber " + fiberContext.number + " has started");
+                            
                             value = platform.getBlocking().submit(
-                                () -> new FiberContext<F, R>(
-                                    environments.peek(),
-                                    platform
-                                ).evaluate(blockIo.io)
+                                () -> fiberContext.evaluate(blockIo.io)
                             );
                             curIo = nextInstr(value);
                             break;
@@ -166,9 +181,13 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                             }
                             final FiberContext<F, R> fiberContext =
                                 new FiberContext<F, R>(environments.peek(), platform);
-                            executor.submit(() -> {
-                                return fiberContext.runAsync(ioValue);
-                            });
+                            streamFiberBuilder.add(fiberContext);
+
+                            platform.toCompletablePromise(
+                                executor.submit(() -> {
+                                    return fiberContext.runAsync(ioValue);
+                                })
+                            );
                             value = fiberContext;
                             curIo = nextInstr(value);
                             break;
@@ -181,15 +200,20 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                             stack.push(new InterruptExit());
                             curIo = interruptStatusIo.io;
                             break;
-                        case Lock:
+                        case Lock: {
                             final IO.Lock<Object, F, R> lockIo =
                                 (IO.Lock<Object, F, R>) curIo;
-                            value = lockIo.executor.submit(() -> new FiberContext<F, R>(
+                            final FiberContext<F, R> fiberContext = new FiberContext<F, R>(
                                 environments.peek(),
                                 platform
-                            ).evaluate(lockIo.io));
+                            );
+                            streamFiberBuilder.add(fiberContext);
+                            value = lockIo.executor.submit(
+                                () -> fiberContext.evaluate(lockIo.io)
+                            );
                             curIo = nextInstr(value);
                             break;
+                        }
                         case Peek:
                             final IO.Peek<Object, F, R> peekIO =
                                 (IO.Peek<Object, F, R>) curIo;
@@ -222,11 +246,13 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                                 );
                             } else if (state instanceof Scheduler.Delay) {
                                 final Scheduler.Delay delay = (Scheduler.Delay) state;
+                                final FiberContext<F, R> fiberContext = new FiberContext<F, R>(
+                                    environments.peek(),
+                                    platform
+                                );
+                                streamFiberBuilder.add(fiberContext);
                                 value = platform.getScheduler().schedule(
-                                    () -> new FiberContext<F, R>(
-                                        environments.peek(),
-                                        platform
-                                    ).evaluate(scheduleIO.io),
+                                    () -> fiberContext.evaluate(scheduleIO.io),
                                     delay.nanoSecond,
                                     TimeUnit.NANOSECONDS
                                 );
@@ -254,9 +280,37 @@ public class FiberContext<F, R> implements Fiber<F, R> {
         }
     }
 
-    @SuppressWarnings("unchecked")
     private IO<Object, F, R> nextInstr(Object value) {
+        /*
         if (value instanceof Future) {
+            @SuppressWarnings("unchecked")
+            Future<Either<Cause<F>, ?>> futureValue = (Future<Either<Cause<F>, ?>>) value;
+            CompletableFuture<Void> currentFuture = platform.toCompletablePromise(futureValue)
+        /*/
+        if (value instanceof CompletableFuture) {
+            @SuppressWarnings("unchecked")
+            CompletableFuture<Either<Cause<F>, ?>> futureValue =
+                (CompletableFuture<Either<Cause<F>, ?>>) value;
+            CompletableFuture<Void> currentFuture = futureValue
+        //*/
+                .thenAcceptAsync(either -> {
+                    if (either.isLeft()) {
+                        evaluateNow(IO.fail(either.left()));
+                        return;
+                    } else {
+                        final IO<Object, F, R> io = nextInstrApply(either.right());
+                        evaluateNow(io);
+                    }
+                });
+
+            if (mainFuture == null) {
+                mainFuture = currentFuture;
+            }
+
+            streamFuture.accept(futureValue);
+            return null;
+        } else if (value instanceof Future) {
+            @SuppressWarnings("unchecked")
             Future<Either<Cause<F>, ?>> futureValue = (Future<Either<Cause<F>, ?>>) value;
             Either<Failure, Either<Cause<F>, ?>> valueTry =
                 ExceptionFailure.tryCatch(() -> futureValue.get());
@@ -269,7 +323,12 @@ public class FiberContext<F, R> implements Fiber<F, R> {
             }
             value = either.get();
         }
-
+        
+        return nextInstrApply(value);
+    }
+    
+    @SuppressWarnings("unchecked")
+    private IO<Object, F, R> nextInstrApply(Object value) {
         if (stack.isEmpty()) {
             done(Right.of((R) value));
             return null;
@@ -390,6 +449,15 @@ public class FiberContext<F, R> implements Fiber<F, R> {
     @Override
     public <C> IO<C, F, Void> interrupt() {
         interrupted = true;
+        
+//        System.out.println("Fiber " + number + " has interrupted");
+
+//        final Stream<Fiber<?, ?>> streamFiber = streamFiberBuilder.build();
+//        streamFiber.forEach(fiber -> fiber.interrupt());
+        
+//        final Stream<Future<?>> stream = streamFuture.build();
+//        stream.forEach(future -> future.cancel(true));
+/*
         if (thread != null) {
             switch (thread.getState()) {
                 case BLOCKED:
@@ -400,6 +468,13 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                 default:
             }
         }
+        //*/
+        
+        if (mainFuture != null) {
+            mainFuture.cancel(true);
+        }
+        observer.cancel(true);
+        
         return IO.effectTotal(() -> {});
     }
 
