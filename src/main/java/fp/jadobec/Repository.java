@@ -317,6 +317,34 @@ public class Repository {
         });
     }
 
+    public static <T> IO<Connection, Failure, Stream<T>> iterateToStreamWithFailure(
+        Iterator<Either<Failure, T>> iterator
+    ) {
+        Builder<T> builder = Stream.builder();
+        return iterateToStreamWithFailureLoop(builder, iterator);
+    }
+
+    private static <T> IO<Connection, Failure, Stream<T>> iterateToStreamWithFailureLoop(
+        Builder<T> builder,
+        Iterator<Either<Failure, T>> iterator
+    ) {
+        return IO.<Connection, Failure, Boolean>succeed(
+            iterator.hasNext()
+        ).flatMap(hasNext -> {
+            if (hasNext) {
+                Either<Failure, T> value = iterator.next();
+                if (value.isRight()) {
+                    builder.accept(value.right());
+                    return iterateToStreamWithFailureLoop(builder, iterator);
+                } else {
+                    return IO.fail(Cause.fail(value.left()));
+                }
+            } else {
+                return IO.succeed(builder.build());
+            }
+        });
+    }
+
     public static <T> IO<Connection, Failure, List<T>> iterateToList(
         Iterator<T> iterator
     ) {
