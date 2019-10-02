@@ -189,17 +189,19 @@ public abstract class IO<C, F, R> {
         );
     }
 
-    public <F2, R2> IO<C, F, R> recover(Function<F, IO<C, F2, R2>> fn) {
+    @SuppressWarnings("unchecked")
+    public <F2, R2> IO<C, F2, R2> recover(Function<F, IO<C, F2, R2>> fn) {
         return foldM(
             fn,
-            success -> IO.succeed(success)
+            success -> IO.succeed((R2) success)
         );
     }
 
-    public <F2, R2> IO<C, F, R> recoverCause(Function<Cause<F>, IO<C, F2, R2>> fn) {
+    @SuppressWarnings("unchecked")
+    public <F2, R2> IO<C, F2, R2> recoverCause(Function<Cause<F>, IO<C, F2, R2>> fn) {
         return foldCauseM(
             fn,
-            success -> IO.succeed(success)
+            success -> IO.succeed((R2) success)
         );
     }
 
