@@ -276,7 +276,7 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                 }
             }
         } catch(Exception e) {
-            done(Left.of(Cause.die(new UnsupportedOperationException(e))));
+            done(Left.of(Cause.die(e)));
         }
     }
 
