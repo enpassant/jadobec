@@ -1,10 +1,13 @@
 package fp.io;
 
+import java.util.Iterator;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.function.Supplier;
+import java.util.stream.Stream;
+import java.util.stream.Stream.Builder;
 
 import fp.util.Either;
 import fp.util.ExceptionFailure;
@@ -248,6 +251,62 @@ public abstract class IO<C, F, R> {
         Function<Schedule<C, F, R>, Function<R, IO<C, F, R>>> success
     ) {
         return new Schedule<C, F, R>(this, scheduler, failure, success);
+    }
+
+    public static <C, F, R> IO<C, F, Stream<R>> sequence(
+        Stream<IO<C, F, R>> stream
+    ) {
+        Builder<R> builder = Stream.builder();
+        return sequenceLoop(builder, stream.iterator(), IO.succeed(null));
+    }
+
+    private static <C, F, R> IO<C, F, Stream<R>> sequenceLoop(
+        Builder<R> builder,
+        Iterator<IO<C, F, R>> iterator,
+        IO<C, F, R> io
+    ) {
+        return IO.<C, F, Boolean>succeed(
+            iterator.hasNext()
+        ).flatMap(hasNext -> {
+            if (hasNext) {
+                final IO<C, F, R> valueIO = iterator.next();
+                final IO<C, F, R> newIo = io.flatMap(r ->
+                    valueIO.peek(value -> builder.accept(value)));
+                return sequenceLoop(builder, iterator, newIo);
+            } else {
+                return io.map(r -> builder.build());
+            }
+        });
+    }
+
+    public static <C, F, R> IO<C, F, Stream<Either<Cause<F>, R>>> sequencePar(
+        Stream<IO<C, F, R>> stream
+    ) {
+        Builder<Fiber<F, R>> builder = Stream.builder();
+        final IO<C, F, Stream<Fiber<F, R>>> fiberStreamIO = 
+            sequenceParLoop(builder, stream.iterator(), IO.succeed(null))
+            .flatMap(i -> sequence(builder.build().map(IO::succeed)));
+        return fiberStreamIO.map(s -> s.map(f -> f.getValue()));
+    }
+
+    private static <C, F, R> IO<C, F, Object> sequenceParLoop(
+        Builder<Fiber<F, R>> builder,
+        Iterator<IO<C, F, R>> iterator,
+        IO<C, F, Object> io
+    ) {
+        return IO.<C, F, Boolean>succeed(
+            iterator.hasNext()
+        ).flatMap(hasNext -> {
+            if (hasNext) {
+                final IO<C, F, R> valueIO = iterator.next();
+                final IO<C, F, Object> newIo = io.flatMap(r -> valueIO.fork())
+                    .peek(f -> builder.accept(f))
+                    .map(i -> i);
+                return sequenceParLoop(builder, iterator, newIo);
+            } else {
+                return io;
+            }
+        });
     }
 
     public static <C, F, R> IO<C, F, R> unit() {

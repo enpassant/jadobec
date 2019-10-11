@@ -7,6 +7,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ForkJoinPool;
 import java.util.concurrent.Future;
 import java.util.function.Function;
+import java.util.stream.Stream;
 
 import org.junit.AfterClass;
 import org.junit.Assert;
@@ -498,6 +499,48 @@ public class IOTest {
             .peek(r2 -> r2.close());
         Assert.assertEquals(Right.of(res), defaultRuntime.unsafeRun(io));
         Assert.assertEquals(4, res.usage);
+    }
+
+    @Test
+    public void testSequence() {
+        final Stream<IO<Object, Object, Integer>> streamIO =
+            Stream.of(IO.effectTotal(() -> 13), IO.effectTotal(() -> 6), IO.succeed(4));
+        
+        IO<Object, Object, Integer> io = IO.sequence(streamIO)
+            .map(stream -> stream.mapToInt(i -> i * 2).sum());
+        Assert.assertEquals(
+            Right.of(46),
+            defaultRuntime.unsafeRun(io)
+        );
+    }
+
+    @Test
+    public void testSequencePar() {
+        final long millis = 100;
+        
+        final Stream<IO<Object, Failure, Integer>> streamIO =
+            Stream.of(slow(millis, 13), slow(millis, 6), slow(millis, 4));
+        
+        final long start = System.currentTimeMillis();
+        
+        IO<Object, Failure, Integer> io = IO.sequencePar(streamIO)
+            .map(stream ->
+                stream.mapToInt(
+                    r -> r.right() * 2
+                ).sum()
+            );
+        
+        Assert.assertEquals(
+            Right.of(46),
+            defaultRuntime.unsafeRun(io)
+        );
+        
+        final long time = System.currentTimeMillis() - start;
+        
+        Assert.assertTrue(
+            "Time was: " + time,
+            time < 3 * millis
+        );
     }
 
     @Test
