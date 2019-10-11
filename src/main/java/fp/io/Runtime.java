@@ -12,16 +12,22 @@ public interface Runtime<C> {
     default <F, R> Either<Cause<F>, R> unsafeRun(IO<C, F, R> io) {
         final Either<Failure, Either<Cause<F>, R>> eitherValue =
             ExceptionFailure.tryCatch(() -> unsafeRunAsync(io).get());
-        eitherValue.forEachLeft(failure -> {
-            if (failure instanceof ExceptionFailure) {
-                ExceptionFailure exceptionFailure = (ExceptionFailure) failure;
-                exceptionFailure.throwable.printStackTrace(System.err);
-            }
-        });
-        return (Either<Cause<F>, R>) eitherValue.fold(
-            failure -> Left.of(Cause.fail(failure)),
+
+        Either<Cause<F>, R> result = (Either<Cause<F>, R>) eitherValue.fold(
+            failure -> Left.of(Cause.die(failure)),
             success -> success
         );
+        
+//        result.forEachLeft(cause -> {
+//            if (!cause.isFail()) {
+//                final Failure failure = cause.getFailure();
+//                if (failure instanceof ExceptionFailure) {
+//                    ExceptionFailure exceptionFailure = (ExceptionFailure) failure;
+//                    exceptionFailure.throwable.printStackTrace(System.err);
+//                }
+//            }
+//        });
+        return result;
     }
 
     @SuppressWarnings("unchecked")
