@@ -31,7 +31,7 @@ import fp.util.Tuple2;
 
 public class Repository {
     public static interface Service {
-        public <T> IO<Object, Failure, T> use(
+        public <C, T> IO<C, Failure, T> use(
             IO<Connection, Failure, T> command
         );
     }
@@ -44,7 +44,7 @@ public class Repository {
         }
 
         @Override
-        public <T> IO<Object, Failure, T> use(
+        public <C, T> IO<C, Failure, T> use(
             IO<Connection, Failure, T> command
         ) {
             return IO.bracket(
