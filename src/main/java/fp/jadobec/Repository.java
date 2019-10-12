@@ -53,7 +53,7 @@ public class Repository {
                 connection -> command.provide(connection)
             );
         }
-        
+
         public static Either<Failure, Live> create(
             DataSource dataSource,
             String testSql
@@ -213,17 +213,17 @@ public class Repository {
                 stmt.executeUpdate();
 
                 Right<Failure, Integer> result;
-                
+
                 try {
                     ResultSet generatedKeysRS = stmt.getGeneratedKeys();
-    
+
                     result = Right.of(generatedKeysRS.next() ? generatedKeysRS.getInt(1) : 0);
-    
+
                     generatedKeysRS.close();
                 } catch(Exception e) {
                     result = Right.of(0);
                 }
-                    
+
                 return result;
             } catch (Exception e) {
                 return Left.of(
@@ -368,7 +368,7 @@ public class Repository {
             }
         });
     }
-    
+
     public static <F, R, U> IO<Connection, F, Stream<Either<F, R>>> mapStreamEither(
         IO<Connection, F, Stream<Either<F, U>>> io,
         Function<U, IO<Connection, F, R>> mapper
@@ -376,7 +376,7 @@ public class Repository {
         Builder<Either<F, R>> builder = Stream.builder();
         return io.flatMap(stream -> mapStreamEitherLoop(builder, stream.iterator(), mapper));
     }
-    
+
     private static <F, R, U> IO<Connection, F, Stream<Either<F, R>>> mapStreamEitherLoop(
         Builder<Either<F, R>> builder,
         Iterator<Either<F, U>> iterator,
