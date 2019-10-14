@@ -11,8 +11,11 @@ import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
 import java.util.function.Function;
+import java.util.Spliterators;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.Stream.Builder;
+import java.util.stream.StreamSupport;
 
 import javax.sql.DataSource;
 
@@ -140,8 +143,9 @@ public class Repository {
     }
 
     private static <T> IO<Connection, Failure, T> getFirstFromIterator(
-        Iterator<T> iterator
+        Stream<T> stream
     ) {
+        final Iterator<T> iterator = stream.iterator();
         if (iterator.hasNext()) {
             return IO.succeed(iterator.next());
         } else {
@@ -152,7 +156,7 @@ public class Repository {
     public static <R, T> IO<Connection, Failure, R> query(
         String sql,
         Extractor<T> createObject,
-        Function<Iterator<T>, IO<Connection, Failure, R>> fn,
+        Function<Stream<T>, IO<Connection, Failure, R>> fn,
         Object... params
     ) {
         ThrowingConsumer<PreparedStatement, SQLException> prepare = ps -> {
@@ -168,7 +172,7 @@ public class Repository {
         String sql,
         ThrowingConsumer<PreparedStatement, SQLException> prepare,
         Extractor<T> createObject,
-        Function<Iterator<T>, IO<Connection, Failure, R>> fn
+        Function<Stream<T>, IO<Connection, Failure, R>> fn
     ) {
         return IO.bracket(IO.absolve(IO.access((Connection connection) -> {
             PreparedStatement stmt = null;
@@ -179,7 +183,7 @@ public class Repository {
                 prepare.accept(stmt);
 
                 ResultSet rs = stmt.executeQuery();
-                return Right.of((Iterator<T>) new ResultSetIterator<T>(rs, createObject));
+                return Right.of(stream(rs, createObject));
             } catch (Exception e) {
                 return Left.of(
                     (Failure) ExceptionFailure.of(e)
@@ -293,28 +297,10 @@ public class Repository {
         ).blocking();
     }
 
-    public static <T> IO<Connection, Failure, Stream<T>> iterateToStream(
-        Iterator<T> iterator
+    public static <T> IO<Connection, Failure, Stream<T>> mapToStream(
+        Stream<T> stream
     ) {
-        Builder<T> builder = Stream.builder();
-        return iterateToStreamLoop(builder, iterator);
-    }
-
-    private static <T> IO<Connection, Failure, Stream<T>> iterateToStreamLoop(
-        Builder<T> builder,
-        Iterator<T> iterator
-    ) {
-        return IO.<Connection, Failure, Boolean>succeed(
-            iterator.hasNext()
-        ).flatMap(hasNext -> {
-            if (hasNext) {
-                T value = iterator.next();
-                builder.accept(value);
-                return iterateToStreamLoop(builder, iterator);
-            } else {
-                return IO.succeed(builder.build());
-            }
-        });
+        return IO.succeed(stream.collect(Collectors.toList()).stream());
     }
 
     public static <T> IO<Connection, Failure, Stream<T>> iterateToStreamWithFailure(
@@ -345,28 +331,10 @@ public class Repository {
         });
     }
 
-    public static <T> IO<Connection, Failure, List<T>> iterateToList(
-        Iterator<T> iterator
+    public static <T> IO<Connection, Failure, List<T>> mapToList(
+        Stream<T> stream
     ) {
-        List<T> list = new ArrayList<>();
-        return iterateToListLoop(list, iterator);
-    }
-
-    private static <T> IO<Connection, Failure, List<T>> iterateToListLoop(
-        List<T> list,
-        Iterator<T> iterator
-    ) {
-        return IO.<Connection, Failure, Boolean>succeed(
-            iterator.hasNext()
-        ).flatMap(hasNext -> {
-            if (hasNext) {
-                T value = iterator.next();
-                list.add(value);
-                return iterateToListLoop(list, iterator);
-            } else {
-                return IO.succeed(list);
-            }
-        });
+        return IO.succeed(stream.collect(Collectors.toList()));
     }
 
     public static <F, R, U> IO<Connection, F, Stream<Either<F, R>>> mapStreamEither(
@@ -397,6 +365,22 @@ public class Repository {
                     }));
             } else {
                 return IO.succeed(builder.build());
+            }
+        });
+    }
+
+    private static <T> Stream<T> stream(
+        final ResultSet resultSet,
+        final Extractor<T> extractor
+    ) {
+        ResultSetIterator<T> iterator = new ResultSetIterator<T>(resultSet, extractor);
+        return (Stream<T>) StreamSupport.stream(
+            Spliterators.spliteratorUnknownSize(iterator, 0),
+            false
+        ).onClose(() -> {
+            try {
+                iterator.close();
+            } catch (Exception e) {
             }
         });
     }

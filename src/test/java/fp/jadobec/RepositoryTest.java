@@ -63,7 +63,7 @@ public class RepositoryTest {
                     rs.getString("name"),
                     rs.getInt("age")
                 ),
-                Repository::iterateToList
+                Repository::mapToList
             ).peek(persons ->
                 assertEquals(expectedPersons, persons)
             )
@@ -81,7 +81,7 @@ public class RepositoryTest {
                     rs.getString("name"),
                     rs.getInt("age")
                 ),
-                Repository::iterateToList
+                Repository::mapToList
             ).peek(persons ->
                 assertEquals(expectedPersons, persons)
             )

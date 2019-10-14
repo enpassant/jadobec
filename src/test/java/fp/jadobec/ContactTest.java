@@ -195,7 +195,7 @@ public class ContactTest {
         return Repository.query(
             "SELECT id_user, name FROM user ORDER BY name",
             rs -> User.of(rs.getInt(1), rs.getString(2)),
-            Repository::iterateToStream
+            Repository::mapToStream
         );
     }
 
@@ -229,7 +229,7 @@ public class ContactTest {
                 "WHERE id_user=? " +
                 "ORDER BY importance desc, validated desc",
             rs -> Email.of(rs.getString(1), rs.getBoolean(2)),
-            Repository::iterateToStream,
+            Repository::mapToStream,
             user.getId()
         );
     }
@@ -238,7 +238,7 @@ public class ContactTest {
         return Repository.query(
             "SELECT id_user FROM user ORDER BY name",
             rs -> rs.getInt(1),
-            Repository::iterateToStream
+            Repository::mapToStream
         );
     }
 
