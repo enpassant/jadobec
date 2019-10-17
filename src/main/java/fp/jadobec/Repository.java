@@ -7,11 +7,10 @@ import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Statement;
-import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
-import java.util.function.Function;
 import java.util.Spliterators;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
 import java.util.stream.Stream.Builder;
@@ -19,8 +18,8 @@ import java.util.stream.StreamSupport;
 
 import javax.sql.DataSource;
 
-import fp.io.Environment;
 import fp.io.Cause;
+import fp.io.Environment;
 import fp.io.IO;
 import fp.util.Either;
 import fp.util.ExceptionFailure;
@@ -139,10 +138,10 @@ public class Repository {
         ThrowingConsumer<PreparedStatement, SQLException> prepare,
         Extractor<T> createObject
     ) {
-        return queryPrepared(sql, prepare, createObject, Repository::getFirstFromIterator);
+        return queryPrepared(sql, prepare, createObject, Repository::getFirstFromStream);
     }
 
-    private static <T> IO<Connection, Failure, T> getFirstFromIterator(
+    private static <T> IO<Connection, Failure, T> getFirstFromStream(
         Stream<T> stream
     ) {
         final Iterator<T> iterator = stream.iterator();
