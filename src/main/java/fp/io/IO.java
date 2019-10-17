@@ -309,6 +309,12 @@ public abstract class IO<C, F, R> {
         });
     }
 
+    public IO<C, F, R> timeout(long nanoseconds) {
+        return race(
+            IO.<C, F, R>unit().delay(nanoseconds)
+        ).flatMap(r -> (r == null) ? IO.interrupt() : IO.succeed(r));
+    }
+
     public static <C, F, R> IO<C, F, R> unit() {
         return new Succeed<C, F, R>(null);
     }

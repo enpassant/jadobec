@@ -544,6 +544,26 @@ public class IOTest {
     }
 
     @Test
+    public void testTimeoutWithInterrupt() {
+        IO<Object, Failure, Integer> io = slow(1000, 2).timeout(20000000);
+        
+        Assert.assertEquals(
+            Left.of(Cause.interrupt()),
+            defaultRuntime.unsafeRun(io)
+        );
+    }
+
+    @Test
+    public void testTimeoutWithoutInterrupt() {
+        IO<Object, Failure, Integer> io = slow(10, 2).timeout(1000000000);
+        
+        Assert.assertEquals(
+            Right.of(2),
+            defaultRuntime.unsafeRun(io)
+        );
+    }
+
+    @Test
     public void testZipWith() {
         IO<Object, Object, String> io = IO.succeed(2).zipWith(
             IO.succeed("Test"),
