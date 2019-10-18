@@ -4,6 +4,7 @@ import java.io.BufferedWriter;
 import java.io.OutputStream;
 import java.io.OutputStreamWriter;
 import java.io.PrintWriter;
+import java.nio.charset.Charset;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -43,7 +44,7 @@ public final class StreamUtil {
     ) {
         try ( PrintWriter writer = new PrintWriter(
             new BufferedWriter(
-                new OutputStreamWriter( os )
+                new OutputStreamWriter( os, Charset.forName("UTF-8") )
         ) ) ) {
             writer.print(prefix);
             stream.forEach(item -> fn.accept(Tuple2.of(writer, item)));
