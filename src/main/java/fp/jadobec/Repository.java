@@ -194,9 +194,19 @@ public class Repository {
         ).blocking();
     }
 
-    public static IO<Connection, Failure, Integer> update(final String sql) {
-        return updatePrepared(sql, ps -> {});
+    public static IO<Connection, Failure, Integer> update(
+        final String sql,
+        Object... params
+    ) {
+        ThrowingConsumer<PreparedStatement, SQLException> prepare = ps -> {
+            for (int i=0; i<params.length; i++) {
+                ps.setObject(i + 1, params[i]);
+            }
+        };
+
+        return updatePrepared(sql, prepare);
     }
+
 
     public static IO<Connection, Failure, Integer> updatePrepared(
         final String sql,
