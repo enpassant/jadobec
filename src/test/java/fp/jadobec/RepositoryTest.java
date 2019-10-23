@@ -18,6 +18,7 @@ import fp.io.IO;
 import fp.io.Runtime;
 import fp.util.Either;
 import fp.util.Failure;
+import fp.util.GeneralFailure;
 import fp.util.Tuple2;
 
 public class RepositoryTest {
@@ -139,6 +140,18 @@ public class RepositoryTest {
         );
     }
 
+    @Test
+    public void testTransactionCommitFailure() {
+        checkDbCommand(
+            Repository.transaction(
+                Repository.update("INSERT INTO person VALUES(1, 'Big Joe', 2)")
+            ).foldM(
+                failure -> IO.succeed(1),
+                success -> IO.fail(Cause.fail(GeneralFailure.of(success)))
+            )
+        );
+    }
+
     private static IO<Connection, Failure, Integer> updatePersonName(int id, String name) {
         return Repository.updatePrepared(
             "UPDATE person SET name=? WHERE id = ?",
@@ -190,7 +203,7 @@ public class RepositoryTest {
     private static IO<Connection, Failure, Integer> fill() {
         return Repository.batchUpdate(
             "CREATE TABLE person(" +
-                "id INT auto_increment, " +
+                "id INT auto_increment UNIQUE, " +
                 "name VARCHAR(30) NOT NULL, " +
                 "age INT" +
             ")",

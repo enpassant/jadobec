@@ -292,13 +292,22 @@ public class Repository {
                     failure -> {
                         try {
                             connection3.rollback();
-                        } catch(SQLException e) {};
+                        } catch(SQLException e) {
+                            return IO.fail(
+                                Cause.fail(failure)
+                                    .then(Cause.fail(ExceptionFailure.of(e)))
+                            );
+                        };
                         return IO.fail(Cause.fail(failure));
                     },
                     success -> {
                         try {
                             connection3.commit();
-                        } catch(SQLException e) {};
+                        } catch(SQLException e) {
+                            return IO.fail(
+                                Cause.fail(ExceptionFailure.of(e))
+                            );
+                        };
                         return IO.succeed(success);
                     }
                 )
