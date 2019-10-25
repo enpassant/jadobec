@@ -317,8 +317,19 @@ public abstract class IO<C, F, R> {
     }
 
     public IO<C, F, R> timeout(long nanoseconds) {
-        return race(
-            IO.<C, F, R>unit().delay(nanoseconds)
+        return fork().flatMap(fiber ->
+            IO.<C, F, R>unit().delay(nanoseconds).fork().<F, R>flatMap(fiberThat ->
+                IO.<C, Failure, RaceResult<F, R, R>>effect(() ->
+                    fiber.raceWith(fiberThat).get()
+                ).<F>mapFailure(failure -> Cause.<F>die((ExceptionFailure) failure))
+                .peek(raceResult -> raceResult.getLooser().interrupt())
+                .flatMap(raceResult ->
+                    raceResult.<R>getWinner().getCompletedValue().fold(
+                        failure -> IO.fail(failure),
+                        success -> IO.succeed(success)
+                    )
+                )
+            )
         ).flatMap(r -> (r == null) ? IO.interrupt() : IO.succeed(r));
     }
 
