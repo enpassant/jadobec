@@ -280,7 +280,7 @@ public class FiberContext<F, R> implements Fiber<F, R> {
         }
     }
 
-    private IO<Object, F, R> nextInstr(Object value) {
+    private IO<Object, F, R> nextInstr(final Object value) {
         /*
         if (value instanceof Future) {
             @SuppressWarnings("unchecked")
@@ -319,16 +319,18 @@ public class FiberContext<F, R> implements Fiber<F, R> {
             }
             Either<Cause<F>, ?> either = valueTry.get();
             if (either.isLeft()) {
+                this.value = either.left();
                 return IO.fail(either.left());
+            } else {
+                this.value = either.get();
             }
-            value = either.get();
         }
         
-        return nextInstrApply(value);
+        return nextInstrApply(this.value);
     }
     
     @SuppressWarnings("unchecked")
-    private IO<Object, F, R> nextInstrApply(Object value) {
+    private IO<Object, F, R> nextInstrApply(final Object value) {
         if (stack.isEmpty()) {
             done(Right.of((R) value));
             return null;
