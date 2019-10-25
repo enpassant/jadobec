@@ -383,6 +383,30 @@ public class IOTest {
     }
 
     @Test
+    public void testPeekM() {
+        final Resource res = new Resource();
+        IO<Object, Object, Resource> io = IO.succeed(res)
+            .peek(r1 -> r1.use(7))
+            .peekM(r2 -> IO.effectTotal(() -> r2.close()));
+        Assert.assertEquals(Right.of(res), defaultRuntime.unsafeRun(io));
+        Assert.assertEquals(7, res.usage);
+        Assert.assertEquals(false, res.acquired);
+    }
+
+    @Test
+    public void testPeekMWithFailure() {
+        final Resource res = new Resource();
+        IO<Object, Object, Resource> io = IO.succeed(res)
+            .peek(r1 -> r1.use(7))
+            .peekM(r2 -> IO.fail(Cause.fail(5))
+        );
+        Assert.assertEquals(Left.of(Cause.fail(5)), defaultRuntime.unsafeRun(io));
+        Assert.assertEquals(7, res.usage);
+        Assert.assertEquals(true, res.acquired);
+        res.close();
+    }
+
+    @Test
     public void testRecoverWithSuccess() {
         IO<Object, Object, Integer> io = IO.succeed(3)
             .recover(failure -> IO.succeed(5));

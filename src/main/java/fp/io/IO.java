@@ -80,6 +80,13 @@ public abstract class IO<C, F, R> {
         return new Peek<C, F, R>(this, consumer);
     }
 
+    public IO<C, F, R> peekM(Function<R, IO<C, F, Void>> consumerIO) {
+        return this.foldCauseM(
+            cause -> IO.fail(cause),
+            success -> consumerIO.apply(success).map(v -> success)
+        );
+    }
+
     public static <C, F> IO<C, F, Void> effectTotal(Statement statement) {
         return new EffectTotal<C, F, Void>(() -> { statement.call(); return null; });
     }
