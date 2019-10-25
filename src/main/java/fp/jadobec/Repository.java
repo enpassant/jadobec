@@ -288,31 +288,26 @@ public class Repository {
             connection -> IO.bracket(
                 setAutoCommit(connection, false),
                 connection2 -> setAutoCommit(connection, true),
-                connection3 -> dbCommand.foldM(
-                    failure -> {
-                        try {
-                            connection3.rollback();
-                        } catch(SQLException e) {
-                            return IO.fail(
-                                Cause.fail(failure)
-                                    .then(Cause.fail(ExceptionFailure.of(e)))
-                            );
-                        };
-                        return IO.fail(Cause.fail(failure));
-                    },
-                    success -> {
-                        try {
-                            connection3.commit();
-                        } catch(SQLException e) {
-                            return IO.fail(
-                                Cause.fail(ExceptionFailure.of(e))
-                            );
-                        };
-                        return IO.succeed(success);
-                    }
-                )
+                connection3 -> dbCommand.peekM(t ->
+                    IO.effect(() -> connection3.commit())
+                ).recover(failure -> Repository.<T>rollback(connection3, failure))
             )
         ).blocking();
+    }
+
+    private static <T> IO<Connection, Failure, T> rollback(
+        Connection connection,
+        Failure failure
+    ) {
+        try {
+            connection.rollback();
+        } catch(SQLException e) {
+            return IO.fail(
+                Cause.fail(failure)
+                    .then(Cause.fail(ExceptionFailure.of(e)))
+            );
+        };
+        return IO.fail(Cause.fail(failure));
     }
 
     public static <T> IO<Connection, Failure, Stream<T>> mapToStream(

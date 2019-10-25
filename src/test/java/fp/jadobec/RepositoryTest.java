@@ -144,9 +144,12 @@ public class RepositoryTest {
     public void testTransactionCommitFailure() {
         checkDbCommand(
             Repository.transaction(
-                Repository.update("INSERT INTO person VALUES(1, 'Big Joe', 2)")
-            ).foldM(
-                failure -> IO.succeed(1),
+                Repository.update("INSERT INTO person VALUES(3, 'Big Joe', 2)").peekM(i ->
+                    IO.<Connection, Failure, Void>accessM(connection ->
+                        IO.effect(() -> connection.close()))
+                )
+            ).foldCauseM(
+                cause -> IO.succeed(1),
                 success -> IO.fail(Cause.fail(GeneralFailure.of(success)))
             )
         );
