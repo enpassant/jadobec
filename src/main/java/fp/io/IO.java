@@ -199,6 +199,25 @@ public abstract class IO<C, F, R> {
         );
     }
 
+    public IO<C, F, R> raceAttempt(
+        IO<C, F, R> that
+    ) {
+        return fork().flatMap(fiber ->
+            that.fork().<F, R>flatMap(fiberThat ->
+                IO.<C, Failure, RaceResult<F, R, R>>effect(() ->
+                    fiber.raceWith(fiberThat).get()
+                ).<F>mapFailure(failure -> Cause.<F>die((ExceptionFailure) failure))
+                .peek(raceResult -> raceResult.getLooser().interrupt())
+                .flatMap(raceResult ->
+                    raceResult.<R>getWinner().getCompletedValue().fold(
+                        failure -> IO.fail(failure),
+                        success -> IO.succeed(success)
+                    )
+                )
+            )
+        ).flatMap(r -> (r == null) ? IO.interrupt() : IO.succeed(r));
+    }
+
     @SuppressWarnings("unchecked")
     public <F2, R2> IO<C, F2, R2> recover(Function<F, IO<C, F2, R2>> fn) {
         return foldM(
@@ -317,20 +336,9 @@ public abstract class IO<C, F, R> {
     }
 
     public IO<C, F, R> timeout(long nanoseconds) {
-        return fork().flatMap(fiber ->
-            IO.<C, F, R>unit().delay(nanoseconds).fork().<F, R>flatMap(fiberThat ->
-                IO.<C, Failure, RaceResult<F, R, R>>effect(() ->
-                    fiber.raceWith(fiberThat).get()
-                ).<F>mapFailure(failure -> Cause.<F>die((ExceptionFailure) failure))
-                .peek(raceResult -> raceResult.getLooser().interrupt())
-                .flatMap(raceResult ->
-                    raceResult.<R>getWinner().getCompletedValue().fold(
-                        failure -> IO.fail(failure),
-                        success -> IO.succeed(success)
-                    )
-                )
-            )
-        ).flatMap(r -> (r == null) ? IO.interrupt() : IO.succeed(r));
+        return raceAttempt(
+            IO.<C, F, R>unit().delay(nanoseconds)
+        );
     }
 
     public static <C, F, R> IO<C, F, R> unit() {
