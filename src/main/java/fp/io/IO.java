@@ -1,6 +1,7 @@
 package fp.io;
 
 import java.util.Iterator;
+import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.function.BiFunction;
 import java.util.function.Consumer;
@@ -329,6 +330,50 @@ public abstract class IO<C, F, R> {
                     .peek(f -> builder.accept(f))
                     .map(i -> i);
                 return sequenceParLoop(builder, iterator, newIo);
+            } else {
+                return io;
+            }
+        });
+    }
+
+    public static <C, F, R> IO<C, F, R> sequenceRace(
+        Stream<IO<C, F, R>> stream
+    ) {
+        Builder<Fiber<F, R>> builder = Stream.builder();
+        CompletableFuture<Fiber<F, R>> winner = new CompletableFuture<>();
+        final IO<C, F, Stream<Fiber<F, R>>> fiberStreamIO =
+            sequenceRaceLoop(builder, winner, stream.iterator(), IO.succeed(null))
+            .flatMap(i -> sequence(builder.build().map(IO::succeed)));
+        return fiberStreamIO.flatMap(streamFiber ->
+            IO.<C, Failure, Either<Cause<F>, R>>effect(() -> winner.thenApply(winnerFiber -> {
+                streamFiber
+                    .filter(f -> f != winnerFiber)
+                    .peek(f -> f.interrupt());
+                return winnerFiber.getValue();
+            }).get())
+            .mapFailure(failure -> Cause.die((ExceptionFailure) failure))
+        ).flatMap(either -> either.fold(
+            cause -> IO.fail(cause),
+            success -> IO.succeed(success)
+        ));
+    }
+
+    private static <C, F, R> IO<C, F, Object> sequenceRaceLoop(
+        Builder<Fiber<F, R>> builder,
+        CompletableFuture<Fiber<F, R>> winner,
+        Iterator<IO<C, F, R>> iterator,
+        IO<C, F, Object> io
+    ) {
+        return IO.<C, F, Boolean>succeed(
+            iterator.hasNext()
+        ).flatMap(hasNext -> {
+            if (hasNext) {
+                final IO<C, F, R> valueIO = iterator.next();
+                final IO<C, F, Object> newIo = io.flatMap(r -> valueIO.fork())
+                    .peek(f -> builder.accept(f))
+                    .peek(f -> f.register(winner))
+                    .map(i -> i);
+                return sequenceRaceLoop(builder, winner, iterator, newIo);
             } else {
                 return io;
             }

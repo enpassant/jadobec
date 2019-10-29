@@ -568,6 +568,30 @@ public class IOTest {
     }
 
     @Test
+    public void testSequenceRace() {
+        final long millis = 100;
+        
+        final Stream<IO<Object, Failure, Integer>> streamIO =
+            Stream.of(slow(2 * millis, 13), slow(millis, 6), slow(2 * millis, 4));
+        
+        final long start = System.currentTimeMillis();
+        
+        IO<Object, Failure, Integer> io = IO.sequenceRace(streamIO);
+        
+        Assert.assertEquals(
+            Right.of(6),
+            defaultRuntime.unsafeRun(io)
+        );
+        
+        final long time = System.currentTimeMillis() - start;
+        
+        Assert.assertTrue(
+            "Time was: " + time,
+            time < 3 * millis
+        );
+    }
+
+    @Test
     public void testTimeoutWithInterrupt() {
         IO<Object, Failure, Integer> io = slow(1000, 2).timeout(20000000);
         
