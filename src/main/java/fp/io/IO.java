@@ -310,7 +310,7 @@ public abstract class IO<C, F, R> {
         Stream<IO<C, F, R>> stream
     ) {
         Builder<Fiber<F, R>> builder = Stream.builder();
-        final IO<C, F, Stream<Fiber<F, R>>> fiberStreamIO = 
+        final IO<C, F, Stream<Fiber<F, R>>> fiberStreamIO =
             sequenceParLoop(builder, stream.iterator(), IO.succeed(null))
             .flatMap(i -> sequence(builder.build().map(IO::succeed)));
         return fiberStreamIO.map(s -> s.map(f -> f.getValue()));
@@ -637,7 +637,7 @@ public abstract class IO<C, F, R> {
         final Scheduler scheduler;
         final Function<Schedule<C, F, R>, Function<Cause<F>, IO<C, F, R>>> failure;
         final Function<Schedule<C, F, R>, Function<R, IO<C, F, R>>> success;
-        
+
         public Schedule(
             final IO<C, F, R> io,
             final Scheduler scheduler,

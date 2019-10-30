@@ -3,22 +3,22 @@ package fp.io;
 public abstract class Scheduler {
     public abstract State getState();
     public abstract Scheduler updateState();
-    
+
     public static interface State {}
-    
+
     public class End implements State {}
     public class Execution implements State {}
     public class Delay implements State {
         public final long nanoSecond;
-        
+
         public Delay(long nanoSecond) {
             this.nanoSecond = nanoSecond;
         }
     }
-    
+
     public static class Counter extends Scheduler {
         private final int count;
-        
+
         public Counter(int count) {
             this.count = count;
         }
@@ -33,10 +33,10 @@ public abstract class Scheduler {
             return new Counter(count - 1);
         }
     }
-    
+
     public static class Delayer extends Scheduler {
         private final long nanoseconds;
-        
+
         public Delayer(long nanoseconds) {
             this.nanoseconds = nanoseconds;
         }

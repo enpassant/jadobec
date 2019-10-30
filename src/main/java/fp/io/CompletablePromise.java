@@ -21,7 +21,7 @@ public class CompletablePromise<V> extends CompletableFuture<V> {
     ) {
         CompletablePromise<V> completablePromise =
             new CompletablePromise<>(platform, future);
-        
+
         if (!future.isDone()) {
             platform.getScheduler().schedule(
                 completablePromise::tryToComplete,
@@ -29,7 +29,7 @@ public class CompletablePromise<V> extends CompletableFuture<V> {
                 TimeUnit.NANOSECONDS
             );
         }
-        
+
         return completablePromise;
     }
 

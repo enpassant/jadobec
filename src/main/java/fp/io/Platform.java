@@ -9,7 +9,7 @@ public interface Platform {
     ExecutorService getExecutor();
     ExecutorService getForkJoin();
     ScheduledExecutorService getScheduler();
-    
+
     default <V> CompletablePromise<V> toCompletablePromise(Future<V> future) {
         return CompletablePromise.of(this, future);
     }

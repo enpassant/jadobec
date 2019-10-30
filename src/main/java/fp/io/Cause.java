@@ -61,7 +61,7 @@ public abstract class Cause<F> {
                 (exceptionFailure.throwable instanceof ExecutionException) ?
                     exceptionFailure.throwable.getCause() :
                     exceptionFailure.throwable;
-            
+
             if (throwable instanceof CancellationException) {
                 return interrupt();
             } else if (throwable instanceof InterruptedException) {
@@ -137,15 +137,15 @@ public abstract class Cause<F> {
             super(failure, Kind.Die);
         }
     }
-    
+
     static class Fail<F> extends Cause<F> {
         private final F value;
-        
+
         private Fail(F value) {
             super(GeneralFailure.of(value), Kind.Fail);
             this.value = value;
         }
-        
+
         @Override
         public F getValue() {
             return value;
@@ -166,10 +166,10 @@ public abstract class Cause<F> {
     static class Both <F> extends Cause<F> {
         private final Cause<F> first;
         private final Cause<F> second;
-        
+
         private Both(Cause<F> first, Cause<F> second) {
             super(GeneralFailure.of(Tuple2.of(first, second)), Kind.Both);
-            
+
             this.first = first;
             this.second = second;
         }
@@ -183,10 +183,10 @@ public abstract class Cause<F> {
     static class Then <F> extends Cause<F> {
         private final Cause<F> first;
         private final Cause<F> second;
-        
+
         private Then(Cause<F> first, Cause<F> second) {
             super(GeneralFailure.of(Tuple2.of(first, second)), Kind.Then);
-            
+
             this.first = first;
             this.second = second;
         }

@@ -23,7 +23,7 @@ import fp.util.Right;
 public class FiberContext<F, R> implements Fiber<F, R> {
     private static long counter = 0;
     private final long number;
-    
+
     private final Platform platform;
     private IO<Object, ?, ?> curIo;
     private Object value = null;
@@ -106,7 +106,7 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                             );
                             streamFiberBuilder.add(fiberContext);
 //                            System.out.println("Blocking Fiber " + fiberContext.number + " has started");
-                            
+
                             value = platform.getBlocking().submit(
                                 () -> fiberContext.evaluate(blockIo.io)
                             );
@@ -121,7 +121,7 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                             unwindStack(stack);
                             final Cause<F> cause = ((IO.Fail<Object, F, R>) curIo).f;
                             if (stack.isEmpty()) {
-                                final Cause<F> causeNew = 
+                                final Cause<F> causeNew =
                                     (interrupted && !cause.isInterrupt()) ?
                                         cause.then(Cause.interrupt()) :
                                         cause;
@@ -195,7 +195,7 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                         case InterruptStatus:
                             final IO.InterruptStatus<Object, F, R> interruptStatusIo =
                                 (IO.InterruptStatus<Object, F, R>) curIo;
-                            
+
                             interruptStatus.push(interruptStatusIo.flag);
                             stack.push(new InterruptExit());
                             curIo = interruptStatusIo.io;
@@ -325,10 +325,10 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                 this.value = either.get();
             }
         }
-        
+
         return nextInstrApply(this.value);
     }
-    
+
     @SuppressWarnings("unchecked")
     private IO<Object, F, R> nextInstrApply(final Object value) {
         if (stack.isEmpty()) {
@@ -382,7 +382,7 @@ public class FiberContext<F, R> implements Fiber<F, R> {
             observer.complete(this);
         }
     }
-    
+
     @Override
     public Either<Cause<F>, R> getCompletedValue() {
         final FiberState<F, R> oldState = state.get();
@@ -451,12 +451,12 @@ public class FiberContext<F, R> implements Fiber<F, R> {
     @Override
     public <C> IO<C, F, Void> interrupt() {
         interrupted = true;
-        
+
 //        System.out.println("Fiber " + number + " has interrupted");
 
 //        final Stream<Fiber<?, ?>> streamFiber = streamFiberBuilder.build();
 //        streamFiber.forEach(fiber -> fiber.interrupt());
-        
+
 //        final Stream<Future<?>> stream = streamFuture.build();
 //        stream.forEach(future -> future.cancel(true));
 /*
@@ -471,12 +471,12 @@ public class FiberContext<F, R> implements Fiber<F, R> {
             }
         }
         //*/
-        
+
         if (mainFuture != null) {
             mainFuture.cancel(true);
         }
         observer.cancel(true);
-        
+
         return IO.effectTotal(() -> {});
     }
 
@@ -489,7 +489,7 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                 success -> IO.succeed(success)
             );
     }
-    
+
     @SuppressWarnings("unchecked")
     @Override
     public <R2> Future<RaceResult<F, R, R2>> raceWith(Fiber<F, R2> that) {
@@ -508,21 +508,21 @@ public class FiberContext<F, R> implements Fiber<F, R> {
     private boolean shouldInterrupt() {
         return interrupted && interruptible();
     }
-    
+
     private <A> A popDrop(A a) {
         if (!interruptStatus.isEmpty()) {
             interruptStatus.pop();
         }
         return a;
     }
-    
+
     private class InterruptExit<C> implements Function<R, IO<C, F, R>> {
         @Override
         public IO<C, F, R> apply(R v) {
             boolean isInterruptible = interruptStatus.isEmpty() ?
                 true :
                 interruptStatus.peek();
-            
+
             if (isInterruptible) {
                 popDrop(null);
                 return IO.succeed(v);

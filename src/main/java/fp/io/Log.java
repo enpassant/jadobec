@@ -16,11 +16,11 @@ public class Log {
 
     public static class Live implements Service {
         private final Logger logger;
-        
+
         public Live(final Logger logger) {
             this.logger = logger;
         }
-        
+
         private IO<Object, Object, Void> log(
             Level level,
             String message,

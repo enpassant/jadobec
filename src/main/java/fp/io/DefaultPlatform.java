@@ -49,7 +49,7 @@ public class DefaultPlatform implements Platform {
     public ExecutorService getForkJoin() {
         return forkJoin;
     }
-    
+
     @Override
     public ScheduledExecutorService getScheduler() {
         return scheduler;

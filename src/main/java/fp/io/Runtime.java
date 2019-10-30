@@ -17,7 +17,7 @@ public interface Runtime<C> {
             failure -> Left.of(Cause.die(failure)),
             success -> success
         );
-        
+
 //        result.forEachLeft(cause -> {
 //            if (!cause.isFail()) {
 //                final Failure failure = cause.getFailure();
