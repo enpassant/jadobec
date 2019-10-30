@@ -23,6 +23,7 @@ import fp.util.Right;
 public class FiberContext<F, R> implements Fiber<F, R> {
     private static long counter = 0;
     private final long number;
+    private final boolean blocking;
 
     private final Platform platform;
     private IO<Object, ?, ?> curIo;
@@ -44,10 +45,11 @@ public class FiberContext<F, R> implements Fiber<F, R> {
     private Stream.Builder<Fiber<?, ?>> streamFiberBuilder =
         Stream.<Fiber<?, ?>>builder();
 
-    public FiberContext(Object context, Platform platform) {
+    public FiberContext(Object context, Platform platform, boolean blocking) {
         super();
         counter++;
         number = counter;
+        this.blocking = blocking;
 
         if (context != null) {
             environments.push(context);
@@ -100,17 +102,22 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                         case Blocking: {
                             final IO.Blocking<Object, F, R> blockIo =
                                 (IO.Blocking<Object, F, R>) curIo;
-                            final FiberContext<F, R> fiberContext = new FiberContext<F, R>(
-                                environments.peek(),
-                                platform
-                            );
-                            streamFiberBuilder.add(fiberContext);
-//                            System.out.println("Blocking Fiber " + fiberContext.number + " has started");
+                            if (blocking) {
+                                curIo = blockIo.io;
+                            } else {
+                                final FiberContext<F, R> fiberContext = new FiberContext<F, R>(
+                                    environments.peek(),
+                                    platform,
+                                    true
+                                );
+                                streamFiberBuilder.add(fiberContext);
+    //                            System.out.println("Blocking Fiber " + fiberContext.number + " has started");
 
-                            value = platform.getBlocking().submit(
-                                () -> fiberContext.evaluate(blockIo.io)
-                            );
-                            curIo = nextInstr(value);
+                                value = platform.getBlocking().submit(
+                                    () -> fiberContext.evaluate(blockIo.io)
+                                );
+                                curIo = nextInstr(value);
+                            }
                             break;
                         }
                         case Pure:
@@ -179,8 +186,11 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                                 ioValue = forkIo.io;
                                 executor = platform.getExecutor();
                             }
-                            final FiberContext<F, R> fiberContext =
-                                new FiberContext<F, R>(environments.peek(), platform);
+                            final FiberContext<F, R> fiberContext = new FiberContext<F, R>(
+                                environments.peek(),
+                                platform,
+                                forkIo.io.tag == IO.Tag.Blocking
+                            );
                             streamFiberBuilder.add(fiberContext);
 
                             platform.toCompletablePromise(
@@ -205,7 +215,8 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                                 (IO.Lock<Object, F, R>) curIo;
                             final FiberContext<F, R> fiberContext = new FiberContext<F, R>(
                                 environments.peek(),
-                                platform
+                                platform,
+                                true
                             );
                             streamFiberBuilder.add(fiberContext);
                             value = lockIo.executor.submit(
@@ -248,7 +259,8 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                                 final Scheduler.Delay delay = (Scheduler.Delay) state;
                                 final FiberContext<F, R> fiberContext = new FiberContext<F, R>(
                                     environments.peek(),
-                                    platform
+                                    platform,
+                                    false
                                 );
                                 streamFiberBuilder.add(fiberContext);
                                 value = platform.getScheduler().schedule(

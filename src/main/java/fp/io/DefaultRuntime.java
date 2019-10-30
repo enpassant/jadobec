@@ -10,7 +10,11 @@ public class DefaultRuntime<C> implements Runtime<C> {
     }
 
     public <F, R> FiberContext<F, R> createFiberContext() {
-        FiberContext<F, R> fiberContext = new FiberContext<F, R>(context, platform);
+        FiberContext<F, R> fiberContext = new FiberContext<F, R>(
+            context,
+            platform,
+            false
+        );
         return fiberContext;
     }
 }
