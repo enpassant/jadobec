@@ -24,7 +24,10 @@ public abstract class IO<C, F, R> {
     Tag tag;
 
     public static <C, F, R> IO<C, F, R> absolve(IO<C, F, Either<F, R>> io) {
-        return new Absolve<C, F, R>(io);
+        return io.flatMap(either -> either.fold(
+            failure -> IO.fail(Cause.fail(failure)),
+            success -> IO.succeed(success)
+        ));
     }
 
     public static <C, F, R> IO<C, F, R> accessM(Function<C, IO<Object, F, R>> fn) {
@@ -429,7 +432,6 @@ public abstract class IO<C, F, R> {
     }
 
     enum Tag {
-        Absolve,
         Access,
         Blocking,
         Pure,
@@ -450,17 +452,6 @@ public abstract class IO<C, F, R> {
     enum Interruptible {
         Interruptible,
         Uninterruptible
-    }
-
-    static class Absolve<C, F, R> extends IO<C, F, R> {
-        final IO<C, F, Either<F, R>> io;
-
-        public Absolve(
-            IO<C, F, Either<F, R>> io
-        ) {
-            tag = Tag.Absolve;
-            this.io = io;
-        }
     }
 
     static class Access<C, F, R> extends IO<C, F, R> {

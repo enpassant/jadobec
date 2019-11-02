@@ -86,15 +86,6 @@ public class FiberContext<F, R> implements Fiber<F, R> {
             while (curIo != null) {
                 if (curIo.tag == Tag.Fail || !shouldInterrupt()) {
                     switch (curIo.tag) {
-                        case Absolve:
-                            final IO.Absolve<Object, F, R> absolveIO =
-                                (IO.Absolve<Object, F, R>) curIo;
-                            stack.push((Either<F, R> v) -> v.isLeft() ?
-                                IO.fail(Cause.fail(v.left())) :
-                                IO.succeed(v.right())
-                            );
-                            curIo = absolveIO.io;
-                            break;
                         case Access:
                             curIo = ((IO.Access<Object, F, R>) curIo)
                                 .fn.apply(environments.peek());
@@ -260,7 +251,7 @@ public class FiberContext<F, R> implements Fiber<F, R> {
                                 final FiberContext<F, R> fiberContext = new FiberContext<F, R>(
                                     environments.peek(),
                                     platform,
-                                    false
+                                    true
                                 );
                                 streamFiberBuilder.add(fiberContext);
                                 value = platform.getScheduler().schedule(
@@ -294,7 +285,7 @@ public class FiberContext<F, R> implements Fiber<F, R> {
 
     private IO<Object, F, R> nextInstr(final Object value) {
         /*
-        if (value instanceof Future) {
+        if (!blocking && value instanceof Future) {
             @SuppressWarnings("unchecked")
             Future<Either<Cause<F>, ?>> futureValue = (Future<Either<Cause<F>, ?>>) value;
             CompletableFuture<Void> currentFuture = platform.toCompletablePromise(futureValue)
@@ -302,8 +293,8 @@ public class FiberContext<F, R> implements Fiber<F, R> {
         if (value instanceof CompletableFuture) {
             @SuppressWarnings("unchecked")
             CompletableFuture<Either<Cause<F>, ?>> futureValue =
-                (CompletableFuture<Either<Cause<F>, ?>>) value;
-            CompletableFuture<Void> currentFuture = futureValue
+                    (CompletableFuture<Either<Cause<F>, ?>>) value;
+                CompletableFuture<Void> currentFuture = futureValue
         //*/
                 .thenAcceptAsync(either -> {
                     if (either.isLeft()) {
