@@ -140,8 +140,8 @@ public class IOTest {
         IO<Object, Object, Integer> io =
             IO.effectTotal(() -> 6).fork().flatMap(fiber1 ->
             IO.effectTotal(() -> 7).fork().flatMap(fiber2 ->
-            fiber1.join().flatMap(value1 ->
-            fiber2.join().map(value2 ->
+            IO.join(fiber1).flatMap(value1 ->
+            IO.join(fiber2).map(value2 ->
             value1 * value2
         ))));
         Assert.assertEquals(Right.of(42), defaultRuntime.unsafeRun(io));
@@ -152,8 +152,8 @@ public class IOTest {
         IO<Object, Object, Integer> io =
             IO.effectTotal(() -> 6).blocking().fork().flatMap(fiber1 ->
             IO.effectTotal(() -> 7).blocking().fork().flatMap(fiber2 ->
-            fiber1.join().flatMap(value1 ->
-            fiber2.join().map(value2 ->
+            IO.join(fiber1).flatMap(value1 ->
+            IO.join(fiber2).map(value2 ->
             value1 * value2
         ))));
         Assert.assertEquals(Right.of(42), defaultRuntime.unsafeRun(io));
@@ -167,8 +167,8 @@ public class IOTest {
         IO<Object, Object, String> io =
             ioThreadName.fork().flatMap(fiber1 ->
             ioThreadName.blocking().fork().flatMap(fiber2 ->
-            fiber1.join().flatMap(value1 ->
-            fiber2.join().map(value2 ->
+            IO.join(fiber1).flatMap(value1 ->
+            IO.join(fiber2).map(value2 ->
             value1 + "," + value2
         ))));
         Either<Cause<Object>, String> result = defaultRuntime.unsafeRun(io);

@@ -119,6 +119,10 @@ public abstract class IO<C, F, R> {
         return new Fork<C, F, R>(this);
     }
 
+    public static <C, F, R> IO<C, F, R> join(Fiber<F, R> fiber) {
+        return new Join<C, F, R>(fiber);
+    }
+
     public static <C, F, R> IO<C, F, R> halt(Cause<F> cause) {
         return new Fail<C, F, R>(cause);
     }
@@ -425,8 +429,8 @@ public abstract class IO<C, F, R> {
                         failure -> raceResult.getLooser().interrupt()
                     )
                 ).flatMap(f ->
-                fiber.<C>join().flatMap((R value) ->
-                fiberThat.<C>join().map((R2 valueThat) ->
+                IO.<C, F, R>join(fiber).flatMap((R value) ->
+                IO.<C, F, R2>join(fiberThat).map((R2 valueThat) ->
                 Tuple2.of(value, valueThat)
         )))));
     }
@@ -443,6 +447,7 @@ public abstract class IO<C, F, R> {
         InterruptStatus,
         CheckInterrupt,
         FlatMap,
+        Join,
         Lock,
         Peek,
         Provide,
@@ -588,6 +593,15 @@ public abstract class IO<C, F, R> {
         public CheckInterrupt(Function<InterruptStatus<C, F, R>, IO<Object, F, R>> fn) {
             tag = Tag.CheckInterrupt;
             this.fn = fn;
+        }
+    }
+
+    static class Join<C, F, R> extends IO<C, F, R> {
+        final Fiber<F, R> fiber;
+
+        public Join(final Fiber<F, R> fiber) {
+            tag = Tag.Join;
+            this.fiber = fiber;
         }
     }
 
