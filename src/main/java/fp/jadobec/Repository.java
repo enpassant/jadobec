@@ -85,7 +85,7 @@ public class Repository {
                 final Constructor<?> constructor = type.getDeclaredConstructor();
                 final DataSource dataSource = (DataSource) constructor.newInstance();
                 for (final Tuple2<String, String> property : properties) {
-                    final Method method = type.getDeclaredMethod(
+                    final Method method = type.getMethod(
                         "set" + property.getFirst(),
                         String.class
                     );
