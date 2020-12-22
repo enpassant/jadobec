@@ -35,6 +35,10 @@ public class GeneralFailure<F> implements Failure {
         return code;
     }
 
+    public F getValue() {
+        return getCode();
+    }
+
     public Set<String> getParamNames() {
         return params.keySet();
     }

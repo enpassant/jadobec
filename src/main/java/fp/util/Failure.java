@@ -3,6 +3,8 @@ package fp.util;
 import java.util.Optional;
 
 public interface Failure {
+    public <F> F getValue();
+
     public static <E extends Exception, R> Optional<R> tryCatchOptional(
         ThrowingSupplier<R, E> process
     ) {

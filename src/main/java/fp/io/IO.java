@@ -156,9 +156,16 @@ public abstract class IO<C, F, R> {
         );
     }
 
-    public IO<C, F, R> on(ExecutorService executor) {
-        return new Lock<C, F, R>(this, executor);
+    public IO<C, F, R> onError(Consumer<Cause<F>> fn) {
+        return foldCauseM(
+            failure -> { fn.accept(failure); return IO.fail(failure); },
+            success -> IO.succeed(success)
+        );
     }
+
+    //public IO<C, F, R> on(ExecutorService executor) {
+        //return new Lock<C, F, R>(this, executor);
+    //}
 
     public static <C, F, A, R, R2> IO<C, F, R> bracket(
         IO<C, F, A> acquire,
@@ -239,6 +246,15 @@ public abstract class IO<C, F, R> {
         return foldCauseM(
             fn,
             success -> IO.succeed((R2) success)
+        );
+    }
+
+    public static <C, F, R> IO<C, F, R> sleep(long nanoseconds) {
+        return new Schedule<C, F, R>(
+            IO.unit(),
+            new Scheduler.Delayer(nanoseconds),
+            schedule -> f -> IO.fail(f),
+            schedule -> s -> IO.succeed(s)
         );
     }
 
@@ -605,15 +621,15 @@ public abstract class IO<C, F, R> {
         }
     }
 
-    static class Lock<C, F, R> extends IO<C, F, R> {
-        final IO<C, F, R> io;
-        final ExecutorService executor;
-        public Lock(IO<C, F, R> io, ExecutorService executor) {
-            tag = Tag.Lock;
-            this.io = io;
-            this.executor = executor;
-        }
-    }
+    //static class Lock<C, F, R> extends IO<C, F, R> {
+        //final IO<C, F, R> io;
+        //final ExecutorService executor;
+        //public Lock(IO<C, F, R> io, ExecutorService executor) {
+            //tag = Tag.Lock;
+            //this.io = io;
+            //this.executor = executor;
+        //}
+    //}
 
     static class Peek<C, F, R> extends IO<C, F, R> {
         final IO<C, F, R> io;

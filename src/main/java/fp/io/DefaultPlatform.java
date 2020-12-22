@@ -17,7 +17,9 @@ public class DefaultPlatform implements Platform {
         java.lang.Runtime.getRuntime().availableProcessors(),
         new PlatformThreadFactory("io-executor")
     );
-    private final ExecutorService forkJoin = new ForkJoinPool(1);
+    private final ExecutorService forkJoin = new ForkJoinPool(
+        java.lang.Runtime.getRuntime().availableProcessors()
+    );
     private final ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(
         java.lang.Runtime.getRuntime().availableProcessors(),
         new PlatformThreadFactory("io-scheduler")

@@ -11,6 +11,10 @@ public class ExceptionFailure implements Failure {
         return new ExceptionFailure(throwable);
     }
 
+    public Throwable getValue() {
+        return throwable;
+    }
+
     public static <E extends Throwable, R> Either<Failure, R> tryCatch(
         ThrowingSupplier<R, E> process
     ) {

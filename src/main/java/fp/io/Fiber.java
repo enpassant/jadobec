@@ -7,6 +7,7 @@ import java.util.function.Consumer;
 import fp.util.Either;
 
 public interface Fiber<F, R> {
+    Either<Cause<F>, R> join();
     Either<Cause<F>, R> getValue();
     Either<Cause<F>, R> getCompletedValue();
     <C> IO<C, F, Void> interrupt();
