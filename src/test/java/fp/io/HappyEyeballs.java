@@ -30,7 +30,7 @@ import fp.util.Tuple2;
 public class HappyEyeballs {
     final static DefaultPlatform platform = new DefaultPlatform();
 
-    final Runtime<Object> defaultRuntime = new ForkJoinRuntime<Object>(null, platform);
+    final Runtime<Object> defaultRuntime = new DefaultRuntime<Object>(null, platform);
 
     static {
         final InputStream is = HappyEyeballs.class.getClassLoader()

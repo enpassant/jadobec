@@ -24,8 +24,8 @@ import fp.util.Tuple2;
 public class IOTest {
     final static DefaultPlatform platform = new DefaultPlatform();
 
-    final Runtime<Void> defaultVoidRuntime = new ForkJoinRuntime<Void>(null, platform);
-    final Runtime<Object> defaultRuntime = new ForkJoinRuntime<Object>(null, platform);
+    final Runtime<Void> defaultVoidRuntime = new DefaultRuntime<Void>(null, platform);
+    final Runtime<Object> defaultRuntime = new DefaultRuntime<Object>(null, platform);
 
     @AfterClass
     public static void setUp() {
