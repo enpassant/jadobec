@@ -2,6 +2,9 @@ package fp.io;
 
 import java.io.InputStream;
 
+import java.net.InetAddress;
+import java.net.Socket;
+
 import java.util.Arrays;
 import java.util.List;
 import java.util.concurrent.CancellationException;
@@ -13,6 +16,7 @@ import java.util.concurrent.Future;
 import java.util.function.Function;
 import java.util.logging.Logger;
 import java.util.logging.LogManager;
+import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.junit.AfterClass;
@@ -46,17 +50,28 @@ public class HappyEyeballs {
 
     private final static Logger LOG = Logger.getLogger(HappyEyeballs.class.getName());
 
+    private static final List<IO<Object, Failure, String>> tasks =
+        Arrays.asList(
+            printSleepPrint(10000000000L, "task1"),
+            printSleepFail(1000000000L, "task2"),
+            printSleepPrint(3000000000L, "task3"),
+            printSleepPrint(2000000000L, "task4"),
+            printSleepPrint(2000000000L, "task5"),
+            printSleepPrint(2000000000L, "task6"),
+            printSleepPrint(2000000000L, "task7")
+        );
+
     @AfterClass
     public static void setUp() {
         platform.shutdown();
     }
 
-    public static <Object, R> IO<Object, Throwable, R> run(
-        List<IO<Object, Throwable, R>> tasks,
+    public static <R> IO<Object, Failure, R> run(
+        List<IO<Object, Failure, R>> tasks,
         long delay
     ) {
         if (tasks.isEmpty()) {
-            return IO.fail(Cause.fail(new IllegalArgumentException("no tasks")));
+            return IO.fail(Cause.fail(GeneralFailure.of("no tasks")));
         } else if (tasks.size() == 1) {
             return tasks.get(0);
         } else {
@@ -66,21 +81,21 @@ public class HappyEyeballs {
         }
     }
 
-    public static <Object, R> IO<Object, Throwable, R> run2(
-        List<IO<Object, Throwable, R>> tasks,
+    public static <R> IO<Object, Failure, R> run2(
+        List<IO<Object, Failure, R>> tasks,
         long delay
     ) {
         if (tasks.isEmpty()) {
-            return IO.fail(Cause.fail(new IllegalArgumentException("no tasks")));
+            return IO.fail(Cause.fail(GeneralFailure.of("no tasks")));
         } else if (tasks.size() == 1) {
             return tasks.get(0);
         } else {
-            IO<Object, Throwable, Fiber<Throwable, Object>> signalIO =
-                IO.<Object, Throwable, Object>sleep(10000000000L).fork();
+            IO<Object, Failure, Fiber<Failure, Object>> signalIO =
+                IO.<Object, Failure, Object>sleep(delay).fork();
             return signalIO.flatMap(signal ->
                 tasks.get(0).onError(f -> signal.interrupt())
                 .race(
-                    IO.<Object, Throwable, Object>sleep(delay).fork().flatMap(s ->
+                    IO.<Object, Failure, Object>sleep(delay).fork().flatMap(s ->
                     IO.effect(() ->
                         s.raceWith(signal).get()
                     )).flatMap(r ->
@@ -90,39 +105,47 @@ public class HappyEyeballs {
         }
     }
 
-    public static IO<Object, Throwable, String> printSleepPrint(long sleep, String name) {
+    public static IO<Object, Failure, String> printSleepPrint(long sleep, String name) {
         return IO.effect(() -> LOG.info("START: " + name)).flatMap(p1 ->
             IO.sleep(sleep).flatMap(p2 ->
             IO.effect(() -> LOG.info("DONE:  " + name)).flatMap(p3 ->
             IO.succeed(name))));
     }
 
-    public static IO<Object, Throwable, String> printSleepFail(long sleep, String name) {
+    public static IO<Object, Failure, String> printSleepFail(long sleep, String name) {
         return IO.effect(() -> LOG.info("START: " + name)).flatMap(p1 ->
             IO.sleep(sleep).flatMap(p2 ->
             IO.effect(() -> LOG.info("FAIL:  " + name)).flatMap(p3 ->
-            IO.fail(Cause.fail(new Exception("Fail: " + name))))));
+            IO.fail(Cause.fail(GeneralFailure.of("Fail: " + name))))));
     }
 
     @Test
-    public void testHappyEyeballs() {
-        List<IO<Object, Throwable, String>> tasks =
-            Arrays.asList(
-                printSleepPrint(10000000000L, "task1"),
-                printSleepFail(1000000000L, "task2"),
-                printSleepPrint(3000000000L, "task3"),
-                printSleepPrint(2000000000L, "task4"),
-                printSleepPrint(2000000000L, "task5"),
-                printSleepPrint(2000000000L, "task6"),
-                printSleepPrint(2000000000L, "task7")
-            );
-        IO<Object, Throwable, String> io = run(tasks, 2000000000L);
-        Either<Cause<Throwable>, String> result = defaultRuntime.unsafeRun(io);
-        result.forEachLeft(cause -> ((ExceptionFailure) cause.getFailure()).getValue().printStackTrace());
-        Assert.assertEquals(Right.of("task3"), result);
+    public void testHappySockets() {
+        IO<Object, Failure, Socket> io =
+            IO.effect(() -> Arrays.asList(
+                InetAddress.getAllByName("debian.org")
+            )).blocking()
+            .peek(a -> LOG.info(a.toString()))
+            .map(addresses -> addresses.stream().map(a ->
+                IO.effect(() -> new Socket(a, 443)).blocking()
+            ).collect(Collectors.toList()))
+            .<Failure, Socket>flatMap(tasks -> HappyEyeballs.<Socket>run2(tasks, 250000000L))
+            .peek(s -> LOG.info("Connected: " + s.getInetAddress()));
+        Either<Cause<Failure>, Socket> result = defaultRuntime.unsafeRun(io);
+        Assert.assertTrue(result.isRight());
+    }
 
-        IO<Object, Throwable, String> io2 = run2(tasks, 2000000000L);
-        Either<Cause<Throwable>, String> result2 = defaultRuntime.unsafeRun(io2);
-        Assert.assertEquals(Right.of("task3"), result2);
+    @Test
+    public void testHappyEyeballs1() {
+        IO<Object, Failure, String> io = run(tasks, 2000000000L);
+        Either<Cause<Failure>, String> result = defaultRuntime.unsafeRun(io);
+        Assert.assertEquals(Right.of("task3"), result);
+    }
+
+    @Test
+    public void testHappyEyeballs2() {
+        IO<Object, Failure, String> io = run2(tasks, 2000000000L);
+        Either<Cause<Failure>, String> result = defaultRuntime.unsafeRun(io);
+        Assert.assertEquals(Right.of("task3"), result);
     }
 }
