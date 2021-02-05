@@ -50,16 +50,21 @@ public class HappyEyeballs {
 
     private final static Logger LOG = Logger.getLogger(HappyEyeballs.class.getName());
 
+    private final static long second = 10000000L;
+
+    private static long number = 0L;
+
     private static final List<IO<Object, Failure, String>> tasks =
         Arrays.asList(
-            printSleepPrint(10000000000L, "task1"),
-            printSleepFail(1000000000L, "task2"),
-            printSleepPrint(3000000000L, "task3"),
-            printSleepPrint(2000000000L, "task4"),
-            printSleepPrint(2000000000L, "task5"),
-            printSleepPrint(2000000000L, "task6"),
-            printSleepPrint(2000000000L, "task7")
-        );
+            printSleepPrint(7 * second, "task1"),
+            printSleepFail(1 * second, "task2"),
+            printSleepPrint(3 * second, "task3"),
+            printSleepPrint(2 * second, "task4"),
+            printSleepPrint(2 * second, "task5")
+        )
+        .stream()
+        .map(io -> bracket(io))
+        .collect(Collectors.toList());
 
     @AfterClass
     public static void setUp() {
@@ -90,19 +95,27 @@ public class HappyEyeballs {
         } else if (tasks.size() == 1) {
             return tasks.get(0);
         } else {
-            IO<Object, Failure, Fiber<Failure, Object>> signalIO =
+            IO<Object, Failure, Fiber<Failure, Object>> sleepIO =
                 IO.<Object, Failure, Object>sleep(delay).fork();
-            return signalIO.flatMap(signal ->
-                tasks.get(0).onError(f -> signal.interrupt())
+            return sleepIO.flatMap(sleep ->
+                tasks.get(0).onError(f -> sleep.interrupt())
                 .race(
-                    IO.<Object, Failure, Object>sleep(delay).fork().flatMap(s ->
-                    IO.effect(() ->
-                        s.raceWith(signal).get()
-                    )).flatMap(r ->
+                    IO.join(sleep).<R>andThen(
                     run2(tasks.subList(1, tasks.size()), delay)
                 ))
             );
         }
+    }
+
+    public static IO<Object, Failure, String> bracket(
+        IO<Object, Failure, String> taskIo
+    ) {
+        number++;
+        return IO.bracket(
+            IO.succeed("task" + number),
+            name -> IO.effectTotal(() -> LOG.info("Close: " + name)),
+            name -> taskIo
+        );
     }
 
     public static IO<Object, Failure, String> printSleepPrint(long sleep, String name) {
@@ -137,14 +150,14 @@ public class HappyEyeballs {
 
     @Test
     public void testHappyEyeballs1() {
-        IO<Object, Failure, String> io = run(tasks, 2000000000L);
+        IO<Object, Failure, String> io = run(tasks, 2 * second);
         Either<Cause<Failure>, String> result = defaultRuntime.unsafeRun(io);
-        Assert.assertEquals(Right.of("task3"), result);
+        Assert.assertEquals(Right.of("task1"), result);
     }
 
     @Test
     public void testHappyEyeballs2() {
-        IO<Object, Failure, String> io = run2(tasks, 2000000000L);
+        IO<Object, Failure, String> io = run2(tasks, 2 * second);
         Either<Cause<Failure>, String> result = defaultRuntime.unsafeRun(io);
         Assert.assertEquals(Right.of("task3"), result);
     }

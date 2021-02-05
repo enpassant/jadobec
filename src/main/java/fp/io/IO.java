@@ -38,6 +38,13 @@ public abstract class IO<C, F, R> {
         return new Access<C, F, R>(r -> IO.succeed(fn.apply(r)));
     }
 
+    public <R2> IO<C, F, R2> andThen(IO<C, F, R2> fnIO) {
+        return this.<F, R2>foldM(
+            failure -> fnIO,
+            success -> fnIO
+        );
+    }
+
     public IO<C, F, R> blocking() {
         return new Blocking<C, F, R>(this);
     }
@@ -157,7 +164,7 @@ public abstract class IO<C, F, R> {
     }
 
     public IO<C, F, R> onError(Consumer<Cause<F>> fn) {
-        return foldCauseM(
+        return this.<F, R>foldCauseM(
             failure -> { fn.accept(failure); return IO.fail(failure); },
             success -> IO.succeed(success)
         );
@@ -172,13 +179,13 @@ public abstract class IO<C, F, R> {
         Function<A, IO<C, F, R2>> release,
         Function<A, IO<C, F, R>> use
     ) {
-        return acquire.flatMap(a ->
+        return acquire.uninterruptible().flatMap(a ->
             use.apply(a).foldCauseM(
-                cause1 -> release.apply(a).foldCauseM(
+                cause1 -> release.apply(a).uninterruptible().foldCauseM(
                     cause2 -> IO.fail(cause1.then(cause2)),
                     value -> IO.fail(cause1)
                 ),
-                success -> release.apply(a).foldCauseM(
+                success -> release.apply(a).uninterruptible().foldCauseM(
                     cause2 -> IO.fail(cause2),
                     value -> IO.succeed(success)
                 )
