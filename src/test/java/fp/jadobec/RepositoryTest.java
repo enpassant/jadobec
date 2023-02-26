@@ -24,7 +24,8 @@ import fp.util.Tuple2;
 public class RepositoryTest {
     final static DefaultPlatform platform = new DefaultPlatform();
 
-    final static Runtime<Void> defaultRuntime = new DefaultRuntime<Void>(null, platform);
+    final static Runtime<Void> defaultRuntime =
+        new DefaultRuntime<Void>(null, platform);
 
     @AfterClass
     public static void setUp() {
@@ -90,17 +91,6 @@ public class RepositoryTest {
     }
 
     @Test
-    public void testUpdatePerson() {
-        checkDbCommand(
-            updatePersonName(2, "Jake Doe").flatMap(v ->
-                selectSingleAsPerson(2)
-            ).peek(person ->
-                assertEquals(jakeDoe, person)
-            )
-        );
-    }
-
-    @Test
     public void testUpdatePreparedPerson() {
         checkDbCommand(
             updatePersonName(2, "Jake Doe").flatMap(v ->
@@ -144,10 +134,11 @@ public class RepositoryTest {
     public void testTransactionCommitFailure() {
         checkDbCommand(
             Repository.transaction(
-                Repository.update("INSERT INTO person VALUES(3, 'Big Joe', 2)").peekM(i ->
-                    IO.<Connection, Failure, Void>accessM(connection ->
-                        IO.effect(() -> connection.close()))
-                )
+                Repository.update("INSERT INTO person VALUES(3, 'Big Joe', 2)")
+                    .peekM(i ->
+                        IO.<Connection, Failure, Void>accessM(connection ->
+                            IO.effect(() -> connection.close()))
+                    )
             ).foldCauseM(
                 cause -> IO.succeed(1),
                 success -> IO.fail(Cause.fail(GeneralFailure.of(success)))
@@ -155,7 +146,10 @@ public class RepositoryTest {
         );
     }
 
-    private static IO<Connection, Failure, Integer> updatePersonName(int id, String name) {
+    private static IO<Connection, Failure, Integer> updatePersonName(
+        final int id,
+        final String name
+    ) {
         return Repository.updatePrepared(
             "UPDATE person SET name=? WHERE id = ?",
             ps -> {
@@ -165,7 +159,9 @@ public class RepositoryTest {
         );
     }
 
-    private static IO<Connection, Failure, Person> selectSingleAsPerson( Integer id) {
+    private static IO<Connection, Failure, Person> selectSingleAsPerson(
+        final Integer id
+    ) {
         return Repository.querySingle(
             "SELECT id, name, age FROM person p WHERE id = ?",
             rs -> Person.of(
@@ -177,7 +173,9 @@ public class RepositoryTest {
         );
     }
 
-    private static <T> void checkDbCommand(IO<Connection, Failure, T> testDbCommand) {
+    private static <T> void checkDbCommand(
+        final IO<Connection, Failure, T> testDbCommand
+    ) {
         final Either<Failure, T> repositoryOrFailure = createRepository()
             .flatMap(repository -> {
                 final Environment environment =

@@ -33,15 +33,21 @@ import fp.util.Tuple2;
 public class NumericTest {
     final static DefaultPlatform platform = new DefaultPlatform();
 
-    final static Runtime<Void> defaultRuntime = new DefaultRuntime<Void>(null, platform);
+    final static Runtime<Void> defaultRuntime =
+        new DefaultRuntime<Void>(null, platform);
 
     @AfterClass
     public static void setUp() {
         platform.shutdown();
     }
 
-    private static Logger logger = Logger.getLogger(NumericTest.class.getSimpleName());
-    private static Consumer<Object> log(Level level, String message) {
+    private static Logger logger = Logger.getLogger(
+        NumericTest.class.getSimpleName()
+    );
+    private static Consumer<Object> log(
+        final Level level,
+        final String message
+    ) {
         return object -> logger.log(level, message, object);
     }
 
@@ -73,7 +79,9 @@ public class NumericTest {
             queryNumericData()
                 .map(items -> items
                     .map(NumericTest::calcReciprocal)
-                    .peek(log(Level.FINEST, "Calculated reciprocal values: {0}"))
+                    .peek(
+                        log(Level.FINEST, "Calculated reciprocal values: {0}")
+                    )
                     .filter(NumericTest::isFieldYIsRight)
                     .map(NumericTest::mapFieldYRight)
                     .reduce(BigDecimal::add)
@@ -95,7 +103,9 @@ public class NumericTest {
                     .map(NumericTest::calcReciprocal)
                     .peek(log(Level.FINEST, "Calculated 1/sin(x) values: {0}"))
                     .filter(NumericTest::isFieldYIsRight)
-                    .peek(log(Level.FINEST, "Filtered 1/sin(x) right values: {0}"))
+                    .peek(
+                        log(Level.FINEST, "Filtered 1/sin(x) right values: {0}")
+                    )
                     .map(NumericTest::mapFieldYRight)
                     .reduce(BigDecimal::add)
                 ).peek(sum ->
@@ -104,7 +114,7 @@ public class NumericTest {
         );
     }
 
-    private static Record calcReciprocal(Record record) {
+    private static Record calcReciprocal(final Record record) {
         return record.copy(builder -> builder
             .modify("title", (String title) -> "1/" + title)
             .modify("y", (BigDecimal y) -> ExceptionFailure.tryCatch(
@@ -126,11 +136,11 @@ public class NumericTest {
     private static final Either<Failure, BigDecimal> wrongValue =
         Left.of(GeneralFailure.of("Wrong value"));
 
-    private static boolean isFieldYIsRight(Record record) {
+    private static boolean isFieldYIsRight(final Record record) {
         return record.fieldOrElse("y", wrongValue).isRight();
     }
 
-    private static BigDecimal mapFieldYRight(Record record) {
+    private static BigDecimal mapFieldYRight(final Record record) {
         return record.fieldOrElse("y", wrongValue).get();
     }
 
@@ -175,7 +185,9 @@ public class NumericTest {
         );
     }
 
-    private static IO<Connection, Failure, Integer> insertLabel(final String label) {
+    private static IO<Connection, Failure, Integer> insertLabel(
+        final String label
+    ) {
         return Repository.updatePrepared(
             "INSERT INTO label(title) values(?)",
             ps -> ps.setString(1, label)
@@ -197,7 +209,9 @@ public class NumericTest {
         );
     }
 
-    private static <T> void checkDbCommand(IO<Connection, Failure, T> testDbCommand) {
+    private static <T> void checkDbCommand(
+        final IO<Connection, Failure, T> testDbCommand
+    ) {
         final Either<Failure, T> repositoryOrFailure = createRepository()
             .flatMap(repository -> {
                 final Environment environment =

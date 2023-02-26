@@ -33,7 +33,8 @@ import fp.util.Tuple2;
 public class ContactTest {
     final static DefaultPlatform platform = new DefaultPlatform();
 
-    final static Runtime<Void> defaultRuntime = new DefaultRuntime<Void>(null, platform);
+    final static Runtime<Void> defaultRuntime =
+        new DefaultRuntime<Void>(null, platform);
 
     @AfterClass
     public static void setUp() {
@@ -123,8 +124,8 @@ public class ContactTest {
     @Test
     public void testPartialLoad() {
         final Either<Failure, User> expectedUser = User.of(2, "Jane Doe");
-        final IO<Connection, Failure, Either<Failure, User>> dbCommandIdCheckedUser =
-            createAndFill.flatMap(v ->
+        final IO<Connection, Failure, Either<Failure, User>>
+            dbCommandIdCheckedUser = createAndFill.flatMap(v ->
                 queryUserIds()
                     .map(items -> items
                         .filter(ContactTest::checkUserIdSlow)
@@ -191,7 +192,9 @@ public class ContactTest {
         );
     }
 
-    private static IO<Connection, Failure, Stream<Either<Failure, User>>> queryUsers() {
+    private static IO<Connection, Failure, Stream<Either<Failure, User>>>
+        queryUsers()
+    {
         return Repository.query(
             "SELECT id_user, name FROM user ORDER BY name",
             rs -> User.of(rs.getInt(1), rs.getString(2)),
@@ -211,7 +214,9 @@ public class ContactTest {
         ;
     }
 
-    private static IO<Connection, Failure, Email> querySingleEmail(User user) {
+    private static IO<Connection, Failure, Email> querySingleEmail(
+        final User user
+    ) {
         return Repository.querySingle(
             "SELECT email, validated " +
                 "FROM email " +
@@ -222,7 +227,9 @@ public class ContactTest {
         );
     }
 
-    private static IO<Connection, Failure, Stream<Email>> queryEmails(User user) {
+    private static IO<Connection, Failure, Stream<Email>> queryEmails(
+        final User user
+    ) {
         return Repository.query(
             "SELECT email, validated " +
                 "FROM email " +
@@ -242,12 +249,12 @@ public class ContactTest {
         );
     }
 
-    private static boolean checkUserIdSlow(Integer id) {
+    private static boolean checkUserIdSlow(final Integer id) {
         return (id == 2);
     }
 
     private static IO<Connection, Failure, Either<Failure, User>>
-        querySingleUser(Optional<Integer> idOpt)
+        querySingleUser(final Optional<Integer> idOpt)
     {
         if (idOpt.isPresent()) {
             return Repository.querySingle(
@@ -256,11 +263,17 @@ public class ContactTest {
                 idOpt.get()
             );
         } else {
-            return IO.fail(Cause.fail((Failure) GeneralFailure.of("Missing user id")));
+            return IO.fail(
+                Cause.fail(
+                    (Failure) GeneralFailure.of("Missing user id")
+                )
+            );
         }
     }
 
-    private static <T> void checkDbCommand(IO<Connection, Failure, T> testDbCommand) {
+    private static <T> void checkDbCommand(
+        final IO<Connection, Failure, T> testDbCommand
+    ) {
         final Either<Failure, T> repositoryOrFailure = createRepository()
             .flatMap(repository -> {
                 final Environment environment =
@@ -277,7 +290,10 @@ public class ContactTest {
     }
 
     private static interface User {
-        public static Either<Failure, User> of(int id, String name) {
+        public static Either<Failure, User> of(
+            final int id,
+            final String name
+        ) {
             if (name.trim().isEmpty()) {
                 return Left.of(
                     GeneralFailure.of("Wrong user name")
@@ -288,7 +304,7 @@ public class ContactTest {
                 );
             }
         }
-        public User addEmail(Email email);
+        public User addEmail(final Email email);
         public int getId();
     }
 
@@ -297,7 +313,11 @@ public class ContactTest {
         private final String name;
         private final Optional<TempEmail> email;
 
-        private TempUser(int id, String name, Optional<TempEmail> email) {
+        private TempUser(
+            final int id,
+            final String name,
+            final Optional<TempEmail> email
+        ) {
             this.id = id;
             this.name = name;
             this.email = email;
@@ -323,7 +343,7 @@ public class ContactTest {
         }
 
         @Override
-        public boolean equals(Object other) {
+        public boolean equals(final Object other) {
             if (other instanceof TempUser) {
                 TempUser user = (TempUser) other;
                 return Objects.equals(id, user.id)
@@ -345,7 +365,11 @@ public class ContactTest {
         private final String name;
         private final ValidatedEmail email;
 
-        private ValidatedUser(int id, String name, ValidatedEmail email) {
+        private ValidatedUser(
+            final int id,
+            final String name,
+            final ValidatedEmail email
+        ) {
             this.id = id;
             this.name = name;
             this.email = email;
@@ -365,7 +389,7 @@ public class ContactTest {
         }
 
         @Override
-        public boolean equals(Object other) {
+        public boolean equals(final Object other) {
             if (other instanceof ValidatedUser) {
                 ValidatedUser user = (ValidatedUser) other;
                 return Objects.equals(id, user.id)
@@ -383,7 +407,7 @@ public class ContactTest {
     }
 
     private static interface Email {
-        public static Email of(String email, boolean validated) {
+        public static Email of(final String email, final boolean validated) {
             if (validated) {
                 return new ValidatedEmail(email);
             } else {
@@ -395,7 +419,7 @@ public class ContactTest {
     private static class TempEmail implements Email {
         private final String email;
 
-        private TempEmail(String email) {
+        private TempEmail(final String email) {
             this.email = email;
         }
 
@@ -405,7 +429,7 @@ public class ContactTest {
         }
 
         @Override
-        public boolean equals(Object other) {
+        public boolean equals(final Object other) {
             if (other instanceof TempEmail) {
                 TempEmail tempEmail = (TempEmail) other;
                 return Objects.equals(email, tempEmail.email);
@@ -423,7 +447,7 @@ public class ContactTest {
     private static class ValidatedEmail implements Email {
         private final String email;
 
-        private ValidatedEmail(String email) {
+        private ValidatedEmail(final String email) {
             this.email = email;
         }
 
@@ -433,7 +457,7 @@ public class ContactTest {
         }
 
         @Override
-        public boolean equals(Object other) {
+        public boolean equals(final Object other) {
             if (other instanceof ValidatedEmail) {
                 ValidatedEmail validatedEmail = (ValidatedEmail) other;
                 return Objects.equals(email, validatedEmail.email);

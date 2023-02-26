@@ -13,7 +13,8 @@ public class Person {
         this.age = age;
     }
 
-    public static Person of(final Integer id, final String name, final int age) {
+    public static Person of(final Integer id, final String name, final int age)
+    {
         return new Person(id, name, age);
     }
 
@@ -29,7 +30,7 @@ public class Person {
     @Override
     public boolean equals(Object other) {
         if (other instanceof Person) {
-            Person person = (Person) other;
+            final Person person = (Person) other;
             return Objects.equals(id, person.id)
                 && Objects.equals(name, person.name)
                 && Objects.equals(age, person.age);

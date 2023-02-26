@@ -47,7 +47,7 @@ lazy val root = (project in file("."))
     javaOptions += "-Xmx512m",
     organization := "io.github.enpassant",
     libraryDependencies ++= Seq(
-      "io.github.enpassant" % "jazio" % "1.0.0",
+      "io.github.enpassant" % "jazio" % "1.0.1-SNAPSHOT",
       "org.postgresql" % "postgresql" % "42.2.10" % Test,
       "com.h2database" % "h2" % "1.4.197" % Test,
       "junit" % "junit" % "4.12" % Test,
