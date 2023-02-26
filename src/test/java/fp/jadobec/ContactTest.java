@@ -152,7 +152,7 @@ public class ContactTest {
         return Repository.Live.create(
             "org.h2.jdbcx.JdbcDataSource",
             "SELECT 1",
-            Tuple2.of("URL", "jdbc:h2:mem:")
+            Tuple2.of("URL", "jdbc:h2:mem:;MODE=MySQL;NON_KEYWORDS=USER")
         );
     }
 

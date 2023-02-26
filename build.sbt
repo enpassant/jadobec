@@ -49,7 +49,7 @@ lazy val root = (project in file("."))
     libraryDependencies ++= Seq(
       "io.github.enpassant" % "jazio" % "1.0.1-SNAPSHOT",
       "org.postgresql" % "postgresql" % "42.2.10" % Test,
-      "com.h2database" % "h2" % "1.4.197" % Test,
+      "com.h2database" % "h2" % "2.1.214" % Test,
       "junit" % "junit" % "4.12" % Test,
       "com.novocode" % "junit-interface" % "0.11" % Test
     ),
