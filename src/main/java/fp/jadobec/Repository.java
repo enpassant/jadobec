@@ -165,10 +165,10 @@ public class Repository
                 final DataSource dataSource = (DataSource) constructor.newInstance();
                 for (final Tuple2<String, String> property : properties) {
                     final Method method = type.getMethod(
-                        "set" + property.getFirst(),
+                        "set" + property._1(),
                         String.class
                     );
-                    method.invoke(dataSource, property.getSecond());
+                    method.invoke(dataSource, property._2());
                 }
 
                 conn = dataSource.getConnection();
