@@ -193,7 +193,7 @@ public class Record
                     final R result = mapper.apply(value);
                     values.put(name, result);
                 }
-            } catch (Exception e) {
+            } catch (Exception ignored) {
             }
 
             return this;

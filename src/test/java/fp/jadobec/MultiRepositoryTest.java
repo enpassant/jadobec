@@ -1,8 +1,5 @@
 package fp.jadobec;
 
-import java.util.Arrays;
-import java.util.List;
-
 import org.junit.AfterClass;
 import org.junit.Test;
 
@@ -35,15 +32,9 @@ public class MultiRepositoryTest
         platform.shutdown();
     }
 
-    private final Person johnDoe = Person.of(1, "John Doe", 32);
-
     private final Person janeDoe = Person.of(2, "Jane Doe", 28);
 
     private final Person jakeDoe = Person.of(2, "Jake Doe", 28);
-
-    private final Person jareDoe = Person.of(2, "Jare Doe", 28);
-
-    private final List<Person> expectedPersons = Arrays.asList(johnDoe, janeDoe);
 
     @Test
     public void testUpdatePreparedPerson()
@@ -98,8 +89,8 @@ public class MultiRepositoryTest
     {
         final Either<Failure, T> repositoryOrFailure = createRepository("db1").flatMap(
             repository -> createRepository("db2").flatMap(
-                repository2 -> {
-                    return Cause.resultFlatten(defaultRuntime.unsafeRun(
+                repository2 ->
+                    Cause.resultFlatten(defaultRuntime.unsafeRun(
                         repoBase.use(
                                 MultiRepositoryTest.fill(repoBase).flatMap(i ->
                                     repo2.use(
@@ -108,8 +99,7 @@ public class MultiRepositoryTest
                                         )))
                             ).provide(repoBase.name, Repository.Service.class, repository)
                             .provide(repo2.name, Repository.Service.class, repository2)
-                    ));
-                }));
+                    ))));
 
         assertTrue(
             repositoryOrFailure.toString(),

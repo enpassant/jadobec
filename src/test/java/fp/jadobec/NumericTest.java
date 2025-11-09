@@ -7,7 +7,6 @@ import java.util.function.Consumer;
 import java.util.function.Function;
 import java.util.logging.Level;
 import java.util.logging.Logger;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.junit.AfterClass;
@@ -57,8 +56,8 @@ public class NumericTest
 
     private static final IO<Failure, Integer> createAndFill =
         createNumericDb().flatMap(v ->
-            fillNumeric("sin(x)", x -> Math.sin(x)).flatMap(s ->
-                fillNumeric("cos(x)", x -> Math.cos(x)).flatMap(c ->
+            fillNumeric("sin(x)", Math::sin).flatMap(s ->
+                fillNumeric("cos(x)", Math::cos).flatMap(c ->
                     fillNumeric("x", x -> x)
                 )));
 
@@ -174,11 +173,9 @@ public class NumericTest
                         x.doubleValue(),
                         fn.apply(x.doubleValue())
                     ))
-                .collect(
-                    Collectors.reducing(
-                        IO.succeed(1),
-                        (c1, c2) -> c1.flatMap(c -> c2)
-                    )
+                .reduce(
+                    IO.succeed(1),
+                    (c1, c2) -> c1.flatMap(c -> c2)
                 )
         );
     }
@@ -230,14 +227,13 @@ public class NumericTest
     )
     {
         final Either<Failure, T> repositoryOrFailure = createRepository()
-            .flatMap(repository -> {
-                return Cause.resultFlatten(defaultRuntime.unsafeRun(
+            .flatMap(repository ->
+                Cause.resultFlatten(defaultRuntime.unsafeRun(
                     repoBase.use(
                         createAndFill.flatMap(i ->
                             testDbCommand
                         )).provide(repoBase.name, Repository.Service.class, repository)
-                ));
-            });
+                )));
 
         assertTrue(
             repositoryOrFailure.toString(),

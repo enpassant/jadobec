@@ -4,10 +4,10 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
 import java.util.Optional;
-import java.util.stream.Collectors;
 import java.util.stream.Stream;
 
 import org.junit.AfterClass;
+import org.junit.Assert;
 import org.junit.Test;
 
 import fp.io.Cause;
@@ -25,7 +25,6 @@ import fp.util.Tuple2;
 
 import static org.junit.Assert.assertArrayEquals;
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
 
 public class ContactTest
@@ -58,7 +57,7 @@ public class ContactTest
             ).peek(users ->
                 assertArrayEquals(
                     expectedUsers.toArray(),
-                    users.collect(Collectors.toList()).toArray()
+                    users.toList().toArray()
                 )
             )
         );
@@ -98,7 +97,7 @@ public class ContactTest
                     queryUsers(),
                     ContactTest::addOneEmail
                 ).map(items -> items.noneMatch(Either::isRight))
-            ).peek(isFailure -> assertFalse(isFailure))
+            ).peek(Assert::assertFalse)
         );
     }
 
@@ -202,8 +201,7 @@ public class ContactTest
         );
     }
 
-    private static IO<Failure, Stream<Either<Failure, User>>>
-    queryUsers()
+    private static IO<Failure, Stream<Either<Failure, User>>> queryUsers()
     {
         return repoBase.query(
             "SELECT id_user, name FROM user ORDER BY name",
@@ -269,8 +267,9 @@ public class ContactTest
         return (id == 2);
     }
 
-    private static IO<Failure, Either<Failure, User>>
-    querySingleUser(final Optional<Integer> idOpt)
+    private static IO<Failure, Either<Failure, User>> querySingleUser(
+        final Optional<Integer> idOpt
+    )
     {
         if (idOpt.isPresent()) {
             return repoBase.querySingle(
@@ -292,12 +291,11 @@ public class ContactTest
     )
     {
         final Either<Failure, T> repositoryOrFailure = createRepository()
-            .flatMap(repository -> {
-                return Cause.resultFlatten(defaultRuntime.unsafeRun(
+            .flatMap(repository ->
+                Cause.resultFlatten(defaultRuntime.unsafeRun(
                     repoBase.use(testDbCommand)
                         .provide(repoBase.name, Repository.Service.class, repository)
-                ));
-            });
+                )));
 
         assertTrue(
             repositoryOrFailure.toString(),

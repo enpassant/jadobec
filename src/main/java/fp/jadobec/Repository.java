@@ -47,7 +47,7 @@ public class Repository
 
     public interface Service
     {
-        <C, T> IO<Failure, T> use(final IO<Failure, T> command);
+        <T> IO<Failure, T> use(final IO<Failure, T> command);
 
         <T> IO<Failure, T> querySingle(
             String sql,
@@ -118,17 +118,17 @@ public class Repository
         private Live(final DataSource dataSource)
         {
             this.name = UUID.randomUUID().toString();
-            this.connectionFactory = () -> dataSource.getConnection();
+            this.connectionFactory = dataSource::getConnection;
         }
 
         @Override
-        public <C, T> IO<Failure, T> use(
+        public <T> IO<Failure, T> use(
             final IO<Failure, T> command
         )
         {
             return IO.bracket(
-                IO.effect(() -> connectionFactory.get()),
-                connection -> IO.effect(() -> connection.close()),
+                IO.effect(connectionFactory::get),
+                connection -> IO.effect(connection::close),
                 connection -> command.provide(name, Connection.class, connection)
             );
         }
@@ -145,7 +145,7 @@ public class Repository
                     rs.close();
                     return new Live(dataSource);
                 },
-                stmt -> stmt.close()
+                Statement::close
             );
         }
 
@@ -156,7 +156,7 @@ public class Repository
             Tuple2<String, String>... properties
         )
         {
-            Connection conn = null;
+            Connection conn;
             Statement stmt = null;
 
             try {
@@ -186,7 +186,7 @@ public class Repository
                     if (stmt != null) {
                         stmt.close();
                     }
-                } catch (SQLException se) {
+                } catch (SQLException ignored) {
                 }
             }
         }
@@ -251,7 +251,7 @@ public class Repository
         )
         {
             return IO.bracket(IO.absolve(IO.access(name, Connection.class, connection -> {
-                    PreparedStatement stmt = null;
+                    PreparedStatement stmt;
 
                     try {
                         stmt = connection.prepareStatement(sql);
@@ -373,7 +373,7 @@ public class Repository
                     setAutoCommit(connection, false),
                     connection2 -> setAutoCommit(connection, true),
                     connection3 -> dbCommand.peekM(t ->
-                        IO.effect(() -> connection3.commit())
+                        IO.effect(connection3::commit)
                     ).recover(failure -> this.<T>rollback(connection3, failure))
                 )
             ).blocking();
@@ -399,7 +399,7 @@ public class Repository
             Stream<T> stream
         )
         {
-            return IO.succeed(stream.collect(Collectors.toList()).stream());
+            return IO.succeed(stream.toList().stream());
         }
 
         public <T> IO<Failure, Stream<T>> iterateToStreamWithFailure(
@@ -478,14 +478,14 @@ public class Repository
             final Extractor<T> extractor
         )
         {
-            Live.ResultSetIterator<T> iterator = new Live.ResultSetIterator<T>(resultSet, extractor);
+            Live.ResultSetIterator<T> iterator = new Live.ResultSetIterator<>(resultSet, extractor);
             return StreamSupport.stream(
                 Spliterators.spliteratorUnknownSize(iterator, 0),
                 false
             ).onClose(() -> {
                 try {
                     iterator.close();
-                } catch (Exception e) {
+                } catch (Exception ignored) {
                 }
             });
         }

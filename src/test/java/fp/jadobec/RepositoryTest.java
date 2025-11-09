@@ -150,7 +150,7 @@ public class RepositoryTest
                 repoBase.update("INSERT INTO person VALUES(3, 'Big Joe', 2)")
                     .peekM(i ->
                         IO.accessM(Connection.class, connection ->
-                            IO.effect(() -> connection.close()))
+                            IO.effect(connection::close))
                     )
             ).foldCauseM(
                 cause -> IO.succeed(1),
@@ -193,13 +193,12 @@ public class RepositoryTest
     )
     {
         final Either<Failure, T> repositoryOrFailure = createRepository()
-            .flatMap(repository -> {
-                return Cause.resultFlatten(defaultRuntime.unsafeRun(
+            .flatMap(repository ->
+                Cause.resultFlatten(defaultRuntime.unsafeRun(
                     repoBase.use(
                         RepositoryTest.fill().flatMap(i -> testDbCommand)
                     ).provide(repoBase.name, Repository.Service.class, repository)
-                ));
-            });
+                )));
 
         assertTrue(
             repositoryOrFailure.toString(),
