@@ -1,11 +1,7 @@
 package fp.jadobec;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-
 import java.math.BigDecimal;
 import java.math.RoundingMode;
-import java.sql.Connection;
 import java.util.Optional;
 import java.util.function.Consumer;
 import java.util.function.Function;
@@ -17,10 +13,9 @@ import java.util.stream.Stream;
 import org.junit.AfterClass;
 import org.junit.Test;
 
+import fp.io.Cause;
 import fp.io.DefaultPlatform;
 import fp.io.DefaultRuntime;
-import fp.io.Environment;
-import fp.io.Cause;
 import fp.io.IO;
 import fp.io.Runtime;
 import fp.util.Either;
@@ -30,35 +25,45 @@ import fp.util.GeneralFailure;
 import fp.util.Left;
 import fp.util.Tuple2;
 
-public class NumericTest {
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
+
+public class NumericTest
+{
     final static DefaultPlatform platform = new DefaultPlatform();
 
-    final static Runtime<Void> defaultRuntime =
-        new DefaultRuntime<Void>(null, platform);
+    final static Runtime defaultRuntime =
+        new DefaultRuntime(null, platform);
+
+    private static final Repository repoBase = Repository.of();
 
     @AfterClass
-    public static void setUp() {
+    public static void setUp()
+    {
         platform.shutdown();
     }
 
-    private static Logger logger = Logger.getLogger(
+    private static final Logger logger = Logger.getLogger(
         NumericTest.class.getSimpleName()
     );
+
     private static Consumer<Object> log(
         final Level level,
         final String message
-    ) {
+    )
+    {
         return object -> logger.log(level, message, object);
     }
 
-    private static final IO<Connection, Failure, Integer> createAndFill =
+    private static final IO<Failure, Integer> createAndFill =
         createNumericDb().flatMap(v ->
-        fillNumeric("sin(x)", x -> Math.sin(x)).flatMap(s ->
-        fillNumeric("cos(x)", x -> Math.cos(x)).flatMap(c ->
-        fillNumeric("x", x -> x)
-    )));
+            fillNumeric("sin(x)", x -> Math.sin(x)).flatMap(s ->
+                fillNumeric("cos(x)", x -> Math.cos(x)).flatMap(c ->
+                    fillNumeric("x", x -> x)
+                )));
 
-    private static Either<Failure, Repository.Live> createRepository() {
+    private static Either<Failure, Repository.Live> createRepository()
+    {
         return Repository.Live.create(
             "org.h2.jdbcx.JdbcDataSource",
             "SELECT 1",
@@ -67,14 +72,16 @@ public class NumericTest {
     }
 
     @Test
-    public void testNumeric() {
+    public void testNumeric()
+    {
         checkDbCommand(
             queryNumericData()
         );
     }
 
     @Test
-    public void testReciprocalSum() {
+    public void testReciprocalSum()
+    {
         checkDbCommand(
             queryNumericData()
                 .map(items -> items
@@ -92,7 +99,8 @@ public class NumericTest {
     }
 
     @Test
-    public void testReciprocalXSum() {
+    public void testReciprocalXSum()
+    {
         checkDbCommand(
             queryNumericData()
                 .map(items -> items
@@ -114,7 +122,8 @@ public class NumericTest {
         );
     }
 
-    private static Record calcReciprocal(final Record record) {
+    private static Record calcReciprocal(final Record record)
+    {
         return record.copy(builder -> builder
             .modify("title", (String title) -> "1/" + title)
             .modify("y", (BigDecimal y) -> ExceptionFailure.tryCatch(
@@ -123,31 +132,35 @@ public class NumericTest {
         );
     }
 
-    private static IO<Connection, Failure, Stream<Record>> queryNumericData() {
-        return Repository.query(
+    private static IO<Failure, Stream<Record>> queryNumericData()
+    {
+        return repoBase.query(
             "SELECT l.title, d.x, d.y " +
                 "FROM data d JOIN label l ON d.id_label=l.id_label " +
                 "ORDER BY x",
             rs -> Record.of(rs).get(),
-            Repository::mapToStream
+            repoBase::mapToStream
         );
     }
 
     private static final Either<Failure, BigDecimal> wrongValue =
         Left.of(GeneralFailure.of("Wrong value"));
 
-    private static boolean isFieldYIsRight(final Record record) {
+    private static boolean isFieldYIsRight(final Record record)
+    {
         return record.fieldOrElse("y", wrongValue).isRight();
     }
 
-    private static BigDecimal mapFieldYRight(final Record record) {
+    private static BigDecimal mapFieldYRight(final Record record)
+    {
         return record.fieldOrElse("y", wrongValue).get();
     }
 
-    private static IO<Connection, Failure, Integer> fillNumeric(
+    private static IO<Failure, Integer> fillNumeric(
         final String label,
         final Function<Double, Double> fn
-    ) {
+    )
+    {
         final BigDecimal three = new BigDecimal("3.0");
         final BigDecimal step = new BigDecimal("0.1");
         return insertLabel(label).flatMap(idLabel ->
@@ -167,39 +180,42 @@ public class NumericTest {
                         (c1, c2) -> c1.flatMap(c -> c2)
                     )
                 )
-            );
+        );
     }
 
-    private static IO<Connection, Failure, Integer> createNumericDb() {
-        return Repository.batchUpdate(
+    private static IO<Failure, Integer> createNumericDb()
+    {
+        return repoBase.batchUpdate(
             "CREATE TABLE label(" +
                 "id_label INT auto_increment, " +
                 "title VARCHAR(30) NOT NULL " +
-            ")",
+                ")",
             "CREATE TABLE data(" +
                 "id_data INT auto_increment, " +
                 "id_label INT NOT NULL, " +
                 "x DECIMAL(10,4) NOT NULL, " +
                 "y DECIMAL(10,4) NOT NULL " +
-            ")"
+                ")"
         );
     }
 
-    private static IO<Connection, Failure, Integer> insertLabel(
+    private static IO<Failure, Integer> insertLabel(
         final String label
-    ) {
-        return Repository.updatePrepared(
+    )
+    {
+        return repoBase.updatePrepared(
             "INSERT INTO label(title) values(?)",
             ps -> ps.setString(1, label)
         );
     }
 
-    private static IO<Connection, Failure, Integer> insertData(
+    private static IO<Failure, Integer> insertData(
         final int idLabel,
         final double x,
         final double y
-    ) {
-        return Repository.updatePrepared(
+    )
+    {
+        return repoBase.updatePrepared(
             "INSERT INTO data(id_label, x, y) values(?, ?, ?)",
             ps -> {
                 ps.setInt(1, idLabel);
@@ -210,18 +226,17 @@ public class NumericTest {
     }
 
     private static <T> void checkDbCommand(
-        final IO<Connection, Failure, T> testDbCommand
-    ) {
+        final IO<Failure, T> testDbCommand
+    )
+    {
         final Either<Failure, T> repositoryOrFailure = createRepository()
             .flatMap(repository -> {
-                final Environment environment =
-                    Environment.of(Repository.Service.class, repository);
                 return Cause.resultFlatten(defaultRuntime.unsafeRun(
-                    Repository.use(
+                    repoBase.use(
                         createAndFill.flatMap(i ->
-                        testDbCommand
-                    )).provide(environment))
-                );
+                            testDbCommand
+                        )).provide(repoBase.name, Repository.Service.class, repository)
+                ));
             });
 
         assertTrue(

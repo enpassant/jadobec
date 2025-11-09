@@ -1,15 +1,18 @@
 package fp.jadobec;
 
-import static org.junit.Assert.*;
 import org.junit.Test;
 
 import fp.util.Either;
 import fp.util.Failure;
 import fp.util.Right;
 
-public class RecordTest {
+import static org.junit.Assert.assertEquals;
+
+public class RecordTest
+{
     @Test
-    public void testRecordCopy() {
+    public void testRecordCopy()
+    {
         final Record expectedRecord = Record.build(builder -> builder
             .field("id", 3)
             .field("name", "Jake Doe")
@@ -30,7 +33,8 @@ public class RecordTest {
     }
 
     @Test
-    public void testRecordAsPerson() {
+    public void testRecordAsPerson()
+    {
         final Record record = Record.build(builder -> builder
             .field("id", 3)
             .field("name", "Jake Doe")
@@ -43,7 +47,8 @@ public class RecordTest {
     }
 
     @Test
-    public void testPersonAsRecord() {
+    public void testPersonAsRecord()
+    {
         final Person person = Person.of(3, "Jake Doe", 13);
         final Record record = Record.build(builder -> builder
             .field("id", 3)

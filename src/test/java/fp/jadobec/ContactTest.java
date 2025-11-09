@@ -1,11 +1,5 @@
 package fp.jadobec;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-
-import java.sql.Connection;
 import java.util.Arrays;
 import java.util.List;
 import java.util.Objects;
@@ -16,10 +10,9 @@ import java.util.stream.Stream;
 import org.junit.AfterClass;
 import org.junit.Test;
 
+import fp.io.Cause;
 import fp.io.DefaultPlatform;
 import fp.io.DefaultRuntime;
-import fp.io.Environment;
-import fp.io.Cause;
 import fp.io.IO;
 import fp.io.Runtime;
 import fp.util.Either;
@@ -30,19 +23,29 @@ import fp.util.Right;
 import fp.util.StreamUtil;
 import fp.util.Tuple2;
 
-public class ContactTest {
+import static org.junit.Assert.assertArrayEquals;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+
+public class ContactTest
+{
     final static DefaultPlatform platform = new DefaultPlatform();
 
-    final static Runtime<Void> defaultRuntime =
-        new DefaultRuntime<Void>(null, platform);
+    final static Runtime defaultRuntime =
+        new DefaultRuntime(null, platform);
+
+    private static final Repository repoBase = Repository.of();
 
     @AfterClass
-    public static void setUp() {
+    public static void setUp()
+    {
         platform.shutdown();
     }
 
     @Test
-    public void testTempUsers() {
+    public void testTempUsers()
+    {
         final List<Either<Failure, User>> expectedUsers = Arrays.asList(
             User.of(3, "Jake Doe"),
             User.of(2, "Jane Doe"),
@@ -62,7 +65,8 @@ public class ContactTest {
     }
 
     @Test
-    public void testSingleContact() {
+    public void testSingleContact()
+    {
         final List<Either<Failure, User>> expectedUsers = Arrays.asList(
             Left.of(GeneralFailure.of("Missing result")),
             User.of(2, "Jane Doe").map(user ->
@@ -75,7 +79,7 @@ public class ContactTest {
 
         checkDbCommand(
             createAndFill.flatMap(v ->
-                Repository.mapStreamEither(
+                repoBase.mapStreamEither(
                     queryUsers(),
                     ContactTest::addOneEmail
                 )
@@ -86,10 +90,11 @@ public class ContactTest {
     }
 
     @Test
-    public void testFailedSingleContact() {
+    public void testFailedSingleContact()
+    {
         checkDbCommand(
             createAndFill.flatMap(v ->
-                Repository.mapStreamEither(
+                repoBase.mapStreamEither(
                     queryUsers(),
                     ContactTest::addOneEmail
                 ).map(items -> items.noneMatch(Either::isRight))
@@ -98,7 +103,8 @@ public class ContactTest {
     }
 
     @Test
-    public void testContacts() {
+    public void testContacts()
+    {
         final List<Either<Failure, User>> expectedUsers = Arrays.asList(
             User.of(3, "Jake Doe"),
             User.of(2, "Jane Doe").map(user ->
@@ -111,7 +117,7 @@ public class ContactTest {
 
         checkDbCommand(
             createAndFill.flatMap(v ->
-                Repository.mapStreamEither(
+                repoBase.mapStreamEither(
                     queryUsers(),
                     ContactTest::addEmails
                 )
@@ -122,17 +128,18 @@ public class ContactTest {
     }
 
     @Test
-    public void testPartialLoad() {
+    public void testPartialLoad()
+    {
         final Either<Failure, User> expectedUser = User.of(2, "Jane Doe");
-        final IO<Connection, Failure, Either<Failure, User>>
+        final IO<Failure, Either<Failure, User>>
             dbCommandIdCheckedUser = createAndFill.flatMap(v ->
-                queryUserIds()
-                    .map(items -> items
-                        .filter(ContactTest::checkUserIdSlow)
-                        .findFirst()
-                    )
-                    .flatMap(ContactTest::querySingleUser)
-            );
+            queryUserIds()
+                .map(items -> items
+                    .filter(ContactTest::checkUserIdSlow)
+                    .findFirst()
+                )
+                .flatMap(ContactTest::querySingleUser)
+        );
 
         checkDbCommand(
             dbCommandIdCheckedUser
@@ -142,13 +149,14 @@ public class ContactTest {
         );
     }
 
-    private static final IO<Connection, Failure, Integer> createAndFill =
-        Repository.transaction(
+    private static final IO<Failure, Integer> createAndFill =
+        repoBase.transaction(
             createDb().flatMap(v ->
-            insertData()
-        ));
+                insertData()
+            ));
 
-    private static Either<Failure, Repository.Live> createRepository() {
+    private static Either<Failure, Repository.Live> createRepository()
+    {
         return Repository.Live.create(
             "org.h2.jdbcx.JdbcDataSource",
             "SELECT 1",
@@ -156,12 +164,13 @@ public class ContactTest {
         );
     }
 
-    private static IO<Connection, Failure, Integer> createDb() {
-        return Repository.batchUpdate(
+    private static IO<Failure, Integer> createDb()
+    {
+        return repoBase.batchUpdate(
             "CREATE TABLE user(" +
                 "id_user INT auto_increment, " +
                 "name VARCHAR(50) NOT NULL " +
-            ")",
+                ")",
             "CREATE INDEX user_name ON user(name)",
             "CREATE TABLE email(" +
                 "id_email INT auto_increment, " +
@@ -169,55 +178,59 @@ public class ContactTest {
                 "email VARCHAR(50) NOT NULL, " +
                 "importance INT NULL, " +
                 "validated BOOLEAN NOT NULL " +
-            ")",
+                ")",
             "CREATE INDEX email_email ON email(email)"
         );
     }
 
-    private static IO<Connection, Failure, Integer> insertData() {
-        return Repository.batchUpdate(
+    private static IO<Failure, Integer> insertData()
+    {
+        return repoBase.batchUpdate(
             "INSERT INTO user(id_user, name) VALUES(1, 'John Doe')",
             "INSERT INTO email(id_user, email, validated) " +
-            "  VALUES(1, 'john.doe@doe.com', '0')",
+                "  VALUES(1, 'john.doe@doe.com', '0')",
             "INSERT INTO email(id_user, email, validated) " +
-            "  VALUES(1, 'john@doe.com', '1')",
+                "  VALUES(1, 'john@doe.com', '1')",
             "INSERT INTO user(id_user, name) VALUES(2, 'Jane Doe')",
             "INSERT INTO email(id_user, email, validated) " +
-            "  VALUES(2, 'jane.doe@doe.com', '1')",
+                "  VALUES(2, 'jane.doe@doe.com', '1')",
             "INSERT INTO email(id_user, email, validated, importance) " +
-            "  VALUES(2, 'jane@doe.com', '0', 1)",
+                "  VALUES(2, 'jane@doe.com', '0', 1)",
             "INSERT INTO email(id_user, email, validated) " +
-            "  VALUES(2, 'janedoe@doe.com', '1')",
+                "  VALUES(2, 'janedoe@doe.com', '1')",
             "INSERT INTO user(id_user, name) VALUES(3, 'Jake Doe')"
         );
     }
 
-    private static IO<Connection, Failure, Stream<Either<Failure, User>>>
-        queryUsers()
+    private static IO<Failure, Stream<Either<Failure, User>>>
+    queryUsers()
     {
-        return Repository.query(
+        return repoBase.query(
             "SELECT id_user, name FROM user ORDER BY name",
             rs -> User.of(rs.getInt(1), rs.getString(2)),
-            Repository::mapToStream
+            repoBase::mapToStream
         );
     }
 
-    private static IO<Connection, Failure, User> addOneEmail(final User user) {
+    private static IO<Failure, User> addOneEmail(final User user)
+    {
         return querySingleEmail(user)
             .map(user::addEmail)
-        ;
+            ;
     }
 
-    private static IO<Connection, Failure, User> addEmails(final User user) {
+    private static IO<Failure, User> addEmails(final User user)
+    {
         return queryEmails(user)
             .map(StreamUtil.reduce(user, User::addEmail))
-        ;
+            ;
     }
 
-    private static IO<Connection, Failure, Email> querySingleEmail(
+    private static IO<Failure, Email> querySingleEmail(
         final User user
-    ) {
-        return Repository.querySingle(
+    )
+    {
+        return repoBase.querySingle(
             "SELECT email, validated " +
                 "FROM email " +
                 "WHERE id_user=? " +
@@ -227,37 +240,40 @@ public class ContactTest {
         );
     }
 
-    private static IO<Connection, Failure, Stream<Email>> queryEmails(
+    private static IO<Failure, Stream<Email>> queryEmails(
         final User user
-    ) {
-        return Repository.query(
+    )
+    {
+        return repoBase.query(
             "SELECT email, validated " +
                 "FROM email " +
                 "WHERE id_user=? " +
                 "ORDER BY importance desc, validated desc",
             rs -> Email.of(rs.getString(1), rs.getBoolean(2)),
-            Repository::mapToStream,
+            repoBase::mapToStream,
             user.getId()
         );
     }
 
-    private static IO<Connection, Failure, Stream<Integer>> queryUserIds() {
-        return Repository.query(
+    private static IO<Failure, Stream<Integer>> queryUserIds()
+    {
+        return repoBase.query(
             "SELECT id_user FROM user ORDER BY name",
             rs -> rs.getInt(1),
-            Repository::mapToStream
+            repoBase::mapToStream
         );
     }
 
-    private static boolean checkUserIdSlow(final Integer id) {
+    private static boolean checkUserIdSlow(final Integer id)
+    {
         return (id == 2);
     }
 
-    private static IO<Connection, Failure, Either<Failure, User>>
-        querySingleUser(final Optional<Integer> idOpt)
+    private static IO<Failure, Either<Failure, User>>
+    querySingleUser(final Optional<Integer> idOpt)
     {
         if (idOpt.isPresent()) {
-            return Repository.querySingle(
+            return repoBase.querySingle(
                 "SELECT id_user, name FROM user where id_user = ?",
                 rs -> User.of(rs.getInt(1), rs.getString(2)),
                 idOpt.get()
@@ -265,21 +281,21 @@ public class ContactTest {
         } else {
             return IO.fail(
                 Cause.fail(
-                    (Failure) GeneralFailure.of("Missing user id")
+                    GeneralFailure.of("Missing user id")
                 )
             );
         }
     }
 
     private static <T> void checkDbCommand(
-        final IO<Connection, Failure, T> testDbCommand
-    ) {
+        final IO<Failure, T> testDbCommand
+    )
+    {
         final Either<Failure, T> repositoryOrFailure = createRepository()
             .flatMap(repository -> {
-                final Environment environment =
-                    Environment.of(Repository.Service.class, repository);
                 return Cause.resultFlatten(defaultRuntime.unsafeRun(
-                    Repository.use(testDbCommand).provide(environment)
+                    repoBase.use(testDbCommand)
+                        .provide(repoBase.name, Repository.Service.class, repository)
                 ));
             });
 
@@ -289,11 +305,13 @@ public class ContactTest {
         );
     }
 
-    private static interface User {
-        public static Either<Failure, User> of(
+    private interface User
+    {
+        static Either<Failure, User> of(
             final int id,
             final String name
-        ) {
+        )
+        {
             if (name.trim().isEmpty()) {
                 return Left.of(
                     GeneralFailure.of("Wrong user name")
@@ -304,26 +322,33 @@ public class ContactTest {
                 );
             }
         }
-        public User addEmail(final Email email);
-        public int getId();
+
+        User addEmail(final Email email);
+
+        int getId();
     }
 
-    private static class TempUser implements User {
+    private static class TempUser implements User
+    {
         private final int id;
+
         private final String name;
+
         private final Optional<TempEmail> email;
 
         private TempUser(
             final int id,
             final String name,
             final Optional<TempEmail> email
-        ) {
+        )
+        {
             this.id = id;
             this.name = name;
             this.email = email;
         }
 
-        public User addEmail(Email email) {
+        public User addEmail(Email email)
+        {
             if (email instanceof TempEmail) {
                 return new TempUser(id, name, Optional.of((TempEmail) email));
             } else if (email instanceof ValidatedEmail) {
@@ -333,19 +358,21 @@ public class ContactTest {
             }
         }
 
-        public int getId() {
+        public int getId()
+        {
             return id;
         }
 
         @Override
-        public String toString() {
+        public String toString()
+        {
             return "TempUser(" + id + ", " + name + ", " + email + ")";
         }
 
         @Override
-        public boolean equals(final Object other) {
-            if (other instanceof TempUser) {
-                TempUser user = (TempUser) other;
+        public boolean equals(final Object other)
+        {
+            if (other instanceof TempUser user) {
                 return Objects.equals(id, user.id)
                     && Objects.equals(name, user.name)
                     && Objects.equals(email, user.email);
@@ -355,43 +382,51 @@ public class ContactTest {
         }
 
         @Override
-        public int hashCode() {
+        public int hashCode()
+        {
             return Objects.hash(id, name, email);
         }
     }
 
-    private static class ValidatedUser implements User {
+    private static class ValidatedUser implements User
+    {
         private final int id;
+
         private final String name;
+
         private final ValidatedEmail email;
 
         private ValidatedUser(
             final int id,
             final String name,
             final ValidatedEmail email
-        ) {
+        )
+        {
             this.id = id;
             this.name = name;
             this.email = email;
         }
 
-        public User addEmail(Email email) {
+        public User addEmail(Email email)
+        {
             return this;
         }
 
-        public int getId() {
+        public int getId()
+        {
             return id;
         }
 
         @Override
-        public String toString() {
+        public String toString()
+        {
             return "ValidatedUser(" + id + ", " + name + ", " + email + ")";
         }
 
         @Override
-        public boolean equals(final Object other) {
-            if (other instanceof ValidatedUser) {
-                ValidatedUser user = (ValidatedUser) other;
+        public boolean equals(final Object other)
+        {
+            if (other instanceof ValidatedUser user) {
                 return Objects.equals(id, user.id)
                     && Objects.equals(name, user.name)
                     && Objects.equals(email, user.email);
@@ -401,13 +436,16 @@ public class ContactTest {
         }
 
         @Override
-        public int hashCode() {
+        public int hashCode()
+        {
             return Objects.hash(id, name, email);
         }
     }
 
-    private static interface Email {
-        public static Email of(final String email, final boolean validated) {
+    private interface Email
+    {
+        static Email of(final String email, final boolean validated)
+        {
             if (validated) {
                 return new ValidatedEmail(email);
             } else {
@@ -416,22 +454,25 @@ public class ContactTest {
         }
     }
 
-    private static class TempEmail implements Email {
+    private static class TempEmail implements Email
+    {
         private final String email;
 
-        private TempEmail(final String email) {
+        private TempEmail(final String email)
+        {
             this.email = email;
         }
 
         @Override
-        public String toString() {
+        public String toString()
+        {
             return "TempEmail(" + email + ")";
         }
 
         @Override
-        public boolean equals(final Object other) {
-            if (other instanceof TempEmail) {
-                TempEmail tempEmail = (TempEmail) other;
+        public boolean equals(final Object other)
+        {
+            if (other instanceof TempEmail tempEmail) {
                 return Objects.equals(email, tempEmail.email);
             } else {
                 return false;
@@ -439,27 +480,31 @@ public class ContactTest {
         }
 
         @Override
-        public int hashCode() {
+        public int hashCode()
+        {
             return Objects.hash(email);
         }
     }
 
-    private static class ValidatedEmail implements Email {
+    private static class ValidatedEmail implements Email
+    {
         private final String email;
 
-        private ValidatedEmail(final String email) {
+        private ValidatedEmail(final String email)
+        {
             this.email = email;
         }
 
         @Override
-        public String toString() {
+        public String toString()
+        {
             return "ValidatedEmail(" + email + ")";
         }
 
         @Override
-        public boolean equals(final Object other) {
-            if (other instanceof ValidatedEmail) {
-                ValidatedEmail validatedEmail = (ValidatedEmail) other;
+        public boolean equals(final Object other)
+        {
+            if (other instanceof ValidatedEmail validatedEmail) {
                 return Objects.equals(email, validatedEmail.email);
             } else {
                 return false;
@@ -467,7 +512,8 @@ public class ContactTest {
         }
 
         @Override
-        public int hashCode() {
+        public int hashCode()
+        {
             return Objects.hash(email);
         }
     }

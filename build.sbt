@@ -1,6 +1,6 @@
 name := """jadobec"""
 
-version := "1.0.0-SNAPSHOT"
+version := "2.0.0-SNAPSHOT"
 
 description := "JDBC wrapper for very simple, functional database handling."
 
@@ -47,7 +47,7 @@ lazy val root = (project in file("."))
     javaOptions += "-Xmx512m",
     organization := "io.github.enpassant",
     libraryDependencies ++= Seq(
-      "io.github.enpassant" % "jazio" % "1.0.1-SNAPSHOT",
+      "io.github.enpassant" % "jazio" % "2.0.0-SNAPSHOT",
       "org.postgresql" % "postgresql" % "42.2.10" % Test,
       "com.h2database" % "h2" % "2.1.214" % Test,
       "junit" % "junit" % "4.12" % Test,
