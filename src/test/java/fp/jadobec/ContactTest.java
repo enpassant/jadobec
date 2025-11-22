@@ -13,6 +13,13 @@ import fp.io.DefaultPlatform;
 import fp.io.DefaultRuntime;
 import fp.io.IO;
 import fp.io.Runtime;
+import fp.jadobec.Contact.Email;
+import fp.jadobec.Contact.TempEmail;
+import fp.jadobec.Contact.TempUser;
+import fp.jadobec.Contact.TempUserWithEmail;
+import fp.jadobec.Contact.User;
+import fp.jadobec.Contact.ValidatedEmail;
+import fp.jadobec.Contact.ValidatedUser;
 import fp.util.Either;
 import fp.util.Failure;
 import fp.util.GeneralFailure;
@@ -289,107 +296,5 @@ public class ContactTest
             repositoryOrFailure.isRight(),
             repositoryOrFailure.toString()
         );
-    }
-
-    private interface User
-    {
-        static Either<Failure, User> of(
-            final int id,
-            final String name
-        )
-        {
-            return of(id, name, new NoEmail());
-        }
-
-        static Either<Failure, User> of(
-            final int id,
-            final String name,
-            final Email email
-        )
-        {
-            if (name.trim().isEmpty()) {
-                return Left.of(
-                    GeneralFailure.of("Wrong user name")
-                );
-            } else {
-                return Right.of(
-                    switch (email) {
-                        case ValidatedEmail validatedEmail -> new ValidatedUser(id, name, validatedEmail);
-                        case TempEmail tempEmail -> new TempUserWithEmail(id, name, tempEmail);
-                        default -> new TempUser(id, name);
-                    }
-                );
-            }
-        }
-
-        User addEmail(final Email email);
-
-        int id();
-    }
-
-    private record TempUser(int id, String name)
-        implements User
-    {
-        public User addEmail(Email email)
-        {
-            if (email instanceof TempEmail tempEmail) {
-                return new TempUserWithEmail(id, name, tempEmail);
-            } else if (email instanceof ValidatedEmail validatedEmail) {
-                return new ValidatedUser(id, name, validatedEmail);
-            } else {
-                return this;
-            }
-        }
-    }
-
-    private record TempUserWithEmail(int id, String name, TempEmail email) implements User
-    {
-        @Override
-        public User addEmail(Email email)
-        {
-            if (email instanceof TempEmail tempEmail) {
-                return new TempUserWithEmail(id, name, tempEmail);
-            } else if (email instanceof ValidatedEmail validatedEmail) {
-                return new ValidatedUser(id, name, validatedEmail);
-            } else {
-                return this;
-            }
-        }
-    }
-
-    private record ValidatedUser(int id, String name, ValidatedEmail validatedEmail)
-        implements User
-    {
-        public User addEmail(Email email)
-        {
-            return this;
-        }
-    }
-
-    private interface Email
-    {
-        static Email of(final String email, final boolean validated)
-        {
-            if (email == null || email.isBlank()) {
-                return new NoEmail();
-            } else if (validated) {
-                return new ValidatedEmail(email);
-            } else {
-                return new TempEmail(email);
-            }
-        }
-    }
-
-    private record NoEmail() implements Email
-    {
-    }
-
-    private record TempEmail(String email) implements Email
-    {
-    }
-
-    private record ValidatedEmail(String email)
-        implements Email
-    {
     }
 }

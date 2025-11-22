@@ -1,6 +1,6 @@
 name := """jadobec"""
 
-version := "2.0.0"
+version := "2.0.1-SNAPSHOT"
 
 description := "JDBC wrapper for very simple, functional database handling."
 
