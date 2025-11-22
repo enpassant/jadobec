@@ -1,6 +1,6 @@
 name := """jadobec"""
 
-version := "2.0.0-SNAPSHOT"
+version := "2.0.0"
 
 description := "JDBC wrapper for very simple, functional database handling."
 
@@ -45,11 +45,11 @@ lazy val root = (project in file("."))
     javaOptions += "-Xmx512m",
     organization := "io.github.enpassant",
     libraryDependencies ++= Seq(
-      "io.github.enpassant" % "jazio" % "2.0.0-SNAPSHOT",
-      "org.postgresql" % "postgresql" % "42.2.10" % Test,
-      "com.h2database" % "h2" % "2.1.214" % Test,
-      "junit" % "junit" % "4.12" % Test,
-      "com.novocode" % "junit-interface" % "0.11" % Test
+      "io.github.enpassant" % "jazio" % "2.0.0",
+      "org.postgresql" % "postgresql" % "42.7.8" % Test,
+      "com.h2database" % "h2" % "2.4.240" % Test,
+      "org.junit.jupiter" % "junit-jupiter-api" % "6.0.1" % Test,
+      "com.github.sbt.junit" % "jupiter-interface" % "0.17.0" % Test
     ),
     crossPaths := false,
     testOptions += Tests.Argument(TestFrameworks.JUnit),

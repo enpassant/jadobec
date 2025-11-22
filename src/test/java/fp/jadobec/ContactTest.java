@@ -2,13 +2,11 @@ package fp.jadobec;
 
 import java.util.Arrays;
 import java.util.List;
-import java.util.Objects;
-import java.util.Optional;
 import java.util.stream.Stream;
 
-import org.junit.AfterClass;
-import org.junit.Assert;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Assertions;
+import org.junit.jupiter.api.Test;
 
 import fp.io.Cause;
 import fp.io.DefaultPlatform;
@@ -23,9 +21,9 @@ import fp.util.Right;
 import fp.util.StreamUtil;
 import fp.util.Tuple2;
 
-import static org.junit.Assert.assertArrayEquals;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertArrayEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class ContactTest
 {
@@ -34,7 +32,7 @@ public class ContactTest
     final static Runtime defaultRuntime =
         new DefaultRuntime(null, platform);
 
-    @AfterClass
+    @AfterAll
     public static void setUp()
     {
         platform.shutdown();
@@ -66,12 +64,10 @@ public class ContactTest
     {
         final List<Either<Failure, User>> expectedUsers = Arrays.asList(
             Left.of(GeneralFailure.of("Missing result")),
-            User.of(2, "Jane Doe").map(user ->
-                user.addEmail(Email.of("jane@doe.com", false))
-            ),
-            User.of(1, "John Doe").map(user ->
-                user.addEmail(Email.of("john@doe.com", true))
-            )
+            Right.of(new TempUserWithEmail(2, "Jane Doe",
+                new TempEmail("jane@doe.com"))),
+            Right.of(new ValidatedUser(1, "John Doe",
+                new ValidatedEmail("john@doe.com")))
         );
 
         checkDbCommand(
@@ -95,7 +91,7 @@ public class ContactTest
                     queryUsers(),
                     ContactTest::addOneEmail
                 ).map(items -> items.noneMatch(Either::isRight))
-            ).peek(Assert::assertFalse)
+            ).peek(Assertions::assertFalse)
         );
     }
 
@@ -103,13 +99,11 @@ public class ContactTest
     public void testContacts()
     {
         final List<Either<Failure, User>> expectedUsers = Arrays.asList(
-            User.of(3, "Jake Doe"),
-            User.of(2, "Jane Doe").map(user ->
-                user.addEmail(Email.of("jane.doe@doe.com", true))
-            ),
-            User.of(1, "John Doe").map(user ->
-                user.addEmail(Email.of("john@doe.com", true))
-            )
+            Right.of(new TempUser(3, "Jake Doe")),
+            Right.of(new ValidatedUser(2, "Jane Doe",
+                new ValidatedEmail("jane.doe@doe.com"))),
+            Right.of(new ValidatedUser(1, "John Doe",
+                new ValidatedEmail("john@doe.com")))
         );
 
         checkDbCommand(
@@ -134,6 +128,10 @@ public class ContactTest
                 .map(items -> items
                     .filter(ContactTest::checkUserIdSlow)
                     .findFirst()
+                )
+                .flatMap(idOpt ->
+                    idOpt.map(IO::succeed)
+                        .orElseGet(() -> IO.fail(Cause.fail("Missing user id")))
                 )
                 .flatMap(ContactTest::querySingleUser)
         );
@@ -232,7 +230,7 @@ public class ContactTest
                 "WHERE id_user=? " +
                 "ORDER BY importance desc, validated desc",
             rs -> Email.of(rs.getString(1), rs.getBoolean(2)),
-            user.getId()
+            user.id()
         );
     }
 
@@ -247,7 +245,7 @@ public class ContactTest
                 "ORDER BY importance desc, validated desc",
             rs -> Email.of(rs.getString(1), rs.getBoolean(2)),
             Repository::mapToStream,
-            user.getId()
+            user.id()
         );
     }
 
@@ -266,22 +264,14 @@ public class ContactTest
     }
 
     private static IO<Failure, Either<Failure, User>> querySingleUser(
-        final Optional<Integer> idOpt
+        final Integer id
     )
     {
-        if (idOpt.isPresent()) {
-            return Repository.querySingle(
-                "SELECT id_user, name FROM user where id_user = ?",
-                rs -> User.of(rs.getInt(1), rs.getString(2)),
-                idOpt.get()
-            );
-        } else {
-            return IO.fail(
-                Cause.fail(
-                    GeneralFailure.of("Missing user id")
-                )
-            );
-        }
+        return Repository.querySingle(
+            "SELECT id_user, name FROM user where id_user = ?",
+            rs -> User.of(rs.getInt(1), rs.getString(2)),
+            id
+        );
     }
 
     private static <T> void checkDbCommand(
@@ -296,8 +286,8 @@ public class ContactTest
                 )));
 
         assertTrue(
-            repositoryOrFailure.toString(),
-            repositoryOrFailure.isRight()
+            repositoryOrFailure.isRight(),
+            repositoryOrFailure.toString()
         );
     }
 
@@ -308,133 +298,71 @@ public class ContactTest
             final String name
         )
         {
+            return of(id, name, new NoEmail());
+        }
+
+        static Either<Failure, User> of(
+            final int id,
+            final String name,
+            final Email email
+        )
+        {
             if (name.trim().isEmpty()) {
                 return Left.of(
                     GeneralFailure.of("Wrong user name")
                 );
             } else {
                 return Right.of(
-                    new TempUser(id, name, Optional.empty())
+                    switch (email) {
+                        case ValidatedEmail validatedEmail -> new ValidatedUser(id, name, validatedEmail);
+                        case TempEmail tempEmail -> new TempUserWithEmail(id, name, tempEmail);
+                        default -> new TempUser(id, name);
+                    }
                 );
             }
         }
 
         User addEmail(final Email email);
 
-        int getId();
+        int id();
     }
 
-    private static class TempUser implements User
+    private record TempUser(int id, String name)
+        implements User
     {
-        private final int id;
-
-        private final String name;
-
-        private final Optional<TempEmail> email;
-
-        private TempUser(
-            final int id,
-            final String name,
-            final Optional<TempEmail> email
-        )
-        {
-            this.id = id;
-            this.name = name;
-            this.email = email;
-        }
-
         public User addEmail(Email email)
         {
-            if (email instanceof TempEmail) {
-                return new TempUser(id, name, Optional.of((TempEmail) email));
-            } else if (email instanceof ValidatedEmail) {
-                return new ValidatedUser(id, name, (ValidatedEmail) email);
+            if (email instanceof TempEmail tempEmail) {
+                return new TempUserWithEmail(id, name, tempEmail);
+            } else if (email instanceof ValidatedEmail validatedEmail) {
+                return new ValidatedUser(id, name, validatedEmail);
             } else {
                 return this;
             }
         }
+    }
 
-        public int getId()
-        {
-            return id;
-        }
-
+    private record TempUserWithEmail(int id, String name, TempEmail email) implements User
+    {
         @Override
-        public String toString()
+        public User addEmail(Email email)
         {
-            return "TempUser(" + id + ", " + name + ", " + email + ")";
-        }
-
-        @Override
-        public boolean equals(final Object other)
-        {
-            if (other instanceof TempUser user) {
-                return Objects.equals(id, user.id)
-                    && Objects.equals(name, user.name)
-                    && Objects.equals(email, user.email);
+            if (email instanceof TempEmail tempEmail) {
+                return new TempUserWithEmail(id, name, tempEmail);
+            } else if (email instanceof ValidatedEmail validatedEmail) {
+                return new ValidatedUser(id, name, validatedEmail);
             } else {
-                return false;
+                return this;
             }
-        }
-
-        @Override
-        public int hashCode()
-        {
-            return Objects.hash(id, name, email);
         }
     }
 
-    private static class ValidatedUser implements User
+    private record ValidatedUser(int id, String name, ValidatedEmail validatedEmail)
+        implements User
     {
-        private final int id;
-
-        private final String name;
-
-        private final ValidatedEmail email;
-
-        private ValidatedUser(
-            final int id,
-            final String name,
-            final ValidatedEmail email
-        )
-        {
-            this.id = id;
-            this.name = name;
-            this.email = email;
-        }
-
         public User addEmail(Email email)
         {
             return this;
-        }
-
-        public int getId()
-        {
-            return id;
-        }
-
-        @Override
-        public String toString()
-        {
-            return "ValidatedUser(" + id + ", " + name + ", " + email + ")";
-        }
-
-        @Override
-        public boolean equals(final Object other)
-        {
-            if (other instanceof ValidatedUser user) {
-                return Objects.equals(id, user.id)
-                    && Objects.equals(name, user.name)
-                    && Objects.equals(email, user.email);
-            } else {
-                return false;
-            }
-        }
-
-        @Override
-        public int hashCode()
-        {
-            return Objects.hash(id, name, email);
         }
     }
 
@@ -442,7 +370,9 @@ public class ContactTest
     {
         static Email of(final String email, final boolean validated)
         {
-            if (validated) {
+            if (email == null || email.isBlank()) {
+                return new NoEmail();
+            } else if (validated) {
                 return new ValidatedEmail(email);
             } else {
                 return new TempEmail(email);
@@ -450,67 +380,16 @@ public class ContactTest
         }
     }
 
-    private static class TempEmail implements Email
+    private record NoEmail() implements Email
     {
-        private final String email;
-
-        private TempEmail(final String email)
-        {
-            this.email = email;
-        }
-
-        @Override
-        public String toString()
-        {
-            return "TempEmail(" + email + ")";
-        }
-
-        @Override
-        public boolean equals(final Object other)
-        {
-            if (other instanceof TempEmail tempEmail) {
-                return Objects.equals(email, tempEmail.email);
-            } else {
-                return false;
-            }
-        }
-
-        @Override
-        public int hashCode()
-        {
-            return Objects.hash(email);
-        }
     }
 
-    private static class ValidatedEmail implements Email
+    private record TempEmail(String email) implements Email
     {
-        private final String email;
+    }
 
-        private ValidatedEmail(final String email)
-        {
-            this.email = email;
-        }
-
-        @Override
-        public String toString()
-        {
-            return "ValidatedEmail(" + email + ")";
-        }
-
-        @Override
-        public boolean equals(final Object other)
-        {
-            if (other instanceof ValidatedEmail validatedEmail) {
-                return Objects.equals(email, validatedEmail.email);
-            } else {
-                return false;
-            }
-        }
-
-        @Override
-        public int hashCode()
-        {
-            return Objects.hash(email);
-        }
+    private record ValidatedEmail(String email)
+        implements Email
+    {
     }
 }

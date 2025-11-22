@@ -1,7 +1,7 @@
 package fp.jadobec;
 
-import org.junit.AfterClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Test;
 
 import fp.io.Cause;
 import fp.io.DefaultPlatform;
@@ -12,8 +12,8 @@ import fp.util.Either;
 import fp.util.Failure;
 import fp.util.Tuple2;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class MultiRepositoryTest
 {
@@ -31,7 +31,7 @@ public class MultiRepositoryTest
     final static Runtime defaultRuntime =
         new DefaultRuntime(null, platform);
 
-    @AfterClass
+    @AfterAll
     public static void setUp()
     {
         platform.shutdown();
@@ -110,8 +110,8 @@ public class MultiRepositoryTest
                     ))));
 
         assertTrue(
-            repositoryOrFailure.toString(),
-            repositoryOrFailure.isRight()
+            repositoryOrFailure.isRight(),
+            repositoryOrFailure.toString()
         );
     }
 

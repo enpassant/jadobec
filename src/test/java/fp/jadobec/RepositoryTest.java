@@ -1,11 +1,13 @@
 package fp.jadobec;
 
 import java.sql.Connection;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.Arrays;
 import java.util.List;
 
-import org.junit.AfterClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Test;
 
 import fp.io.Cause;
 import fp.io.DefaultPlatform;
@@ -17,8 +19,8 @@ import fp.util.Failure;
 import fp.util.GeneralFailure;
 import fp.util.Tuple2;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class RepositoryTest
 {
@@ -27,7 +29,7 @@ public class RepositoryTest
     final static Runtime defaultRuntime =
         new DefaultRuntime(null, platform);
 
-    @AfterClass
+    @AfterAll
     public static void setUp()
     {
         platform.shutdown();
@@ -49,11 +51,7 @@ public class RepositoryTest
         checkDbCommand(
             Repository.querySingle(
                 "SELECT id, name, age FROM person WHERE id = 2",
-                rs -> Person.of(
-                    rs.getInt("id"),
-                    rs.getString("name"),
-                    rs.getInt("age")
-                )
+                RepositoryTest::extractPerson
             ).peek(person ->
                 assertEquals(janeDoe, person)
             )
@@ -66,11 +64,7 @@ public class RepositoryTest
         checkDbCommand(
             Repository.query(
                 "SELECT id, name, age FROM person",
-                rs -> Person.of(
-                    rs.getInt("id"),
-                    rs.getString("name"),
-                    rs.getInt("age")
-                ),
+                RepositoryTest::extractPerson,
                 Repository::mapToList
             ).peek(persons ->
                 assertEquals(expectedPersons, persons)
@@ -85,11 +79,7 @@ public class RepositoryTest
             Repository.queryPrepared(
                 "SELECT id, name, age FROM person WHERE age < ?",
                 ps -> ps.setInt(1, 40),
-                rs -> Person.of(
-                    rs.getInt("id"),
-                    rs.getString("name"),
-                    rs.getInt("age")
-                ),
+                RepositoryTest::extractPerson,
                 Repository::mapToList
             ).peek(persons ->
                 assertEquals(expectedPersons, persons)
@@ -177,12 +167,17 @@ public class RepositoryTest
     {
         return Repository.querySingle(
             "SELECT id, name, age FROM person p WHERE id = ?",
-            rs -> Person.of(
-                rs.getInt("id"),
-                rs.getString("name"),
-                rs.getInt("age")
-            ),
+            RepositoryTest::extractPerson,
             id
+        );
+    }
+
+    private static Person extractPerson(final ResultSet rs) throws SQLException
+    {
+        return Person.of(
+            rs.getInt("id"),
+            rs.getString("name"),
+            rs.getInt("age")
         );
     }
 
@@ -199,8 +194,8 @@ public class RepositoryTest
                 )));
 
         assertTrue(
-            repositoryOrFailure.toString(),
-            repositoryOrFailure.isRight()
+            repositoryOrFailure.isRight(),
+            repositoryOrFailure.toString()
         );
     }
 

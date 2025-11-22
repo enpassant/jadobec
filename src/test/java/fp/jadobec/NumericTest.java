@@ -9,8 +9,8 @@ import java.util.logging.Level;
 import java.util.logging.Logger;
 import java.util.stream.Stream;
 
-import org.junit.AfterClass;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.Test;
 
 import fp.io.Cause;
 import fp.io.DefaultPlatform;
@@ -24,8 +24,8 @@ import fp.util.GeneralFailure;
 import fp.util.Left;
 import fp.util.Tuple2;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 
 public class NumericTest
 {
@@ -34,7 +34,7 @@ public class NumericTest
     final static Runtime defaultRuntime =
         new DefaultRuntime(null, platform);
 
-    @AfterClass
+    @AfterAll
     public static void setUp()
     {
         platform.shutdown();
@@ -234,8 +234,8 @@ public class NumericTest
                 )));
 
         assertTrue(
-            repositoryOrFailure.toString(),
-            repositoryOrFailure.isRight()
+            repositoryOrFailure.isRight(),
+            repositoryOrFailure.toString()
         );
     }
 }
