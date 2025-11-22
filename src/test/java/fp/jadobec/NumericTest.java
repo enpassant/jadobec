@@ -34,8 +34,6 @@ public class NumericTest
     final static Runtime defaultRuntime =
         new DefaultRuntime(null, platform);
 
-    private static final Repository repoBase = Repository.of();
-
     @AfterClass
     public static void setUp()
     {
@@ -133,12 +131,12 @@ public class NumericTest
 
     private static IO<Failure, Stream<Record>> queryNumericData()
     {
-        return repoBase.query(
+        return Repository.query(
             "SELECT l.title, d.x, d.y " +
                 "FROM data d JOIN label l ON d.id_label=l.id_label " +
                 "ORDER BY x",
             rs -> Record.of(rs).get(),
-            repoBase::mapToStream
+            Repository::mapToStream
         );
     }
 
@@ -182,7 +180,7 @@ public class NumericTest
 
     private static IO<Failure, Integer> createNumericDb()
     {
-        return repoBase.batchUpdate(
+        return Repository.batchUpdate(
             "CREATE TABLE label(" +
                 "id_label INT auto_increment, " +
                 "title VARCHAR(30) NOT NULL " +
@@ -200,7 +198,7 @@ public class NumericTest
         final String label
     )
     {
-        return repoBase.updatePrepared(
+        return Repository.updatePrepared(
             "INSERT INTO label(title) values(?)",
             ps -> ps.setString(1, label)
         );
@@ -212,7 +210,7 @@ public class NumericTest
         final double y
     )
     {
-        return repoBase.updatePrepared(
+        return Repository.updatePrepared(
             "INSERT INTO data(id_label, x, y) values(?, ?, ?)",
             ps -> {
                 ps.setInt(1, idLabel);
@@ -229,10 +227,10 @@ public class NumericTest
         final Either<Failure, T> repositoryOrFailure = createRepository()
             .flatMap(repository ->
                 Cause.resultFlatten(defaultRuntime.unsafeRun(
-                    repoBase.use(
+                    Repository.use(
                         createAndFill.flatMap(i ->
                             testDbCommand
-                        )).provide(repoBase.name, Repository.Service.class, repository)
+                        )).provide(Repository.Service.class, repository)
                 )));
 
         assertTrue(

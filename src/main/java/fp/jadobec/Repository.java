@@ -10,7 +10,6 @@ import java.sql.Statement;
 import java.util.Iterator;
 import java.util.List;
 import java.util.Spliterators;
-import java.util.UUID;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 import java.util.stream.Stream;
@@ -33,21 +32,13 @@ import fp.util.Tuple2;
 
 public class Repository
 {
-    public final String name;
-
-    private Repository()
-    {
-        this.name = UUID.randomUUID().toString();
-    }
-
-    public static Repository of()
-    {
-        return new Repository();
-    }
-
     public interface Service
     {
         <T> IO<Failure, T> use(final IO<Failure, T> command);
+
+//        <T> IO<Failure, T> use(
+//            final String name,
+//            final IO<Failure, T> command);
 
         <T> IO<Failure, T> querySingle(
             String sql,
@@ -111,13 +102,10 @@ public class Repository
 
     public static class Live implements Service
     {
-        private final String name;
-
         private final ThrowingSupplier<Connection, SQLException> connectionFactory;
 
         private Live(final DataSource dataSource)
         {
-            this.name = UUID.randomUUID().toString();
             this.connectionFactory = dataSource::getConnection;
         }
 
@@ -129,9 +117,22 @@ public class Repository
             return IO.bracket(
                 IO.effect(connectionFactory::get),
                 connection -> IO.effect(connection::close),
-                connection -> command.provide(name, Connection.class, connection)
+                connection -> command.provide(Connection.class, connection)
             );
         }
+
+//        @Override
+//        public <T> IO<Failure, T> use(
+//            final String name,
+//            final IO<Failure, T> command
+//        )
+//        {
+//            return IO.bracket(
+//                IO.effect(connectionFactory::get),
+//                connection -> IO.effect(connection::close),
+//                connection -> command.provide(name, Connection.class, connection)
+//            );
+//        }
 
         public static Either<Failure, Live> create(
             DataSource dataSource,
@@ -250,7 +251,7 @@ public class Repository
             Function<Stream<T>, IO<Failure, R>> fn
         )
         {
-            return IO.bracket(IO.absolve(IO.access(name, Connection.class, connection -> {
+            return IO.bracket(IO.absolve(IO.access(Connection.class, connection -> {
                     PreparedStatement stmt;
 
                     try {
@@ -290,7 +291,7 @@ public class Repository
             final ThrowingConsumer<PreparedStatement, SQLException> prepare
         )
         {
-            return IO.absolve(IO.access(name, Connection.class, connection -> {
+            return IO.absolve(IO.access(Connection.class, connection -> {
                 PreparedStatement stmt = null;
 
                 try {
@@ -368,7 +369,7 @@ public class Repository
             IO<Failure, T> dbCommand
         )
         {
-            return IO.access(name, Connection.class, conn -> conn).flatMap(
+            return IO.access(Connection.class, conn -> conn).flatMap(
                 connection -> IO.bracket(
                     setAutoCommit(connection, false),
                     connection2 -> setAutoCommit(connection, true),
@@ -543,40 +544,38 @@ public class Repository
         }
     }
 
-    public <T> IO<Failure, T> use(
+    public static <T> IO<Failure, T> use(
         IO<Failure, T> command
     )
     {
-        return IO.accessM(this.name, Service.class, env -> env.use(command));
+        return IO.accessM(Service.class, env -> env.use(command));
     }
 
-    public <T> IO<Failure, T> querySingle(
+    public static <T> IO<Failure, T> querySingle(
         String sql,
         Extractor<T> createObject,
         Object... params
     )
     {
         return IO.accessM(
-            this.name,
             Service.class,
             env -> env.querySingle(sql, createObject, params)
         );
     }
 
-    public <T> IO<Failure, T> querySinglePrepared(
+    public static <T> IO<Failure, T> querySinglePrepared(
         String sql,
         ThrowingConsumer<PreparedStatement, SQLException> prepare,
         Extractor<T> createObject
     )
     {
         return IO.accessM(
-            this.name,
             Service.class,
             env -> env.querySinglePrepared(sql, prepare, createObject)
         );
     }
 
-    public <R, T> IO<Failure, R> query(
+    public static <R, T> IO<Failure, R> query(
         String sql,
         Extractor<T> createObject,
         Function<Stream<T>, IO<Failure, R>> fn,
@@ -584,13 +583,12 @@ public class Repository
     )
     {
         return IO.accessM(
-            this.name,
             Service.class,
             env -> env.query(sql, createObject, fn, params)
         );
     }
 
-    public <R, T> IO<Failure, R> queryPrepared(
+    public static <R, T> IO<Failure, R> queryPrepared(
         String sql,
         ThrowingConsumer<PreparedStatement, SQLException> prepare,
         Extractor<T> createObject,
@@ -598,96 +596,87 @@ public class Repository
     )
     {
         return IO.accessM(
-            this.name,
             Service.class,
             env -> env.queryPrepared(sql, prepare, createObject, fn)
         );
     }
 
-    public IO<Failure, Integer> update(
+    public static IO<Failure, Integer> update(
         final String sql,
         Object... params
     )
     {
         return IO.accessM(
-            this.name,
             Service.class,
             env -> env.update(sql, params)
         );
     }
 
-    public IO<Failure, Integer> updatePrepared(
+    public static IO<Failure, Integer> updatePrepared(
         final String sql,
         final ThrowingConsumer<PreparedStatement, SQLException> prepare
     )
     {
         return IO.accessM(
-            this.name,
             Service.class,
             env -> env.updatePrepared(sql, prepare)
         );
     }
 
-    public IO<Failure, Integer> batchUpdate(String... sqls)
+    public static IO<Failure, Integer> batchUpdate(String... sqls)
     {
         return IO.accessM(
-            this.name,
             Service.class,
             env -> env.batchUpdate(sqls)
         );
     }
 
-    public <T> IO<Failure, T> transaction(
+    public static <T> IO<Failure, T> transaction(
         IO<Failure, T> dbCommand
     )
     {
         return IO.accessM(
-            this.name,
             Service.class,
             env -> env.transaction(dbCommand)
         );
     }
 
-    public <T> IO<Failure, Stream<T>> mapToStream(
+    public static <T> IO<Failure, Stream<T>> mapToStream(
         Stream<T> stream
     )
     {
         return IO.accessM(
-            this.name,
             Service.class,
             env -> env.mapToStream(stream)
         );
     }
 
-    public <T> IO<Failure, Stream<T>> iterateToStreamWithFailure(
+    public static <T> IO<Failure, Stream<T>> iterateToStreamWithFailure(
         Iterator<Either<Failure, T>> iterator
     )
     {
         return IO.accessM(
-            this.name,
             Service.class,
             env -> env.iterateToStreamWithFailure(iterator)
         );
     }
 
-    public <T> IO<Failure, List<T>> mapToList(
+    public static <T> IO<Failure, List<T>> mapToList(
         Stream<T> stream
     )
     {
         return IO.accessM(
-            this.name,
             Service.class,
             env -> env.mapToList(stream)
         );
     }
 
-    public <F, R, U> IO<F, Stream<Either<F, R>>> mapStreamEither(
+    public static <F, R, U> IO<F, Stream<Either<F, R>>> mapStreamEither(
         IO<F, Stream<Either<F, U>>> io,
         Function<U, IO<F, R>> mapper
     )
     {
         return IO.accessM(
-            this.name,
             Service.class,
             env -> env.mapStreamEither(io, mapper)
         );

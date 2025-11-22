@@ -27,8 +27,6 @@ public class RepositoryTest
     final static Runtime defaultRuntime =
         new DefaultRuntime(null, platform);
 
-    private static final Repository repoBase = Repository.of();
-
     @AfterClass
     public static void setUp()
     {
@@ -49,7 +47,7 @@ public class RepositoryTest
     public void testQuerySinglePerson()
     {
         checkDbCommand(
-            repoBase.querySingle(
+            Repository.querySingle(
                 "SELECT id, name, age FROM person WHERE id = 2",
                 rs -> Person.of(
                     rs.getInt("id"),
@@ -66,14 +64,14 @@ public class RepositoryTest
     public void testQueryPerson()
     {
         checkDbCommand(
-            repoBase.query(
+            Repository.query(
                 "SELECT id, name, age FROM person",
                 rs -> Person.of(
                     rs.getInt("id"),
                     rs.getString("name"),
                     rs.getInt("age")
                 ),
-                repoBase::mapToList
+                Repository::mapToList
             ).peek(persons ->
                 assertEquals(expectedPersons, persons)
             )
@@ -84,7 +82,7 @@ public class RepositoryTest
     public void testQueryPreparedPerson()
     {
         checkDbCommand(
-            repoBase.queryPrepared(
+            Repository.queryPrepared(
                 "SELECT id, name, age FROM person WHERE age < ?",
                 ps -> ps.setInt(1, 40),
                 rs -> Person.of(
@@ -92,7 +90,7 @@ public class RepositoryTest
                     rs.getString("name"),
                     rs.getInt("age")
                 ),
-                repoBase::mapToList
+                Repository::mapToList
             ).peek(persons ->
                 assertEquals(expectedPersons, persons)
             )
@@ -115,7 +113,7 @@ public class RepositoryTest
     public void testGoodTransaction()
     {
         checkDbCommand(
-            repoBase.transaction(
+            Repository.transaction(
                 updatePersonName(2, "Jake Doe").flatMap(v ->
                     updatePersonName(2, "Jare Doe")
                 )).flatMap(v ->
@@ -130,7 +128,7 @@ public class RepositoryTest
     public void testBadTransaction()
     {
         checkDbCommand(
-            repoBase.transaction(
+            Repository.transaction(
                     updatePersonName(2, "Jake Doe").flatMap(v ->
                         updatePersonName(2, null)
                     )).recover(failure -> IO.succeed(1))
@@ -146,8 +144,8 @@ public class RepositoryTest
     public void testTransactionCommitFailure()
     {
         checkDbCommand(
-            repoBase.transaction(
-                repoBase.update("INSERT INTO person VALUES(3, 'Big Joe', 2)")
+            Repository.transaction(
+                Repository.update("INSERT INTO person VALUES(3, 'Big Joe', 2)")
                     .peekM(i ->
                         IO.accessM(Connection.class, connection ->
                             IO.effect(connection::close))
@@ -164,7 +162,7 @@ public class RepositoryTest
         final String name
     )
     {
-        return repoBase.updatePrepared(
+        return Repository.updatePrepared(
             "UPDATE person SET name=? WHERE id = ?",
             ps -> {
                 ps.setString(1, name);
@@ -177,7 +175,7 @@ public class RepositoryTest
         final Integer id
     )
     {
-        return repoBase.querySingle(
+        return Repository.querySingle(
             "SELECT id, name, age FROM person p WHERE id = ?",
             rs -> Person.of(
                 rs.getInt("id"),
@@ -195,9 +193,9 @@ public class RepositoryTest
         final Either<Failure, T> repositoryOrFailure = createRepository()
             .flatMap(repository ->
                 Cause.resultFlatten(defaultRuntime.unsafeRun(
-                    repoBase.use(
+                    Repository.use(
                         RepositoryTest.fill().flatMap(i -> testDbCommand)
-                    ).provide(repoBase.name, Repository.Service.class, repository)
+                    ).provide(Repository.Service.class, repository)
                 )));
 
         assertTrue(
@@ -217,7 +215,7 @@ public class RepositoryTest
 
     private static IO<Failure, Integer> fill()
     {
-        return repoBase.batchUpdate(
+        return Repository.batchUpdate(
             "CREATE TABLE person(" +
                 "id INT auto_increment UNIQUE, " +
                 "name VARCHAR(30) NOT NULL, " +

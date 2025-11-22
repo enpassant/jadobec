@@ -34,8 +34,6 @@ public class ContactTest
     final static Runtime defaultRuntime =
         new DefaultRuntime(null, platform);
 
-    private static final Repository repoBase = Repository.of();
-
     @AfterClass
     public static void setUp()
     {
@@ -78,7 +76,7 @@ public class ContactTest
 
         checkDbCommand(
             createAndFill.flatMap(v ->
-                repoBase.mapStreamEither(
+                Repository.mapStreamEither(
                     queryUsers(),
                     ContactTest::addOneEmail
                 )
@@ -93,7 +91,7 @@ public class ContactTest
     {
         checkDbCommand(
             createAndFill.flatMap(v ->
-                repoBase.mapStreamEither(
+                Repository.mapStreamEither(
                     queryUsers(),
                     ContactTest::addOneEmail
                 ).map(items -> items.noneMatch(Either::isRight))
@@ -116,7 +114,7 @@ public class ContactTest
 
         checkDbCommand(
             createAndFill.flatMap(v ->
-                repoBase.mapStreamEither(
+                Repository.mapStreamEither(
                     queryUsers(),
                     ContactTest::addEmails
                 )
@@ -149,7 +147,7 @@ public class ContactTest
     }
 
     private static final IO<Failure, Integer> createAndFill =
-        repoBase.transaction(
+        Repository.transaction(
             createDb().flatMap(v ->
                 insertData()
             ));
@@ -165,7 +163,7 @@ public class ContactTest
 
     private static IO<Failure, Integer> createDb()
     {
-        return repoBase.batchUpdate(
+        return Repository.batchUpdate(
             "CREATE TABLE user(" +
                 "id_user INT auto_increment, " +
                 "name VARCHAR(50) NOT NULL " +
@@ -184,7 +182,7 @@ public class ContactTest
 
     private static IO<Failure, Integer> insertData()
     {
-        return repoBase.batchUpdate(
+        return Repository.batchUpdate(
             "INSERT INTO user(id_user, name) VALUES(1, 'John Doe')",
             "INSERT INTO email(id_user, email, validated) " +
                 "  VALUES(1, 'john.doe@doe.com', '0')",
@@ -203,10 +201,10 @@ public class ContactTest
 
     private static IO<Failure, Stream<Either<Failure, User>>> queryUsers()
     {
-        return repoBase.query(
+        return Repository.query(
             "SELECT id_user, name FROM user ORDER BY name",
             rs -> User.of(rs.getInt(1), rs.getString(2)),
-            repoBase::mapToStream
+            Repository::mapToStream
         );
     }
 
@@ -228,7 +226,7 @@ public class ContactTest
         final User user
     )
     {
-        return repoBase.querySingle(
+        return Repository.querySingle(
             "SELECT email, validated " +
                 "FROM email " +
                 "WHERE id_user=? " +
@@ -242,23 +240,23 @@ public class ContactTest
         final User user
     )
     {
-        return repoBase.query(
+        return Repository.query(
             "SELECT email, validated " +
                 "FROM email " +
                 "WHERE id_user=? " +
                 "ORDER BY importance desc, validated desc",
             rs -> Email.of(rs.getString(1), rs.getBoolean(2)),
-            repoBase::mapToStream,
+            Repository::mapToStream,
             user.getId()
         );
     }
 
     private static IO<Failure, Stream<Integer>> queryUserIds()
     {
-        return repoBase.query(
+        return Repository.query(
             "SELECT id_user FROM user ORDER BY name",
             rs -> rs.getInt(1),
-            repoBase::mapToStream
+            Repository::mapToStream
         );
     }
 
@@ -272,7 +270,7 @@ public class ContactTest
     )
     {
         if (idOpt.isPresent()) {
-            return repoBase.querySingle(
+            return Repository.querySingle(
                 "SELECT id_user, name FROM user where id_user = ?",
                 rs -> User.of(rs.getInt(1), rs.getString(2)),
                 idOpt.get()
@@ -293,8 +291,8 @@ public class ContactTest
         final Either<Failure, T> repositoryOrFailure = createRepository()
             .flatMap(repository ->
                 Cause.resultFlatten(defaultRuntime.unsafeRun(
-                    repoBase.use(testDbCommand)
-                        .provide(repoBase.name, Repository.Service.class, repository)
+                    Repository.use(testDbCommand)
+                        .provide(Repository.Service.class, repository)
                 )));
 
         assertTrue(

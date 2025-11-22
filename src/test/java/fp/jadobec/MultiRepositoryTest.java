@@ -17,9 +17,14 @@ import static org.junit.Assert.assertTrue;
 
 public class MultiRepositoryTest
 {
-    private static final Repository repoBase = Repository.of();
-
-    private static final Repository repo2 = Repository.of();
+    static {
+        System.setProperty(
+            "java.util.logging.config.file",
+            ClassLoader.getSystemResource(
+                "logging.properties"
+            ).getPath()
+        );
+    }
 
     final static DefaultPlatform platform = new DefaultPlatform();
 
@@ -40,25 +45,29 @@ public class MultiRepositoryTest
     public void testUpdatePreparedPerson()
     {
         checkDbCommand(
-            updatePersonName(repoBase, 2, "Jake Doe").flatMap(v ->
-                selectSingleAsPerson(repoBase, 2)
-            ).peek(person ->
-                assertEquals(jakeDoe, person)
-            ).flatMap(person ->
-                selectSingleAsPerson(repo2, 2)
-            ).peek(person ->
-                assertEquals(janeDoe, person)
-            )
+            Repository.use(
+                    updatePersonName(2, "Jake Doe").flatMap(v ->
+                        selectSingleAsPerson(2)
+                    )
+                ).useContext("db1", Repository.Service.class)
+                .peek(person ->
+                    assertEquals(jakeDoe, person)
+                ).flatMap(person ->
+                    Repository.use(
+                        selectSingleAsPerson(2)
+                    ).useContext("db2", Repository.Service.class)
+                ).peek(person ->
+                    assertEquals(janeDoe, person)
+                )
         );
     }
 
     private static IO<Failure, Integer> updatePersonName(
-        final Repository repository,
         final int id,
         final String name
     )
     {
-        return repository.updatePrepared(
+        return Repository.updatePrepared(
             "UPDATE person SET name=? WHERE id = ?",
             ps -> {
                 ps.setString(1, name);
@@ -68,11 +77,10 @@ public class MultiRepositoryTest
     }
 
     private static IO<Failure, Person> selectSingleAsPerson(
-        final Repository repository,
         final Integer id
     )
     {
-        return repository.querySingle(
+        return Repository.querySingle(
             "SELECT id, name, age FROM person p WHERE id = ?",
             rs -> Person.of(
                 rs.getInt("id"),
@@ -91,14 +99,14 @@ public class MultiRepositoryTest
             repository -> createRepository("db2").flatMap(
                 repository2 ->
                     Cause.resultFlatten(defaultRuntime.unsafeRun(
-                        repoBase.use(
-                                MultiRepositoryTest.fill(repoBase).flatMap(i ->
-                                    repo2.use(
-                                        MultiRepositoryTest.fill(repo2).flatMap(
+                        Repository.use(
+                            MultiRepositoryTest.fill().flatMap(i ->
+                                    Repository.use(
+                                        MultiRepositoryTest.fill().flatMap(
                                             j -> testDbCommand
                                         )))
-                            ).provide(repoBase.name, Repository.Service.class, repository)
-                            .provide(repo2.name, Repository.Service.class, repository2)
+                                .provide("db2", Repository.Service.class, repository2)
+                        ).provide("db1", Repository.Service.class, repository)
                     ))));
 
         assertTrue(
@@ -116,9 +124,9 @@ public class MultiRepositoryTest
         );
     }
 
-    private static IO<Failure, Integer> fill(final Repository repository)
+    private static IO<Failure, Integer> fill()
     {
-        return repository.batchUpdate(
+        return Repository.batchUpdate(
             "CREATE TABLE person(" +
                 "id INT auto_increment UNIQUE, " +
                 "name VARCHAR(30) NOT NULL, " +
